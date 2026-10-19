@@ -244,6 +244,46 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
       expect(res1).toEqual([]);
     });
 
+    it('only performs search when Enter key is pressed in the input element', async () => {
+      const { BookSearchModal } = await import('../src/modal/searchModal');
+      const searchMock = vi.fn().mockResolvedValue([
+        {
+          id: '100',
+          title: 'Aytozu Faciası',
+          author: 'Arthur C. Clarke',
+          publisher: 'İthaki',
+          url: 'https://www.kitapyurdu.com/kitap/aytozu/100.html',
+          coverUrl: '',
+        },
+      ]);
+      const mockAggregator = { search: searchMock, getFullBookData: vi.fn() };
+      const mockPlugin: any = { settings: { ...DEFAULT_SETTINGS } };
+      const mockApp: any = { vault: {}, workspace: {} };
+
+      const modal = new BookSearchModal(mockApp, mockPlugin, {
+        debounceMs: 300,
+        aggregator: mockAggregator as any,
+      });
+
+      // Typing does not trigger search
+      modal.inputEl.value = 'aytozu faciası';
+      const initialSuggestions = await modal.getSuggestions('aytozu faciası');
+      expect(initialSuggestions).toEqual([]);
+      expect(searchMock).not.toHaveBeenCalled();
+
+      // Pressing Enter triggers performSearch
+      const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+      modal.inputEl.dispatchEvent(enterEvent);
+
+      // Wait for search promise to settle
+      await vi.waitFor(() => expect(searchMock).toHaveBeenCalledWith('aytozu faciası'));
+
+      // Now suggestions return the results
+      const resultsAfterEnter = await modal.getSuggestions('aytozu faciası');
+      expect(resultsAfterEnter).toHaveLength(1);
+      expect(resultsAfterEnter[0].title).toBe('Aytozu Faciası');
+    });
+
     it('creates nested target folders safely and writes note file on book selection', async () => {
       const { BookSearchModal } = await import('../src/modal/searchModal');
       const createdFolders: string[] = [];

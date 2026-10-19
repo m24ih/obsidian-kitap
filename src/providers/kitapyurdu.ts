@@ -110,10 +110,10 @@ export class KitapyurduProvider implements IKitapyurduProvider {
 
     const doc = new DOMParser().parseFromString(html, 'text/html');
 
-    // Arama sonucu bulunamadı kontrolü
     const emptyContainer = doc.querySelector('.empty-products-container');
+    const hasEmptyMessage = Boolean(emptyContainer?.textContent?.trim());
     const cards = Array.from(doc.querySelectorAll('.ky-product'));
-    if (emptyContainer || cards.length === 0) {
+    if (hasEmptyMessage || cards.length === 0) {
       return [];
     }
 

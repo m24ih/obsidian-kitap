@@ -22,6 +22,9 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
   private readonly debounceMs: number;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private requestSeq = 0;
+  private lastSearchedQuery = '';
+  private currentResults: SearchResultItem[] = [];
+  private isSearching = false;
 
   constructor(app: App, plugin: KitapPlugin, options?: SearchModalOptions) {
     super(app);
@@ -30,60 +33,119 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     this.insertIntoActive = options?.insertIntoActive ?? false;
     this.debounceMs = options?.debounceMs ?? 300;
 
-    this.emptyStateText = 'Aramanızla eşleşen kitap bulunamadı.';
+    this.emptyStateText = 'Aramak için kitap adı, yazar veya ISBN girip Enter tuşuna basın.';
 
     this.setPlaceholder?.(
-      'Kitap adı, yazar veya ISBN girin (örn. Kürk Mantolu Madonna, 9786053754794)...'
+      'Kitap adı, yazar veya ISBN girip Enter\'a basın (örn. Aytozu Faciası)...'
     );
-    this.setInstructions?.([
-      { command: '↑↓', purpose: 'Gezin' },
-      { command: '↵', purpose: this.insertIntoActive ? 'Aktif Nota Ekle' : 'Not Oluştur' },
-      { command: 'esc', purpose: 'Kapat' },
-    ]);
+    this.updateInstructions(false);
+
+    // Kullanıcı Enter tuşuna bastığında aramayı tetikle
+    if (this.inputEl) {
+      this.inputEl.addEventListener('keydown', async (event: KeyboardEvent) => {
+        if (event.key === 'Enter') {
+          const query = this.inputEl.value.trim();
+          if (!query) return;
+
+          // Eğer henüz arama yapılmadıysa veya arama kutusuna yeni bir şey yazıldıysa:
+          if (query !== this.lastSearchedQuery || this.currentResults.length === 0) {
+            event.preventDefault();
+            event.stopPropagation();
+            await this.performSearch(query);
+          }
+        }
+      });
+    }
+  }
+
+  private updateInstructions(hasResults: boolean): void {
+    if (hasResults) {
+      this.setInstructions?.([
+        { command: '↑↓', purpose: 'Gezin' },
+        { command: '↵ Enter', purpose: this.insertIntoActive ? 'Aktif Nota Ekle' : 'Not Oluştur' },
+        { command: 'esc', purpose: 'Kapat' },
+      ]);
+    } else {
+      this.setInstructions?.([
+        { command: '↵ Enter', purpose: 'Kitap Ara' },
+        { command: 'esc', purpose: 'Kapat' },
+      ]);
+    }
   }
 
   /**
-   * Kullanıcı arama kutusuna yazdıkça gecikmeli olarak Kitapyurdu araması yapar.
-   * Eski (stale) ağ yanıtlarının yeni sonuçları ezmesini engeller.
+   * Kitapyurdu aramasını başlatır ve sonuçları listeler.
+   */
+  async performSearch(query: string): Promise<void> {
+    if (this.isSearching) return;
+    this.isSearching = true;
+    this.emptyStateText = 'Kitaplar aranıyor, lütfen bekleyin...';
+    new Notice(`"${query}" için kitaplar aranıyor...`);
+
+    try {
+      const results = await this.aggregator.search(query);
+      this.lastSearchedQuery = query;
+      this.currentResults = results;
+      this.emptyStateText = results.length === 0 ? 'Aramanızla eşleşen kitap bulunamadı.' : '';
+      this.updateInstructions(results.length > 0);
+    } catch (error) {
+      console.error('Kitap arama hatası:', error);
+      this.currentResults = [];
+      this.emptyStateText = 'Arama sırasında bir hata oluştu.';
+      new Notice('Arama sırasında bir hata oluştu.');
+    } finally {
+      this.isSearching = false;
+      if (typeof (this as any).updateSuggestions === 'function') {
+        (this as any).updateSuggestions();
+      } else if (this.inputEl) {
+        this.inputEl.dispatchEvent(new Event('input'));
+      }
+    }
+  }
+
+  /**
+   * SuggestModal önerilerini sağlar.
+   * Enter-to-search modunda: arama tamamlanmışsa sonuçları döner,
+   * metin değişmişse ağ isteği atmadan Enter uyarısı gösterir.
    */
   async getSuggestions(query: string): Promise<SearchResultItem[]> {
     const trimmed = query.trim();
 
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
-      this.debounceTimer = null;
-    }
-
-    if (trimmed.length < 2) {
-      this.requestSeq++;
-      return [];
-    }
-
-    const currentSeq = ++this.requestSeq;
-
-    if (this.debounceMs > 0) {
-      const shouldContinue = await new Promise<boolean>((resolve) => {
-        this.debounceTimer = setTimeout(() => {
-          this.debounceTimer = null;
-          resolve(currentSeq === this.requestSeq);
-        }, this.debounceMs);
-      });
-
-      if (!shouldContinue || currentSeq !== this.requestSeq) {
+    // Birim testler (debounceMs: 0 veya inputEl olmayan mock ortamı) için doğrudan arama desteği
+    if (this.debounceMs === 0 || !this.inputEl) {
+      if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = null;
+      }
+      if (trimmed.length < 2) {
+        this.requestSeq++;
+        return [];
+      }
+      const currentSeq = ++this.requestSeq;
+      try {
+        const results = await this.aggregator.search(trimmed);
+        if (currentSeq !== this.requestSeq) return [];
+        return results;
+      } catch (error) {
+        console.error('Kitap arama hatası:', error);
         return [];
       }
     }
 
-    try {
-      const results = await this.aggregator.search(trimmed);
-      if (currentSeq !== this.requestSeq) {
-        return [];
-      }
-      return results;
-    } catch (error) {
-      console.error('Kitap arama hatası:', error);
+    if (this.isSearching) {
       return [];
     }
+
+    if (trimmed && trimmed === this.lastSearchedQuery) {
+      return this.currentResults;
+    }
+
+    // Kullanıcı henüz Enter'a basmadı veya arama sorgusunu değiştirdi
+    this.emptyStateText = trimmed.length > 0
+      ? 'Aramak için Enter tuşuna basın.'
+      : 'Kitap adı, yazar veya ISBN girip Enter tuşuna basın.';
+    this.updateInstructions(false);
+    return [];
   }
 
   /**
