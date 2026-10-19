@@ -304,4 +304,45 @@ Yazar: {{author}}`,
       expect(executed).toBe(false);
     });
   });
+
+  describe('PropertyMappingComponent Focus & UI Stability Tests', () => {
+    it('does not re-render the DOM or recreate inputEl when typing', async () => {
+      const { PropertyMappingComponent } = await import('../src/settings/propertyMappingComponent');
+
+      const container = document.createElement('div');
+      const initialMappings: PropertyMappingData[] = [
+        { property: 'kapak', newProperty: '', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
+      ];
+
+      let savedData: PropertyMappingData[] = [];
+      const comp = new PropertyMappingComponent(container, {
+        mappings: initialMappings,
+        save: async (data) => {
+          savedData = data;
+        },
+      });
+
+      comp.onload();
+
+      const inputEl = container.querySelector('.kitap-property-mapping-input') as HTMLInputElement;
+      expect(inputEl).not.toBeNull();
+
+      // Simulate typing "cover" letter by letter
+      for (const char of ['c', 'co', 'cov', 'cove', 'cover']) {
+        inputEl.value = char;
+        inputEl.dispatchEvent(new Event('input'));
+
+        // Verify the inputEl is still the exact same element in the DOM tree
+        const currentInput = container.querySelector('.kitap-property-mapping-input') as HTMLInputElement;
+        expect(currentInput).toBe(inputEl);
+      }
+
+      // Save and verify state
+      const saveBtn = container.querySelector('.kitap-property-mappings-save-button') as HTMLButtonElement;
+      saveBtn.click();
+
+      expect(savedData.length).toBe(1);
+      expect(savedData[0].newProperty).toBe('cover');
+    });
+  });
 });

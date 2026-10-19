@@ -147,20 +147,53 @@
   font-size: var(--font-ui-medium);
 }
 
-/* --------------------------------------------------------------------------
-   Settings Tab Components
-   -------------------------------------------------------------------------- */
-.kitap-settings-textarea {
-  width: 100%;
-  min-height: 160px;
-  font-family: var(--font-monospace);
-  font-size: var(--font-ui-smaller);
-  padding: 8px 10px;
-  border-radius: var(--radius-s);
-  border: 1px solid var(--background-modifier-border);
-  background-color: var(--background-primary);
-  color: var(--text-normal);
+/* Stacked full-width setting layout (for templates & large textareas) */
+.kitap-setting-stacked {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.kitap-setting-stacked .setting-item-info {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.kitap-setting-stacked .setting-item-control {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: flex !important;
+}
+
+.kitap-setting-stacked .setting-item-control textarea {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 240px !important;
+  font-family: var(--font-monospace) !important;
+  font-size: var(--font-ui-smaller) !important;
+  line-height: 1.5 !important;
+  padding: 10px 12px !important;
+  background-color: var(--background-primary) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  border-radius: var(--radius-s) !important;
+  color: var(--text-normal) !important;
   resize: vertical;
+}
+
+/* Wide search input control layout (for template file search) */
+.kitap-setting-wide-control .setting-item-control {
+  flex: 1 1 50% !important;
+  max-width: 60% !important;
+  justify-content: flex-end !important;
+}
+
+.kitap-setting-wide-control .setting-item-control input {
+  width: 100% !important;
+  min-width: 260px !important;
 }
 
 .kitap-settings-vars {

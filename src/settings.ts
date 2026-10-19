@@ -60,6 +60,7 @@ export class KitapSettingTab extends PluginSettingTab {
     containerEl.createEl('h3', { text: 'Not Şablonu ve Biçimlendirme' });
 
     new Setting(containerEl)
+      .setClass('kitap-setting-wide-control')
       .setName('Şablon Dosyası (Vault İçi)')
       .setDesc('Kitap notları oluşturulurken kullanılacak vault içi Markdown şablon dosyası (.md). Belirtilirse aşağıdaki metin şablonu yerine bu dosya kullanılır.')
       .addSearch((cb) => {
@@ -73,6 +74,7 @@ export class KitapSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
+      .setClass('kitap-setting-stacked')
       .setName('Doğrudan Not Şablonu (Markdown)')
       .setDesc('Şablon dosyası seçilmediğinde veya bulunamadığında kullanılacak standart metin şablonu.')
       .addTextArea((textArea) => {
@@ -83,10 +85,7 @@ export class KitapSettingTab extends PluginSettingTab {
             this.plugin.settings.noteTemplate = value;
             await this.plugin.saveSettings();
           });
-        textArea.inputEl.rows = 12;
-        textArea.inputEl.style.width = '100%';
-        textArea.inputEl.style.fontFamily = 'var(--font-monospace)';
-        textArea.inputEl.style.fontSize = '0.85em';
+        textArea.inputEl.rows = 14;
       });
 
     new Setting(containerEl)

@@ -56,6 +56,24 @@ if (typeof HTMLElement !== "undefined") {
       return node;
     };
   }
+
+  if (!proto.addClass) {
+    proto.addClass = function (cls: string) {
+      this.classList.add(cls);
+    };
+  }
+
+  if (!proto.removeClass) {
+    proto.removeClass = function (cls: string) {
+      this.classList.remove(cls);
+    };
+  }
+
+  if (!proto.setText) {
+    proto.setText = function (text: string) {
+      this.textContent = text;
+    };
+  }
 }
 
 // Mock components for Setting
@@ -294,6 +312,11 @@ export class MockSetting {
   setName(name: string) {
     this.name = name;
     this.settingEl.createDiv({ cls: "setting-item-name", text: name });
+    return this;
+  }
+
+  setClass(cls: string) {
+    this.settingEl.classList.add(cls);
     return this;
   }
 
