@@ -244,7 +244,7 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
       expect(res1).toEqual([]);
     });
 
-    it('only performs search when Enter key is pressed in the input element', async () => {
+    it('only performs search when Enter key is pressed in the input element or modal scope', async () => {
       const { BookSearchModal } = await import('../src/modal/searchModal');
       const searchMock = vi.fn().mockResolvedValue([
         {
@@ -264,6 +264,7 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
         debounceMs: 300,
         aggregator: mockAggregator as any,
       });
+      modal.open();
 
       // Typing does not trigger search
       modal.inputEl.value = 'aytozu faciası';
@@ -271,9 +272,9 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
       expect(initialSuggestions).toEqual([]);
       expect(searchMock).not.toHaveBeenCalled();
 
-      // Pressing Enter triggers performSearch
+      // Trigger Enter via modal scope (as Obsidian handles modal keys)
       const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
-      modal.inputEl.dispatchEvent(enterEvent);
+      (modal as any).scope.handleKey(enterEvent);
 
       // Wait for search promise to settle
       await vi.waitFor(() => expect(searchMock).toHaveBeenCalledWith('aytozu faciası'));
@@ -282,6 +283,42 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
       const resultsAfterEnter = await modal.getSuggestions('aytozu faciası');
       expect(resultsAfterEnter).toHaveLength(1);
       expect(resultsAfterEnter[0].title).toBe('Aytozu Faciası');
+    });
+
+    it('performs search when search action button is clicked', async () => {
+      const { BookSearchModal } = await import('../src/modal/searchModal');
+      const searchMock = vi.fn().mockResolvedValue([
+        {
+          id: '100',
+          title: 'Üç Cisim Problemi',
+          author: 'Cixin Liu',
+          publisher: 'İthaki',
+          url: 'https://www.kitapyurdu.com/kitap/uc-cisim-problemi/100.html',
+          coverUrl: '',
+        },
+      ]);
+      const mockAggregator = { search: searchMock, getFullBookData: vi.fn() };
+      const mockPlugin: any = { settings: { ...DEFAULT_SETTINGS } };
+      const mockApp: any = { vault: {}, workspace: {} };
+
+      // Give inputEl a parent element so search button can be attached
+      const modal = new BookSearchModal(mockApp, mockPlugin, {
+        debounceMs: 300,
+        aggregator: mockAggregator as any,
+      });
+      const container = document.createElement('div');
+      container.appendChild(modal.inputEl);
+      modal.open();
+
+      modal.inputEl.value = 'üç cisim problemi';
+      const btn = container.querySelector('.kitap-search-action-btn') as HTMLButtonElement;
+      expect(btn).not.toBeNull();
+      btn.click();
+
+      await vi.waitFor(() => expect(searchMock).toHaveBeenCalledWith('üç cisim problemi'));
+      const results = await modal.getSuggestions('üç cisim problemi');
+      expect(results).toHaveLength(1);
+      expect(results[0].title).toBe('Üç Cisim Problemi');
     });
 
     it('creates nested target folders safely and writes note file on book selection', async () => {

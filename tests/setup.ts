@@ -379,15 +379,39 @@ export class PluginSettingTab {
 
 export const Setting = MockSetting;
 
+export class Scope {
+  keys: Array<{ modifiers: string[] | null; key: string | null; func: (evt: KeyboardEvent) => unknown }> = [];
+  register(modifiers: string[] | null, key: string | null, func: (evt: KeyboardEvent) => unknown) {
+    const handler = { modifiers, key, func };
+    this.keys.push(handler);
+    return handler;
+  }
+  unregister(handler: any) {
+    const idx = this.keys.indexOf(handler);
+    if (idx !== -1) this.keys.splice(idx, 1);
+  }
+  handleKey(evt: KeyboardEvent) {
+    for (const handler of this.keys) {
+      if (handler.key === null || handler.key === evt.key) {
+        const res = handler.func(evt);
+        if (res === false) return false;
+      }
+    }
+    return true;
+  }
+}
+
 export class SuggestModal {
   app: unknown;
   inputEl: HTMLInputElement;
   resultContainerEl: HTMLElement;
   emptyStateText = "";
   placeholder = "";
+  scope: Scope;
 
   constructor(app: unknown) {
     this.app = app;
+    this.scope = new Scope();
     this.inputEl = document.createElement("input");
     this.resultContainerEl = document.createElement("div");
   }
@@ -396,7 +420,10 @@ export class SuggestModal {
     this.inputEl.placeholder = placeholder;
   }
   setInstructions(_instructions: Array<{ command: string; purpose: string }>): void {}
-  open(): void {}
+  open(): void {
+    this.onOpen();
+  }
+  onOpen(): void {}
   close(): void {}
 }
 

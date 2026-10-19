@@ -40,7 +40,10 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     );
     this.updateInstructions(false);
 
-    // Kullanıcı Enter tuşuna bastığında aramayı tetikle
+    // Enter tuşunu doğrudan modal scope ve input alanına bağla
+    this.registerEnterScope();
+    this.setupSearchButton();
+
     if (this.inputEl) {
       this.inputEl.addEventListener('keydown', async (event: KeyboardEvent) => {
         if (event.key === 'Enter') {
@@ -56,6 +59,58 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
         }
       });
     }
+  }
+
+  override onOpen(): void {
+    super.onOpen?.();
+    this.registerEnterScope();
+    this.setupSearchButton();
+  }
+
+  private registerEnterScope(): void {
+    if (this.scope && typeof this.scope.register === 'function') {
+      this.scope.register([], 'Enter', (evt: KeyboardEvent) => {
+        const query = this.inputEl?.value?.trim() || '';
+        if (!query) return false;
+
+        // Henüz arama yapılmadıysa, arama kutusundaki metin son aramadan farklıysa veya sonuç yoksa:
+        if (query !== this.lastSearchedQuery || this.currentResults.length === 0) {
+          evt.preventDefault();
+          evt.stopPropagation();
+          void this.performSearch(query);
+          return false;
+        }
+
+        // Arama sonuçları zaten listelenmişse, seçilen öğeyi işle
+        const chooser = (this as any).chooser;
+        if (chooser && typeof chooser.useSelectedItem === 'function') {
+          chooser.useSelectedItem(evt);
+          return false;
+        }
+        return true;
+      });
+    }
+  }
+
+  private setupSearchButton(): void {
+    if (!this.inputEl || !this.inputEl.parentElement) return;
+    const parent = this.inputEl.parentElement;
+    if (parent.querySelector('.kitap-search-action-btn')) return;
+
+    parent.classList.add('kitap-search-input-wrapper');
+    const searchBtn = parent.createEl('button', {
+      cls: 'kitap-search-action-btn',
+      attr: { type: 'button', title: 'Kitap Ara (Enter)' },
+    });
+    searchBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
+    searchBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const query = this.inputEl.value.trim();
+      if (query) {
+        void this.performSearch(query);
+      }
+    });
   }
 
   private updateInstructions(hasResults: boolean): void {
@@ -95,10 +150,18 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
       new Notice('Arama sırasında bir hata oluştu.');
     } finally {
       this.isSearching = false;
+      const chooser = (this as any).chooser;
+      if (chooser && typeof chooser.setSuggestions === 'function') {
+        chooser.setSuggestions(this.currentResults);
+      }
+      if (typeof (this as any).onInputChanged === 'function') {
+        (this as any).onInputChanged();
+      }
       if (typeof (this as any).updateSuggestions === 'function') {
         (this as any).updateSuggestions();
-      } else if (this.inputEl) {
-        this.inputEl.dispatchEvent(new Event('input'));
+      }
+      if (this.inputEl) {
+        this.inputEl.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
       }
     }
   }
