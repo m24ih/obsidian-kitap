@@ -51,10 +51,30 @@ export default class KitapPlugin extends Plugin {
       typeof this.settings.fileNameTemplate === 'string' ? this.settings.fileNameTemplate.trim() : '';
     this.settings.fileNameTemplate = trimmedFileTemplate || DEFAULT_SETTINGS.fileNameTemplate;
 
-    // 3. noteTemplate tip doğrulaması
+    // 3. templateFile tip doğrulaması
+    this.settings.templateFile =
+      typeof this.settings.templateFile === 'string' ? this.settings.templateFile.trim() : '';
+
+    // 4. noteTemplate tip doğrulaması
     if (typeof this.settings.noteTemplate !== 'string') {
       this.settings.noteTemplate = DEFAULT_SETTINGS.noteTemplate;
     }
+
+    // 5. useDefaultFrontMatter doğrulaması
+    this.settings.useDefaultFrontMatter =
+      typeof this.settings.useDefaultFrontMatter === 'boolean'
+        ? this.settings.useDefaultFrontMatter
+        : true;
+
+    // 6. enableTemplaterIntegration doğrulaması
+    this.settings.enableTemplaterIntegration =
+      typeof this.settings.enableTemplaterIntegration === 'boolean'
+        ? this.settings.enableTemplaterIntegration
+        : false;
+
+    // 7. propertyMappings migrasyonu
+    const { migratePropertyMappings } = await import('./settings/propertyMapping');
+    this.settings.propertyMappings = migratePropertyMappings(this.settings.propertyMappings);
   }
 
   /**

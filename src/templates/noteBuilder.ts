@@ -1,0 +1,189 @@
+import { App, parseYaml, stringifyYaml, TFile } from 'obsidian';
+import { BookMetadata, KitapPluginSettings } from '../types';
+import { PropertyMapper } from '../settings/propertyMapping';
+import { renderBookTemplate } from './engine';
+
+export interface NoteBuilderOptions {
+  book: BookMetadata;
+  settings: KitapPluginSettings;
+  app?: App;
+}
+
+/**
+ * Vault'ta belirtilen şablon dosyasını okur.
+ */
+export async function getTemplateContentFromVault(
+  templatePath: string,
+  app?: App
+): Promise<string | null> {
+  if (!templatePath || !app?.vault) return null;
+
+  const vault = (app as any).vault;
+  let file = vault.getAbstractFileByPath?.(templatePath);
+
+  // Doğrudan tam yol ile bulunamazsa dosya adına göre ara (fallback)
+  if (!file && typeof vault.getFiles === 'function') {
+    const allFiles = vault.getFiles() as TFile[];
+    file = allFiles.find((f) => f.path === templatePath || f.name === templatePath);
+  }
+
+  if (file && typeof vault.read === 'function') {
+    try {
+      return await vault.read(file);
+    } catch (err) {
+      console.warn('Şablon dosyası okunamadı:', templatePath, err);
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Verilen şablon metnini YAML frontmatter ve Markdown gövdesi olarak ayırır.
+ */
+export function extractFrontmatterAndBody(templateContent: string): {
+  frontmatterRaw: string;
+  body: string;
+  hasFrontmatter: boolean;
+} {
+  const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
+  const match = templateContent.match(frontmatterRegex);
+
+  if (match) {
+    return {
+      frontmatterRaw: match[1],
+      body: match[2] || '',
+      hasFrontmatter: true,
+    };
+  }
+
+  return {
+    frontmatterRaw: '',
+    body: templateContent,
+    hasFrontmatter: false,
+  };
+}
+
+/**
+ * Kitap metaverisini ve şablonunu birleştirerek eksiksiz kitap notu içeriği üretir.
+ */
+export async function buildBookNoteContent(
+  options: NoteBuilderOptions
+): Promise<string> {
+  const { book, settings, app } = options;
+
+  // 1. Şablon içeriğini belirle (Şablon dosyası veya doğrudan metin şablonu)
+  let rawTemplate: string | null = null;
+  if (settings.templateFile && app) {
+    rawTemplate = await getTemplateContentFromVault(settings.templateFile, app);
+  }
+
+  if (!rawTemplate) {
+    rawTemplate = settings.noteTemplate || '';
+  }
+
+  // 2. Şablonu frontmatter ve gövdeye ayır
+  const { frontmatterRaw, body, hasFrontmatter } = extractFrontmatterAndBody(rawTemplate);
+
+  let finalFrontmatterBlock = '';
+
+  if (settings.useDefaultFrontMatter) {
+    // Varsayılan kitap alanlarını oluştur
+    const baseBookMetadata: Record<string, unknown> = {
+      baslik: book.title,
+      yazar: book.author,
+      yayinevi: book.publisher,
+      cevirmen: book.translator || '',
+      isbn: book.isbn,
+      sayfa: book.pages !== undefined && book.pages !== null ? book.pages : '',
+      yayin_tarihi: book.publishDate || '',
+      puan_kitapyurdu: book.rating !== undefined && book.rating !== null ? book.rating : '',
+      kapak: book.coverUrl || '',
+      url: book.url || '',
+      durum: 'Okunacak',
+      okunma_tarihi: '',
+      kisisel_puan: '',
+    };
+
+    // Kullanıcı eşleme kurallarını uygula (remap, remove, wikilink)
+    const propertyMapper = new PropertyMapper(settings.propertyMappings);
+    const mappedMetadata = propertyMapper.convertObject(baseBookMetadata);
+
+    // Eğer şablonda özel frontmatter alanları varsa (örn. tags, kategori) bunları koru
+    let templateFrontmatterObj: Record<string, unknown> = {};
+    if (hasFrontmatter && frontmatterRaw.trim()) {
+      try {
+        const parsed = parseYaml(frontmatterRaw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          templateFrontmatterObj = parsed as Record<string, unknown>;
+        }
+      } catch (err) {
+        console.warn('Şablon frontmatter ayrıştırma hatası:', err);
+      }
+    }
+
+    // Şablondaki ek alanlar ile kitap metaverilerini birleştir
+    // Varsayılan kitap anahtarları şablonda olsa bile kullanıcının remap/remove ayarlarına öncelik verilir.
+    const defaultPropKeys = new Set([
+      'baslik',
+      'yazar',
+      'yayinevi',
+      'cevirmen',
+      'isbn',
+      'sayfa',
+      'yayin_tarihi',
+      'puan_kitapyurdu',
+      'kapak',
+      'url',
+      'durum',
+      'okunma_tarihi',
+      'kisisel_puan',
+      'title',
+      'author',
+      'publisher',
+      'translator',
+      'pages',
+      'publishDate',
+      'rating',
+      'coverUrl',
+    ]);
+
+    const customTemplateMetadata: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(templateFrontmatterObj)) {
+      if (!defaultPropKeys.has(k)) {
+        customTemplateMetadata[k] = v;
+      }
+    }
+
+    const mergedMetadata = { ...customTemplateMetadata, ...mappedMetadata };
+    let yamlString = stringifyYaml(mergedMetadata).trimEnd();
+
+    if (settings.enableTemplaterIntegration) {
+      const templaterHeader = `<%* const book = ${JSON.stringify(book)}; %>\n`;
+      finalFrontmatterBlock = `---\n${templaterHeader}${yamlString}\n---`;
+    } else {
+      finalFrontmatterBlock = `---\n${yamlString}\n---`;
+    }
+  } else {
+    // Varsayılan frontmatter istenmediyse şablondaki orijinal frontmatter'ı koru
+    if (hasFrontmatter) {
+      if (settings.enableTemplaterIntegration) {
+        const templaterHeader = `<%* const book = ${JSON.stringify(book)}; %>\n`;
+        finalFrontmatterBlock = `---\n${templaterHeader}${frontmatterRaw}\n---`;
+      } else {
+        finalFrontmatterBlock = `---\n${frontmatterRaw}\n---`;
+      }
+    } else if (settings.enableTemplaterIntegration) {
+      finalFrontmatterBlock = `---\n<%* const book = ${JSON.stringify(book)}; %>\n---`;
+    }
+  }
+
+  // 3. Frontmatter ile gövdeyi birleştir
+  const combined = finalFrontmatterBlock
+    ? `${finalFrontmatterBlock}\n\n${body}`
+    : body;
+
+  // 4. Standart {{değişken}} yer tutucularını çöz
+  return renderBookTemplate(combined, book);
+}

@@ -2,8 +2,10 @@ import { App, Notice, SuggestModal, TFile, normalizePath } from 'obsidian';
 import type KitapPlugin from '../main';
 import { BookAggregator, IBookAggregator } from '../providers/aggregator';
 import { renderBookTemplate, sanitizeFileName } from '../templates/engine';
+import { buildBookNoteContent } from '../templates/noteBuilder';
 import { BookMetadata, SearchResultItem } from '../types';
 import { fuzzySortBooks } from '../utils/fuzzy';
+import { useTemplaterPluginInFile } from '../utils/templater';
 
 export interface SearchModalOptions {
   insertIntoActive?: boolean;
@@ -212,10 +214,11 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
 
     try {
       const bookData = await this.aggregator.getFullBookData(item, this.plugin.settings);
-      const renderedContent = renderBookTemplate(
-        this.plugin.settings.noteTemplate,
-        bookData
-      );
+      const renderedContent = await buildBookNoteContent({
+        book: bookData,
+        settings: this.plugin.settings,
+        app: this.app,
+      });
 
       if (this.insertIntoActive) {
         return await this.insertContentIntoActiveNote(renderedContent, bookData);
@@ -263,6 +266,14 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     } else if (typeof vault.create === 'function') {
       file = (await vault.create(fullPath, content)) as TFile;
       new Notice(`"${bookData.title}" notu oluşturuldu: ${fullPath}`);
+    }
+
+    if (file && this.plugin.settings.enableTemplaterIntegration) {
+      try {
+        await useTemplaterPluginInFile(this.app, file);
+      } catch (templaterErr) {
+        console.warn('Templater çalıştırma hatası:', templaterErr);
+      }
     }
 
     const workspace = (this.app as any)?.workspace;

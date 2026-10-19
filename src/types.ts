@@ -2,6 +2,14 @@
  * obsidian-kitap - Core Data Types & Interfaces
  */
 
+import {
+  PropertyMappingData,
+  DEFAULT_BOOK_PROPERTY_MAPPINGS,
+} from './settings/propertyMapping';
+
+export type { PropertyMappingData };
+export { DEFAULT_BOOK_PROPERTY_MAPPINGS };
+
 /**
  * Kitap arama sonucu öğesi (Kitapyurdu)
  */
@@ -42,7 +50,11 @@ export interface BookMetadata {
 export interface KitapPluginSettings {
   targetFolder: string;
   fileNameTemplate: string;
+  templateFile: string;
   noteTemplate: string;
+  useDefaultFrontMatter: boolean;
+  propertyMappings: PropertyMappingData[];
+  enableTemplaterIntegration: boolean;
 }
 
 /**
@@ -87,5 +99,9 @@ kisisel_puan:
 export const DEFAULT_SETTINGS: KitapPluginSettings = {
   targetFolder: 'Kitaplar',
   fileNameTemplate: '{{title}} - {{author}}',
+  templateFile: '',
   noteTemplate: DEFAULT_NOTE_TEMPLATE,
+  useDefaultFrontMatter: true,
+  propertyMappings: DEFAULT_BOOK_PROPERTY_MAPPINGS,
+  enableTemplaterIntegration: false,
 };

@@ -1,7 +1,7 @@
 {
   "id": "obsidian-kitap",
   "name": "Kitap",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "minAppVersion": "0.15.0",
   "description": "Kitapyurdu üzerinden kitap arama ve metaveri ile not oluşturma eklentisi.",
   "author": "Melih",

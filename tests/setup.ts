@@ -310,6 +310,13 @@ export class MockSetting {
     return this;
   }
 
+  addSearch(cb: (search: MockTextComponent) => void) {
+    this.textComponent = new MockTextComponent();
+    this.settingEl.appendChild(this.textComponent.inputEl);
+    cb(this.textComponent);
+    return this;
+  }
+
   addTextArea(cb: (ta: MockTextAreaComponent) => void) {
     this.textAreaComponent = new MockTextAreaComponent();
     this.settingEl.appendChild(this.textAreaComponent.inputEl);
@@ -441,10 +448,87 @@ export class App {
 export const requestUrl = vi.fn();
 export const normalizePath = (path: string): string =>
   path.replace(/\\/g, "/").replace(/\/+/g, "/");
-export const parseYaml = (yaml: string): Record<string, unknown> => ({});
-export const stringifyYaml = (data: unknown): string => JSON.stringify(data);
-export class TFile {}
-export class TFolder {}
+export class Component {
+  onload(): void {}
+  onunload(): void {}
+  addChild<T extends Component>(component: T): T {
+    component.onload();
+    return component;
+  }
+}
+
+export abstract class AbstractInputSuggest<T> {
+  constructor(public app: unknown, public textInputEl: HTMLInputElement) {}
+  abstract renderSuggestion(value: T, el: HTMLElement): void;
+  setValue(value: string): void {
+    this.textInputEl.value = value;
+  }
+  close(): void {}
+}
+
+export const setIcon = (parent: HTMLElement, iconId: string): void => {
+  parent.setAttribute('data-icon', iconId);
+};
+
+export const parseYaml = (yaml: string): Record<string, unknown> => {
+  const result: Record<string, unknown> = {};
+  if (!yaml) return result;
+  const lines = yaml.split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const colonIdx = trimmed.indexOf(':');
+    if (colonIdx !== -1) {
+      const key = trimmed.slice(0, colonIdx).trim();
+      let val: any = trimmed.slice(colonIdx + 1).trim();
+      if (val.startsWith('"') && val.endsWith('"')) {
+        val = val.slice(1, -1);
+      } else if (val === 'true') {
+        val = true;
+      } else if (val === 'false') {
+        val = false;
+      } else if (val !== '' && !isNaN(Number(val))) {
+        val = Number(val);
+      }
+      result[key] = val;
+    }
+  }
+  return result;
+};
+
+export const stringifyYaml = (data: unknown): string => {
+  if (!data || typeof data !== 'object') return '';
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    if (value === undefined) continue;
+    if (value === null || value === '') {
+      lines.push(`${key}: `);
+    } else if (typeof value === 'string') {
+      lines.push(`${key}: "${value}"`);
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      lines.push(`${key}: ${value}`);
+    } else if (Array.isArray(value)) {
+      lines.push(`${key}:`);
+      for (const item of value) {
+        lines.push(`  - ${typeof item === 'string' ? `"${item}"` : item}`);
+      }
+    } else {
+      lines.push(`${key}: ${JSON.stringify(value)}`);
+    }
+  }
+  return lines.join('\n');
+};
+
+export class TFile {
+  path = '';
+  name = '';
+  basename = '';
+  extension = 'md';
+}
+export class TFolder {
+  path = '';
+  name = '';
+}
 
 // Mock Obsidian runtime host module for vi
 if (typeof vi !== "undefined") {
@@ -459,6 +543,9 @@ if (typeof vi !== "undefined") {
     normalizePath,
     parseYaml,
     stringifyYaml,
+    Component,
+    AbstractInputSuggest,
+    setIcon,
     TFile,
     TFolder,
     lastNotices,

@@ -189,3 +189,178 @@
   font-size: var(--font-ui-smaller, 0.88em);
 }
 
+/* --------------------------------------------------------------------------
+   Property Mappings Table & Component Styles
+   -------------------------------------------------------------------------- */
+.kitap-property-mappings-section {
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.kitap-property-mappings-container {
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m, 8px);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.kitap-property-mappings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.kitap-property-mappings-header .setting-item-name {
+  font-weight: var(--font-semibold, 600);
+  font-size: var(--font-ui-medium);
+  color: var(--text-normal);
+  margin: 0;
+}
+
+.kitap-property-mappings-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kitap-property-mapping-unsaved-changes {
+  color: var(--text-warning);
+  font-size: var(--font-ui-smaller);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.kitap-property-mappings-save-button {
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.kitap-property-mappings-save-button.mod-muted {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kitap-property-mapping-validation {
+  color: var(--text-error);
+  background-color: rgba(var(--color-red-rgb, 255, 0, 0), 0.1);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-left: 3px solid var(--text-error);
+  font-size: var(--font-ui-small);
+  line-height: 1.5;
+  border-radius: var(--radius-s);
+}
+
+.kitap-property-mappings-table-container {
+  overflow-x: auto;
+}
+
+.kitap-property-mappings-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: var(--font-ui-small);
+}
+
+.kitap-property-mappings-table thead {
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.kitap-property-mappings-table th {
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: var(--font-semibold, 600);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.kitap-property-mappings-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--background-modifier-border-hover);
+  vertical-align: middle;
+}
+
+.kitap-property-mappings-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.kitap-property-mappings-table .col-property {
+  width: 25%;
+  white-space: nowrap;
+}
+
+.kitap-property-mappings-table .col-mapping {
+  width: 30%;
+}
+
+.kitap-property-mappings-table .col-new-name {
+  width: 30%;
+}
+
+.kitap-property-mappings-table .col-wikilink {
+  width: 15%;
+  text-align: center;
+}
+
+.kitap-property-mappings-table .col-locked {
+  text-align: center;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.kitap-property-mappings-table code {
+  padding: 2px 6px;
+  background-color: var(--code-background, var(--background-primary));
+  color: var(--code-normal, var(--text-accent));
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-smaller);
+  font-family: var(--font-monospace);
+}
+
+.kitap-property-mappings-table select.dropdown {
+  width: 100%;
+  max-width: 100%;
+}
+
+.kitap-property-mapping-to {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kitap-icon-wrapper {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-weight: bold;
+}
+
+.kitap-property-mapping-input {
+  flex: 1;
+  width: 100%;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+}
+
+.kitap-property-mapping-disabled-text {
+  color: var(--text-faint);
+  font-size: var(--font-ui-medium);
+  display: block;
+  text-align: center;
+}
+
+.kitap-property-mapping-wikilink-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 4px;
+}
+
+

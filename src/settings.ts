@@ -1,6 +1,9 @@
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type KitapPlugin from './main';
 import { DEFAULT_NOTE_TEMPLATE } from './types';
+import { FileSuggest } from './settings/fileSuggest';
+import { PropertyMappingComponent } from './settings/propertyMappingComponent';
+import { PropertyMappingData } from './settings/propertyMapping';
 
 export class KitapSettingTab extends PluginSettingTab {
   plugin: KitapPlugin;
@@ -16,7 +19,7 @@ export class KitapSettingTab extends PluginSettingTab {
 
     containerEl.createEl('h2', { text: 'Kitap Eklentisi Ayarları' });
     containerEl.createEl('p', {
-      text: 'Kitapyurdu üzerinden kitap arama, metaveri çekme ve not oluşturma seçeneklerini buradan özelleştirebilirsiniz.',
+      text: 'Kitapyurdu üzerinden kitap arama, metaveri çekme, YAML özellik eşleme ve şablon seçeneklerini buradan özelleştirebilirsiniz.',
       cls: 'setting-item-description',
     });
 
@@ -57,8 +60,21 @@ export class KitapSettingTab extends PluginSettingTab {
     containerEl.createEl('h3', { text: 'Not Şablonu ve Biçimlendirme' });
 
     new Setting(containerEl)
-      .setName('Not Şablonu')
-      .setDesc('Oluşturulacak kitap notunun Markdown şablonu. Aşağıdaki değişkenler otomatik olarak kitap bilgileriyle doldurulur.')
+      .setName('Şablon Dosyası (Vault İçi)')
+      .setDesc('Kitap notları oluşturulurken kullanılacak vault içi Markdown şablon dosyası (.md). Belirtilirse aşağıdaki metin şablonu yerine bu dosya kullanılır.')
+      .addSearch((cb) => {
+        new FileSuggest(this.app, cb.inputEl);
+        cb.setPlaceholder('Örnek: Sablonlar/KitapSablonu.md')
+          .setValue(this.plugin.settings.templateFile || '')
+          .onChange(async (value) => {
+            this.plugin.settings.templateFile = value.trim();
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName('Doğrudan Not Şablonu (Markdown)')
+      .setDesc('Şablon dosyası seçilmediğinde veya bulunamadığında kullanılacak standart metin şablonu.')
       .addTextArea((textArea) => {
         textArea
           .setPlaceholder('Markdown şablonunuzu buraya girin...')
@@ -67,7 +83,7 @@ export class KitapSettingTab extends PluginSettingTab {
             this.plugin.settings.noteTemplate = value;
             await this.plugin.saveSettings();
           });
-        textArea.inputEl.rows = 14;
+        textArea.inputEl.rows = 12;
         textArea.inputEl.style.width = '100%';
         textArea.inputEl.style.fontFamily = 'var(--font-monospace)';
         textArea.inputEl.style.fontSize = '0.85em';
@@ -89,7 +105,57 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     // ----------------------------------------------------
-    // Değişkenler Rehberi (Bilgi Kutusu)
+    // Bölüm 3: Templater Entegrasyonu
+    // ----------------------------------------------------
+    containerEl.createEl('h3', { text: 'Templater Entegrasyonu' });
+
+    new Setting(containerEl)
+      .setName('Templater Entegrasyonunu Etkinleştir')
+      .setDesc(
+        'Templater eklentisi ile entegrasyon sağlar. Not oluşturulduğunda Templater otomatik çalıştırılır ve şablonlarınızda `book` objesine (<%* const b = book; %>) erişebilirsiniz. (Templater eklentisinin kurulu olması gerekir).'
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.enableTemplaterIntegration)
+          .onChange(async (value) => {
+            this.plugin.settings.enableTemplaterIntegration = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    // ----------------------------------------------------
+    // Bölüm 4: YAML Frontmatter & Özellik Eşlemeleri (Property Mappings)
+    // ----------------------------------------------------
+    containerEl.createEl('h3', { text: 'YAML Frontmatter & Özellik Eşlemeleri' });
+
+    new Setting(containerEl)
+      .setName('Varsayılan Frontmatter Oluştur')
+      .setDesc('Etkinleştirildiğinde, aşağıdaki özellik eşlemelerine göre otomatik YAML frontmatter oluşturulur. Devre dışı bırakılırsa yalnızca şablonda tanımlı frontmatter kullanılır.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.useDefaultFrontMatter)
+          .onChange(async (value) => {
+            this.plugin.settings.useDefaultFrontMatter = value;
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+
+    if (this.plugin.settings.useDefaultFrontMatter) {
+      const mappingContainer = containerEl.createDiv('kitap-property-mappings-section');
+      const comp = new PropertyMappingComponent(mappingContainer, {
+        mappings: this.plugin.settings.propertyMappings,
+        save: async (updated: PropertyMappingData[]) => {
+          this.plugin.settings.propertyMappings = updated;
+          await this.plugin.saveSettings();
+          new Notice('Özellik eşlemeleri başarıyla kaydedildi.');
+        },
+      });
+      comp.onload();
+    }
+
+    // ----------------------------------------------------
+    // Bölüm 5: Değişkenler Rehberi (Bilgi Kutusu)
     // ----------------------------------------------------
     const infoContainer = containerEl.createDiv({ cls: 'kitap-settings-guide' });
 
