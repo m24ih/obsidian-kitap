@@ -3,17 +3,7 @@
  */
 
 /**
- * 1000Kitap okur alıntısı veri yapısı
- */
-export interface BookQuote {
-  text: string;
-  author?: string;
-  page?: string;
-  likes?: number;
-}
-
-/**
- * Kitap arama sonucu öğesi (Kitapyurdu ve Aggregator için ortak)
+ * Kitap arama sonucu öğesi (Kitapyurdu)
  */
 export interface SearchResultItem {
   id: string;
@@ -28,7 +18,7 @@ export interface SearchResultItem {
 export type SearchResult = SearchResultItem;
 
 /**
- * Kitabın tüm bibliyografik ve zenginleştirilmiş metaveri modeli
+ * Kitabın tüm bibliyografik metaveri modeli
  */
 export interface BookMetadata {
   id: string;
@@ -44,12 +34,6 @@ export interface BookMetadata {
   description?: string;
   rating?: number; // Kitapyurdu 0-5 puanı
   ratingCount?: number;
-
-  // 1000Kitap zenginleştirmeleri
-  binkitapRating?: string; // Örnek: "9.2/10" veya "9.2"
-  binkitapReadCount?: string; // Örnek: "335 bin"
-  binkitapUrl?: string;
-  quotes?: BookQuote[];
 }
 
 /**
@@ -59,8 +43,6 @@ export interface KitapPluginSettings {
   targetFolder: string;
   fileNameTemplate: string;
   noteTemplate: string;
-  includeQuotes: boolean;
-  maxQuotes: number;
 }
 
 /**
@@ -75,7 +57,6 @@ isbn: "{{isbn}}"
 sayfa: {{pages}}
 yayin_tarihi: "{{publishDate}}"
 puan_kitapyurdu: {{rating}}
-puan_1000kitap: "{{binkitapRating}}"
 kapak: "{{coverUrl}}"
 url: "{{url}}"
 durum: Okunacak
@@ -89,15 +70,12 @@ kisisel_puan:
 > **Yayınevi:** {{publisher}}  
 > **Çevirmen:** {{translator}}  
 > **ISBN:** {{isbn}} | **Sayfa:** {{pages}}  
-> **Kitapyurdu Puanı:** {{rating}} / 5 | **1000Kitap Puanı:** {{binkitapRating}}  
+> **Puan:** {{rating}} / 5  
 
 ![Kapak|200]({{coverUrl}})
 
 ## Açıklama
 {{description}}
-
-## 1000Kitap Alıntıları
-{{quotes}}
 
 ## Notlarım
 - 
@@ -110,6 +88,4 @@ export const DEFAULT_SETTINGS: KitapPluginSettings = {
   targetFolder: 'Kitaplar',
   fileNameTemplate: '{{title}} - {{author}}',
   noteTemplate: DEFAULT_NOTE_TEMPLATE,
-  includeQuotes: true,
-  maxQuotes: 5,
 };

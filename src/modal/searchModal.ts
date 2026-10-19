@@ -205,11 +205,10 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
   }
 
   /**
-   * Seçilen kitabın tüm detaylarını ve 1000Kitap zenginleştirmelerini çekerek
-   * yeni not oluşturur veya aktif nota ekler.
+   * Seçilen kitabın tüm detaylarını çekerek yeni not oluşturur veya aktif nota ekler.
    */
   async processBookSelection(item: SearchResultItem): Promise<TFile | null> {
-    new Notice(`"${item.title}" için kitap bilgileri ve alıntılar getiriliyor...`);
+    new Notice(`"${item.title}" için kitap bilgileri getiriliyor...`);
 
     try {
       const bookData = await this.aggregator.getFullBookData(item, this.plugin.settings);

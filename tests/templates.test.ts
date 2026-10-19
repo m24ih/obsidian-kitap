@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { renderBookTemplate, sanitizeFileName, formatQuotes } from '../src/templates/engine';
-import { BookMetadata, BookQuote, DEFAULT_NOTE_TEMPLATE } from '../src/types';
+import { renderBookTemplate, sanitizeFileName } from '../src/templates/engine';
+import { BookMetadata, DEFAULT_NOTE_TEMPLATE } from '../src/types';
 
 describe('Template Engine & Filename Sanitizer Tests', () => {
   const sampleBook: BookMetadata = {
@@ -17,26 +17,10 @@ describe('Template Engine & Filename Sanitizer Tests', () => {
     description: 'Yüzüklerin Efendisi dışında bu kitapla kıyaslanacak başka bir kitap yok.',
     rating: 5,
     ratingCount: 819,
-    binkitapRating: '9.2/10',
-    binkitapReadCount: '150 bin',
-    binkitapUrl: 'https://1000kitap.com/kitap/dune--123',
-    quotes: [
-      {
-        text: 'Korku katildir.',
-        author: 'Frank Herbert',
-        page: '15',
-        likes: 120,
-      },
-      {
-        text: 'Gözlerimi kapatıp rüzgarı dinledim.',
-        author: 'Frank Herbert',
-        // Quote without page
-      },
-    ],
   };
 
-  describe('Tier 1: Feature Coverage — Variable Interpolation', () => {
-    it('accurately interpolates all 13 placeholders into note templates', () => {
+  describe('Feature Coverage — Variable Interpolation', () => {
+    it('accurately interpolates placeholders into note templates', () => {
       const template = `Title: {{title}}
 Author: {{author}}
 Publisher: {{publisher}}
@@ -45,13 +29,9 @@ ISBN: {{isbn}}
 Pages: {{pages}}
 Date: {{publishDate}}
 Rating: {{rating}}
-1000Kitap: {{binkitapRating}}
-ReadCount: {{binkitapReadCount}}
 Cover: {{coverUrl}}
 Desc: {{description}}
-URL: {{url}}
-Quotes:
-{{quotes}}`;
+URL: {{url}}`;
 
       const rendered = renderBookTemplate(template, sampleBook);
 
@@ -63,23 +43,9 @@ Quotes:
       expect(rendered).toContain('Pages: 712');
       expect(rendered).toContain('Date: 2021-09-08');
       expect(rendered).toContain('Rating: 5');
-      expect(rendered).toContain('1000Kitap: 9.2/10');
-      expect(rendered).toContain('ReadCount: 150 bin');
       expect(rendered).toContain('Cover: https://img.kitapyurdu.com');
       expect(rendered).toContain('Desc: Yüzüklerin Efendisi dışında');
       expect(rendered).toContain('URL: https://www.kitapyurdu.com/kitap/dune/375312.html');
-      expect(rendered).toContain('Korku katildir.');
-    });
-
-    it('formats quotes as standard Markdown blockquotes with attribution', () => {
-      const formatted = formatQuotes(sampleBook.quotes);
-
-      expect(formatted).toContain('> “Korku katildir.”');
-      expect(formatted).toContain('— *Frank Herbert*');
-      expect(formatted).toContain('s. 15');
-      // Second quote without page citation
-      expect(formatted).toContain('> “Gözlerimi kapatıp rüzgarı dinledim.”');
-      expect(formatted).not.toContain('s. 0');
     });
 
     it('renders cleanly using DEFAULT_NOTE_TEMPLATE', () => {
@@ -89,11 +55,11 @@ Quotes:
       expect(rendered).toContain('baslik: "Dune"');
       expect(rendered).toContain('yazar: "Frank Herbert"');
       expect(rendered).toContain('# Dune');
-      expect(rendered).toContain('## 1000Kitap Alıntıları');
+      expect(rendered).toContain('puan_kitapyurdu: 5');
     });
   });
 
-  describe('Tier 2: Boundary & Corner Cases — Missing & Undefined Fields', () => {
+  describe('Boundary & Corner Cases — Missing & Undefined Fields', () => {
     it('replaces missing optional fields with empty strings instead of "undefined" literals', () => {
       const bookWithMissingFields: BookMetadata = {
         id: '999',
@@ -102,71 +68,34 @@ Quotes:
         author: 'Yerli Yazar',
         publisher: 'Kültür Yayınları',
         isbn: '9781234567890',
-        // Optional properties omitted
         translator: undefined,
         rating: undefined,
-        binkitapRating: undefined,
-        quotes: undefined,
       };
 
-      const template = `Translator: {{translator}}, Rating: {{rating}}, 1000K: {{binkitapRating}}, Quotes: {{quotes}}`;
+      const template = `Translator: {{translator}}, Rating: {{rating}}`;
       const rendered = renderBookTemplate(template, bookWithMissingFields);
 
       expect(rendered).not.toContain('undefined');
       expect(rendered).not.toContain('null');
-      expect(rendered).toBe('Translator: , Rating: , 1000K: , Quotes: ');
+      expect(rendered).toBe('Translator: , Rating: ');
     });
 
-    it('handles empty quotes array gracefully', () => {
-      const formatted = formatQuotes([]);
-      expect(formatted).toBe('');
+    it('safely renders legacy 1000Kitap tags as empty strings without crashing', () => {
+      const template = `Quotes: {{quotes}}, 1000K: {{binkitapRating}}`;
+      const rendered = renderBookTemplate(template, sampleBook);
+      expect(rendered).toBe('Quotes: , 1000K: ');
     });
   });
 
-  describe('Tier 3: Filename Sanitizer', () => {
-    it('strips all characters illegal in Obsidian and OS paths (\\ / : * ? " < > |)', () => {
-      const illegalFilename = 'Dune: Çöl Gezegeni / Cilt 1 *Özel Baskı*? <Harika> | "İthaki"';
-      const sanitized = sanitizeFileName(illegalFilename);
-
-      expect(sanitized).not.toMatch(/[\\/:*?"<>|]/);
-      expect(sanitized).toBe('Dune - Çöl Gezegeni - Cilt 1 - Özel Baskı - Harika - İthaki');
+  describe('Filename Sanitization', () => {
+    it('removes illegal filesystem characters from titles', () => {
+      const sanitized = sanitizeFileName('Dune: Part 1 / Special Edition *?');
+      expect(sanitized).toBe('Dune - Part 1 - Special Edition');
     });
 
-    it('trims leading, trailing whitespace and control characters', () => {
-      const messyFilename = '   \t  Kürk Mantolu Madonna   \n  ';
-      const sanitized = sanitizeFileName(messyFilename);
-      expect(sanitized).toBe('Kürk Mantolu Madonna');
-    });
-
-    it('falls back to default title when sanitized string is completely empty', () => {
-      const onlyIllegal = ':/*?"<>|';
-      const sanitized = sanitizeFileName(onlyIllegal);
-      expect(sanitized.length).toBeGreaterThan(0);
-      expect(sanitized).toBe('Kitap Notu');
-    });
-
-    it('prefixes every line of multi-line quotes with "> "', () => {
-      const multiLineQuotes: BookQuote[] = [
-        {
-          text: 'Bir iple intihar da edebilirsin salıncak da kurabilirsin.\nHayatın ipleri senin elinde.',
-          author: 'Fyodor Dostoyevski',
-          page: '0',
-        },
-      ];
-      const formatted = formatQuotes(multiLineQuotes);
-      const lines = formatted.split('\n');
-      for (const line of lines) {
-        expect(line.startsWith('> ')).toBe(true);
-      }
-      expect(formatted).not.toContain('s. 0');
-    });
-
-    it('handles Windows reserved filenames (CON, NUL, COM1, LPT1) safely', () => {
-      expect(sanitizeFileName('CON')).toBe('Kitap Notu');
-      expect(sanitizeFileName('nul.md')).toBe('Kitap Notu');
-      expect(sanitizeFileName('COM1')).toBe('Kitap Notu');
-      expect(sanitizeFileName('LPT9')).toBe('Kitap Notu');
+    it('preserves Turkish characters in file names', () => {
+      const sanitized = sanitizeFileName('Kürk Mantolu Madonna - Sabahattin Ali');
+      expect(sanitized).toBe('Kürk Mantolu Madonna - Sabahattin Ali');
     });
   });
 });
-

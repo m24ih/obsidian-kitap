@@ -41,23 +41,17 @@ export default class KitapPlugin extends Plugin {
 
     this.settings = Object.assign({}, DEFAULT_SETTINGS, rawSettings);
 
-    // 1. maxQuotes: 1 ile 20 arasında sınırla (geçersiz veya eksikse 5)
-    this.settings.maxQuotes = Math.min(20, Math.max(1, Number(this.settings.maxQuotes) || 5));
-
-    // 2. targetFolder: Boş olmayan geçerli bir metin olmasını sağla
+    // 1. targetFolder: Boş olmayan geçerli bir metin olmasını sağla
     const trimmedFolder =
       typeof this.settings.targetFolder === 'string' ? this.settings.targetFolder.trim() : '';
     this.settings.targetFolder = trimmedFolder || DEFAULT_SETTINGS.targetFolder;
 
-    // 3. fileNameTemplate: Boş olmayan geçerli bir şablon metni olmasını sağla
+    // 2. fileNameTemplate: Boş olmayan geçerli bir şablon metni olmasını sağla
     const trimmedFileTemplate =
       typeof this.settings.fileNameTemplate === 'string' ? this.settings.fileNameTemplate.trim() : '';
     this.settings.fileNameTemplate = trimmedFileTemplate || DEFAULT_SETTINGS.fileNameTemplate;
 
-    // 4. Diğer ayarların tip doğrulaması
-    if (typeof this.settings.includeQuotes !== 'boolean') {
-      this.settings.includeQuotes = DEFAULT_SETTINGS.includeQuotes;
-    }
+    // 3. noteTemplate tip doğrulaması
     if (typeof this.settings.noteTemplate !== 'string') {
       this.settings.noteTemplate = DEFAULT_SETTINGS.noteTemplate;
     }

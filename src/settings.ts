@@ -16,7 +16,7 @@ export class KitapSettingTab extends PluginSettingTab {
 
     containerEl.createEl('h2', { text: 'Kitap Eklentisi Ayarları' });
     containerEl.createEl('p', {
-      text: 'Kitapyurdu ve 1000Kitap üzerinden kitap arama, metaveri zenginleştirme ve not oluşturma seçeneklerini buradan özelleştirebilirsiniz.',
+      text: 'Kitapyurdu üzerinden kitap arama, metaveri çekme ve not oluşturma seçeneklerini buradan özelleştirebilirsiniz.',
       cls: 'setting-item-description',
     });
 
@@ -52,41 +52,7 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     // ----------------------------------------------------
-    // Bölüm 2: 1000Kitap Entegrasyonu
-    // ----------------------------------------------------
-    containerEl.createEl('h3', { text: '1000Kitap Entegrasyonu' });
-
-    new Setting(containerEl)
-      .setName('1000Kitap Alıntılarını Ekle')
-      .setDesc('Kitap notu oluşturulurken 1000Kitap topluluğundan en popüler alıntıların çekilip nota eklenmesini sağlar.')
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.includeQuotes)
-          .onChange(async (value) => {
-            this.plugin.settings.includeQuotes = value;
-            await this.plugin.saveSettings();
-            this.display(); // maxQuotes ayarını göstermek/gizlemek için yeniden çiz
-          })
-      );
-
-    if (this.plugin.settings.includeQuotes) {
-      new Setting(containerEl)
-        .setName('Maksimum Alıntı Sayısı')
-        .setDesc("1000Kitap'tan çekilecek en fazla alıntı sayısı (1 ile 20 arasında).")
-        .addSlider((slider) =>
-          slider
-            .setLimits(1, 20, 1)
-            .setValue(this.plugin.settings.maxQuotes)
-            .setDynamicTooltip()
-            .onChange(async (value) => {
-              this.plugin.settings.maxQuotes = value;
-              await this.plugin.saveSettings();
-            })
-        );
-    }
-
-    // ----------------------------------------------------
-    // Bölüm 3: Not Şablonu ve Biçimlendirme
+    // Bölüm 2: Not Şablonu ve Biçimlendirme
     // ----------------------------------------------------
     containerEl.createEl('h3', { text: 'Not Şablonu ve Biçimlendirme' });
 
@@ -142,9 +108,7 @@ export class KitapSettingTab extends PluginSettingTab {
       { tag: '{{publishDate}}', desc: 'Yayın tarihi' },
       { tag: '{{coverUrl}}', desc: 'Yüksek çözünürlüklü kapak görseli bağlantısı' },
       { tag: '{{rating}}', desc: 'Kitapyurdu okur puanı (0-5)' },
-      { tag: '{{binkitapRating}}', desc: '1000Kitap okur puanı (örnek: 9.2/10)' },
       { tag: '{{description}}', desc: 'Kitap açıklaması / arka kapak tanıtım metni' },
-      { tag: '{{quotes}}', desc: '1000Kitap alıntıları (Markdown alıntı blokları olarak)' },
       { tag: '{{url}}', desc: 'Kitapyurdu ürün sayfası bağlantısı' },
     ];
 

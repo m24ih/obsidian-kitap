@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BookAggregator } from '../src/providers/aggregator';
-import { IKitapyurduProvider, IBinkitapProvider } from '../src/providers/types';
-import { BookMetadata, SearchResultItem, DEFAULT_SETTINGS } from '../src/types';
+import { IKitapyurduProvider } from '../src/providers/types';
+import { BookMetadata, SearchResultItem } from '../src/types';
 
 describe('Aggregator Service Tests', () => {
   let mockKyProvider: IKitapyurduProvider;
-  let mockBkProvider: IBinkitapProvider;
   let aggregator: BookAggregator;
 
   const sampleSearchItem: SearchResultItem = {
@@ -40,104 +39,34 @@ describe('Aggregator Service Tests', () => {
       getBookDetails: vi.fn().mockResolvedValue({ ...sampleBaseMetadata }),
     };
 
-    mockBkProvider = {
-      enrich: vi.fn().mockResolvedValue({
-        binkitapRating: '9.2/10',
-        binkitapReadCount: '150 bin',
-        binkitapUrl: 'https://1000kitap.com/kitap/dune--123',
-        quotes: [
-          { text: 'Korku katildir.', author: 'Frank Herbert', page: '15' },
-        ],
-      }),
-    };
-
-    aggregator = new BookAggregator(mockKyProvider, mockBkProvider);
+    aggregator = new BookAggregator(mockKyProvider);
   });
 
-  describe('Tier 1: Feature Coverage — Delegation & Merging', () => {
+  describe('Feature Coverage — Delegation', () => {
     it('delegates search directly to Kitapyurdu provider', async () => {
       const results = await aggregator.search('dune');
       expect(mockKyProvider.search).toHaveBeenCalledWith('dune');
       expect(results).toEqual([sampleSearchItem]);
     });
 
-    it('merges primary Kitapyurdu metadata with secondary 1000Kitap enrichment', async () => {
-      const book = await aggregator.getFullBookData(sampleSearchItem, DEFAULT_SETTINGS);
+    it('delegates getFullBookData directly to Kitapyurdu getBookDetails', async () => {
+      const book = await aggregator.getFullBookData(sampleSearchItem);
 
       expect(mockKyProvider.getBookDetails).toHaveBeenCalledWith(sampleSearchItem.url);
-      expect(mockBkProvider.enrich).toHaveBeenCalledWith(
-        sampleBaseMetadata.title,
-        sampleBaseMetadata.author,
-        DEFAULT_SETTINGS.maxQuotes
-      );
-
-      // Primary Kitapyurdu data intact
       expect(book.title).toBe('Dune');
       expect(book.author).toBe('Frank Herbert');
       expect(book.translator).toBe('Dost Körpe');
       expect(book.isbn).toBe('9786053754794');
-      // Secondary 1000Kitap data merged
-      expect(book.binkitapRating).toBe('9.2/10');
-      expect(book.quotes?.length).toBe(1);
-      expect(book.quotes?.[0].text).toBe('Korku katildir.');
-    });
-  });
-
-  describe('Tier 2: Boundary & Corner Cases — Resilience & Graceful Fallback', () => {
-    it('never crashes note generation when 1000Kitap throws network error (R3 Acceptance Criteria)', async () => {
-      // 1000Kitap network connection times out or fails
-      mockBkProvider.enrich = vi.fn().mockRejectedValue(new Error('Network timeout: 1000kitap.com is unreachable'));
-
-      let book: BookMetadata | null = null;
-      let error: any = null;
-
-      try {
-        book = await aggregator.getFullBookData(sampleSearchItem, DEFAULT_SETTINGS);
-      } catch (e) {
-        error = e;
-      }
-
-      // Zero-crash contract: error MUST NOT bubble up
-      expect(error).toBeNull();
-      expect(book).toBeDefined();
-      expect(book?.title).toBe('Dune');
-      expect(book?.isbn).toBe('9786053754794');
-      // Graceful fallback values
-      expect(book?.quotes).toEqual([]);
-      expect(book?.binkitapRating).toBeUndefined();
+      expect(book.rating).toBe(5);
     });
 
-    it('gracefully degrades when 1000Kitap throws HTTP 403 Forbidden', async () => {
-      mockBkProvider.enrich = vi.fn().mockRejectedValue({ status: 403, message: 'Cloudflare Turnstile challenge' });
-
-      const book = await aggregator.getFullBookData(sampleSearchItem, DEFAULT_SETTINGS);
-
-      expect(book.title).toBe('Dune');
-      expect(book.quotes).toEqual([]);
-    });
-
-    it('gracefully degrades when 1000Kitap finds no match for a book', async () => {
-      mockBkProvider.enrich = vi.fn().mockResolvedValue({
-        binkitapRating: undefined,
-        quotes: [],
-      });
-
-      const book = await aggregator.getFullBookData(sampleSearchItem, DEFAULT_SETTINGS);
-
-      expect(book.title).toBe('Dune');
-      expect(book.quotes).toEqual([]);
-      expect(book.binkitapRating).toBeUndefined();
-    });
-
-    it('respects includeQuotes = false setting by skipping or suppressing quotes', async () => {
-      const customSettings = {
-        ...DEFAULT_SETTINGS,
-        includeQuotes: false,
+    it('uses item id if url is not present', async () => {
+      const itemWithoutUrl: SearchResultItem = {
+        ...sampleSearchItem,
+        url: '',
       };
-
-      const book = await aggregator.getFullBookData(sampleSearchItem, customSettings);
-
-      expect(book.quotes).toEqual([]);
+      await aggregator.getFullBookData(itemWithoutUrl);
+      expect(mockKyProvider.getBookDetails).toHaveBeenCalledWith('375312');
     });
   });
 });

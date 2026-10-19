@@ -1,26 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { KitapyurduProvider } from '../src/providers/kitapyurdu';
-import { BinkitapProvider } from '../src/providers/binkitap';
 import { BookAggregator } from '../src/providers/aggregator';
 import { renderBookTemplate, sanitizeFileName } from '../src/templates/engine';
 import { DEFAULT_SETTINGS, DEFAULT_NOTE_TEMPLATE, BookMetadata } from '../src/types';
-import { loadKitapyurduFixture, load1000KitapFixture, load1000KitapJsonFixture } from './helpers/fixtureLoader';
+import { loadKitapyurduFixture } from './helpers/fixtureLoader';
 import { requestUrl } from 'obsidian';
 
 describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
   let kyProvider: KitapyurduProvider;
-  let bkProvider: BinkitapProvider;
   let aggregator: BookAggregator;
 
   beforeEach(() => {
     (requestUrl as any).mockReset?.();
     kyProvider = new KitapyurduProvider();
-    bkProvider = new BinkitapProvider();
-    aggregator = new BookAggregator(kyProvider, bkProvider);
+    aggregator = new BookAggregator(kyProvider);
   });
 
   describe('Real-World Scenario 1: Dune (Standard Translated Epic)', () => {
-    it('executes full pipeline: search -> detail -> 1000Kitap enrichment -> note generation -> filename sanitization', async () => {
+    it('executes full pipeline: search -> detail -> note generation -> filename sanitization', async () => {
       // 1. Mock Search Request
       (requestUrl as any).mockResolvedValueOnce({
         status: 200,
@@ -38,19 +35,7 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
         text: loadKitapyurduFixture('product_dune_375312.html'),
       });
 
-      // 3. Mock 1000Kitap Enrichment Requests (Search + Quotes)
-      (requestUrl as any)
-        .mockResolvedValueOnce({
-          status: 200,
-          text: load1000KitapFixture('1000kitap_search_suc_ve_ceza.html'), // mock search response
-        })
-        .mockResolvedValueOnce({
-          status: 200,
-          json: load1000KitapJsonFixture('1000kitap_api_quotes_121.json'),
-          text: JSON.stringify(load1000KitapJsonFixture('1000kitap_api_quotes_121.json')),
-        });
-
-      // 4. Execute Aggregation
+      // 3. Execute Aggregation
       const fullBook = await aggregator.getFullBookData(selectedItem!, DEFAULT_SETTINGS);
 
       // Verify Bibliographic Accuracy
@@ -61,7 +46,7 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
       expect(fullBook.isbn).toBe('9786053754794');
       expect(fullBook.pages).toBe(712);
 
-      // 5. Generate Note Markdown
+      // 4. Generate Note Markdown
       const noteMarkdown = renderBookTemplate(DEFAULT_NOTE_TEMPLATE, fullBook);
 
       expect(noteMarkdown).toContain('baslik: "Dune"');
@@ -72,24 +57,18 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
       expect(noteMarkdown).toContain('# Dune');
       expect(noteMarkdown).toContain('Yüzüklerin Efendisi dışında');
 
-      // 6. Generate Sanitized Note Filename
+      // 5. Generate Sanitized Note Filename
       const filename = sanitizeFileName(`${fullBook.title} - ${fullBook.author}`);
       expect(filename).toBe('Dune - Frank Herbert');
     });
   });
 
   describe('Real-World Scenario 2: Kürk Mantolu Madonna (Turkish Original Work)', () => {
-    it('handles Turkish native work with null translator and rich reader stats', async () => {
+    it('handles Turkish native work with null translator', async () => {
       // 1. Kitapyurdu Detail
       (requestUrl as any).mockResolvedValueOnce({
         status: 200,
         text: loadKitapyurduFixture('product_kurk_mantolu_569235.html'),
-      });
-
-      // 2. 1000Kitap Search
-      (requestUrl as any).mockResolvedValueOnce({
-        status: 200,
-        text: load1000KitapFixture('1000kitap_book_kurk_mantolu_madonna.html'),
       });
 
       const book = await kyProvider.getBookDetails('https://www.kitapyurdu.com/kitap/kurk-mantolu-madonna/569235.html');
@@ -140,9 +119,9 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
     });
   });
 
-  describe('Real-World Scenario 5: Suç ve Ceza (1000Kitap Quotes & Zero-Page Handling)', () => {
-    it('renders blockquotes and avoids printing "s. 0"', async () => {
-      const bookWithQuotes: BookMetadata = {
+  describe('Real-World Scenario 5: Suç ve Ceza (Full Bibliographic Details)', () => {
+    it('renders note correctly without legacy quotes', async () => {
+      const bookData: BookMetadata = {
         id: '121',
         url: 'https://www.kitapyurdu.com/kitap/suc-ve-ceza/121.html',
         title: 'Suç ve Ceza',
@@ -151,26 +130,16 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
         translator: 'Mazlum Beyhan',
         isbn: '9789754589023',
         pages: 704,
-        quotes: [
-          {
-            text: 'Bence, gerçekten büyük insanlar, büyük acılar çekmek zorundadır.',
-            author: 'Fyodor Dostoyevski',
-            page: '330',
-          },
-          {
-            text: 'Bir iple intihar da edebilirsin salıncak da kurabilirsin. Hayatın ipleri senin elinde.',
-            author: 'Fyodor Dostoyevski',
-            // page 0 or undefined
-          },
-        ],
+        rating: 4.9,
       };
 
-      const note = renderBookTemplate(DEFAULT_NOTE_TEMPLATE, bookWithQuotes);
+      const note = renderBookTemplate(DEFAULT_NOTE_TEMPLATE, bookData);
 
-      expect(note).toContain('Bence, gerçekten büyük insanlar, büyük acılar çekmek zorundadır.');
-      expect(note).toContain('s. 330');
-      expect(note).toContain('Bir iple intihar da edebilirsin salıncak da kurabilirsin.');
-      expect(note).not.toContain('s. 0');
+      expect(note).toContain('baslik: "Suç ve Ceza"');
+      expect(note).toContain('yazar: "Fyodor Dostoyevski"');
+      expect(note).toContain('yayinevi: "İş Bankası Kültür Yayınları"');
+      expect(note).toContain('cevirmen: "Mazlum Beyhan"');
+      expect(note).toContain('sayfa: 704');
     });
   });
 

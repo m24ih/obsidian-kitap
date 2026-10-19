@@ -3,20 +3,17 @@ import {
   DEFAULT_SETTINGS,
   DEFAULT_NOTE_TEMPLATE,
   BookMetadata,
-  BookQuote,
   SearchResultItem,
 } from '../src/types';
 
-describe('Milestone 1: Core Types & Defaults', () => {
+describe('Core Types & Defaults', () => {
   it('contains expected default settings values in Turkish', () => {
     expect(DEFAULT_SETTINGS.targetFolder).toBe('Kitaplar');
     expect(DEFAULT_SETTINGS.fileNameTemplate).toBe('{{title}} - {{author}}');
-    expect(DEFAULT_SETTINGS.includeQuotes).toBe(true);
-    expect(DEFAULT_SETTINGS.maxQuotes).toBe(5);
     expect(DEFAULT_SETTINGS.noteTemplate).toBe(DEFAULT_NOTE_TEMPLATE);
   });
 
-  it('default template includes all 13 template placeholders', () => {
+  it('default template includes required template placeholders', () => {
     const requiredPlaceholders = [
       '{{title}}',
       '{{author}}',
@@ -27,9 +24,7 @@ describe('Milestone 1: Core Types & Defaults', () => {
       '{{publishDate}}',
       '{{coverUrl}}',
       '{{rating}}',
-      '{{binkitapRating}}',
       '{{description}}',
-      '{{quotes}}',
       '{{url}}',
     ];
 
@@ -48,7 +43,6 @@ describe('Milestone 1: Core Types & Defaults', () => {
       'sayfa:',
       'yayin_tarihi:',
       'puan_kitapyurdu:',
-      'puan_1000kitap:',
       'kapak:',
       'url:',
       'durum:',
@@ -60,13 +54,6 @@ describe('Milestone 1: Core Types & Defaults', () => {
   });
 
   it('allows instantiation of fully compliant BookMetadata objects', () => {
-    const sampleQuote: BookQuote = {
-      text: 'Bir yerlerde bir şeyler, keşfedilmeyi bekliyor.',
-      author: 'Carl Sagan',
-      page: '42',
-      likes: 120,
-    };
-
     const sampleBook: BookMetadata = {
       id: '12345',
       url: 'https://www.kitapyurdu.com/kitap/sample/12345.html',
@@ -81,15 +68,10 @@ describe('Milestone 1: Core Types & Defaults', () => {
       description: 'Evrenin derinliklerine bir yolculuk...',
       rating: 4.8,
       ratingCount: 350,
-      binkitapRating: '9.4/10',
-      binkitapReadCount: '45 bin',
-      binkitapUrl: 'https://1000kitap.com/kitap/kozmos--12345',
-      quotes: [sampleQuote],
     };
 
     expect(sampleBook.title).toBe('Kozmos');
-    expect(sampleBook.quotes?.length).toBe(1);
-    expect(sampleBook.quotes?.[0].author).toBe('Carl Sagan');
+    expect(sampleBook.rating).toBe(4.8);
   });
 
   it('supports SearchResultItem structure', () => {
