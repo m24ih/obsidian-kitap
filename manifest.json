@@ -1,7 +1,7 @@
 {
   "id": "obsidian-kitap",
   "name": "Kitap",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "minAppVersion": "0.15.0",
   "description": "Kitapyurdu ve 1000Kitap üzerinden kitap arama, metaveri ve alıntı zenginleştirme eklentisi.",
   "author": "Melih",

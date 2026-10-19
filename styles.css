@@ -189,34 +189,3 @@
   font-size: var(--font-ui-smaller, 0.88em);
 }
 
-/* --------------------------------------------------------------------------
-   Search Input Action Button
-   -------------------------------------------------------------------------- */
-.kitap-search-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-.kitap-search-action-btn {
-  position: absolute;
-  right: 8px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  color: var(--text-muted);
-  border-radius: var(--radius-s);
-  transition: color 0.15s ease, background-color 0.15s ease;
-  z-index: 2;
-}
-
-.kitap-search-action-btn:hover {
-  color: var(--text-normal);
-  background-color: var(--background-modifier-hover);
-}
-

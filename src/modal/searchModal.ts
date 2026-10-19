@@ -3,6 +3,7 @@ import type KitapPlugin from '../main';
 import { BookAggregator, IBookAggregator } from '../providers/aggregator';
 import { renderBookTemplate, sanitizeFileName } from '../templates/engine';
 import { BookMetadata, SearchResultItem } from '../types';
+import { fuzzySortBooks } from '../utils/fuzzy';
 
 export interface SearchModalOptions {
   insertIntoActive?: boolean;
@@ -12,7 +13,8 @@ export interface SearchModalOptions {
 
 /**
  * Türkçe Kitap Arama ve Seçim Modalı
- * Gecikmeli (debounced) arama, eski yanıt koruması (stale-response guard),
+ * Gecikmeli (debounced) otomatik arama, Enter ile anında tetikleme,
+ * Türkçe karakter ve case-insensitive fuzzy sıralama,
  * güvenli iç içe klasör oluşturma ve aktif nota ekleme özelliklerini içerir.
  */
 export class BookSearchModal extends SuggestModal<SearchResultItem> {
@@ -21,41 +23,34 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
   private readonly insertIntoActive: boolean;
   private readonly debounceMs: number;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private debounceResolver: ((value: boolean) => void) | null = null;
   private requestSeq = 0;
-  private lastSearchedQuery = '';
-  private currentResults: SearchResultItem[] = [];
   private isSearching = false;
+  private currentResults: SearchResultItem[] = [];
 
   constructor(app: App, plugin: KitapPlugin, options?: SearchModalOptions) {
     super(app);
     this.plugin = plugin;
     this.aggregator = options?.aggregator ?? new BookAggregator();
     this.insertIntoActive = options?.insertIntoActive ?? false;
-    this.debounceMs = options?.debounceMs ?? 300;
+    this.debounceMs = options?.debounceMs ?? 500;
 
-    this.emptyStateText = 'Aramak için kitap adı, yazar veya ISBN girip Enter tuşuna basın.';
+    this.emptyStateText = 'Kitap adı, yazar veya ISBN girin (örn. Üç Cisim Problemi, Dune)...';
 
     this.setPlaceholder?.(
-      'Kitap adı, yazar veya ISBN girip Enter\'a basın (örn. Aytozu Faciası)...'
+      'Kitap adı, yazar veya ISBN girin (örn. Üç Cisim Problemi, Dune)...'
     );
-    this.updateInstructions(false);
+    this.setInstructions?.([
+      { command: '↑↓', purpose: 'Gezin' },
+      { command: '↵ Enter', purpose: this.insertIntoActive ? 'Aktif Nota Ekle' : 'Not Oluştur' },
+      { command: 'esc', purpose: 'Kapat' },
+    ]);
 
-    // Enter tuşunu doğrudan modal scope ve input alanına bağla
-    this.registerEnterScope();
-    this.setupSearchButton();
-
+    // Kullanıcı beklemeden hemen Enter tuşuna basarsa bekleyen debounce'ı anında tetikle
     if (this.inputEl) {
-      this.inputEl.addEventListener('keydown', async (event: KeyboardEvent) => {
+      this.inputEl.addEventListener('keydown', (event: KeyboardEvent) => {
         if (event.key === 'Enter') {
-          const query = this.inputEl.value.trim();
-          if (!query) return;
-
-          // Eğer henüz arama yapılmadıysa veya arama kutusuna yeni bir şey yazıldıysa:
-          if (query !== this.lastSearchedQuery || this.currentResults.length === 0) {
-            event.preventDefault();
-            event.stopPropagation();
-            await this.performSearch(query);
-          }
+          this.flushDebounce();
         }
       });
     }
@@ -63,28 +58,16 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
 
   override onOpen(): void {
     super.onOpen?.();
-    this.registerEnterScope();
-    this.setupSearchButton();
-  }
-
-  private registerEnterScope(): void {
     if (this.scope && typeof this.scope.register === 'function') {
-      this.scope.register([], 'Enter', (evt: KeyboardEvent) => {
-        const query = this.inputEl?.value?.trim() || '';
-        if (!query) return false;
-
-        // Henüz arama yapılmadıysa, arama kutusundaki metin son aramadan farklıysa veya sonuç yoksa:
-        if (query !== this.lastSearchedQuery || this.currentResults.length === 0) {
-          evt.preventDefault();
-          evt.stopPropagation();
-          void this.performSearch(query);
+      this.scope.register([], 'Enter', (_evt: KeyboardEvent) => {
+        // Eğer sonuç yoksa veya henüz arama tamamlanmadıysa Enter ile aramayı hemen başlat
+        if (this.currentResults.length === 0) {
+          this.flushDebounce();
           return false;
         }
-
-        // Arama sonuçları zaten listelenmişse, seçilen öğeyi işle
         const chooser = (this as any).chooser;
         if (chooser && typeof chooser.useSelectedItem === 'function') {
-          chooser.useSelectedItem(evt);
+          chooser.useSelectedItem(_evt);
           return false;
         }
         return true;
@@ -92,123 +75,84 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     }
   }
 
-  private setupSearchButton(): void {
-    if (!this.inputEl || !this.inputEl.parentElement) return;
-    const parent = this.inputEl.parentElement;
-    if (parent.querySelector('.kitap-search-action-btn')) return;
-
-    parent.classList.add('kitap-search-input-wrapper');
-    const searchBtn = parent.createEl('button', {
-      cls: 'kitap-search-action-btn',
-      attr: { type: 'button', title: 'Kitap Ara (Enter)' },
-    });
-    searchBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
-    searchBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const query = this.inputEl.value.trim();
-      if (query) {
-        void this.performSearch(query);
-      }
-    });
-  }
-
-  private updateInstructions(hasResults: boolean): void {
-    if (hasResults) {
-      this.setInstructions?.([
-        { command: '↑↓', purpose: 'Gezin' },
-        { command: '↵ Enter', purpose: this.insertIntoActive ? 'Aktif Nota Ekle' : 'Not Oluştur' },
-        { command: 'esc', purpose: 'Kapat' },
-      ]);
-    } else {
-      this.setInstructions?.([
-        { command: '↵ Enter', purpose: 'Kitap Ara' },
-        { command: 'esc', purpose: 'Kapat' },
-      ]);
-    }
-  }
-
   /**
-   * Kitapyurdu aramasını başlatır ve sonuçları listeler.
+   * Bekleyen gecikmeli arama sayacını anında çözümler ve aramayı hemen başlatır.
    */
-  async performSearch(query: string): Promise<void> {
-    if (this.isSearching) return;
-    this.isSearching = true;
-    this.emptyStateText = 'Kitaplar aranıyor, lütfen bekleyin...';
-    new Notice(`"${query}" için kitaplar aranıyor...`);
-
-    try {
-      const results = await this.aggregator.search(query);
-      this.lastSearchedQuery = query;
-      this.currentResults = results;
-      this.emptyStateText = results.length === 0 ? 'Aramanızla eşleşen kitap bulunamadı.' : '';
-      this.updateInstructions(results.length > 0);
-    } catch (error) {
-      console.error('Kitap arama hatası:', error);
-      this.currentResults = [];
-      this.emptyStateText = 'Arama sırasında bir hata oluştu.';
-      new Notice('Arama sırasında bir hata oluştu.');
-    } finally {
-      this.isSearching = false;
-      const chooser = (this as any).chooser;
-      if (chooser && typeof chooser.setSuggestions === 'function') {
-        chooser.setSuggestions(this.currentResults);
-      }
-      if (typeof (this as any).onInputChanged === 'function') {
-        (this as any).onInputChanged();
-      }
-      if (typeof (this as any).updateSuggestions === 'function') {
-        (this as any).updateSuggestions();
-      }
-      if (this.inputEl) {
-        this.inputEl.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-      }
+  private flushDebounce(): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+    if (this.debounceResolver) {
+      const resolve = this.debounceResolver;
+      this.debounceResolver = null;
+      resolve(true);
     }
   }
 
   /**
    * SuggestModal önerilerini sağlar.
-   * Enter-to-search modunda: arama tamamlanmışsa sonuçları döner,
-   * metin değişmişse ağ isteği atmadan Enter uyarısı gösterir.
+   * Kullanıcı yazdıkça gecikmeli (debounced) olarak arar,
+   * sonuçları Türkçe case-insensitive fuzzy benzerliğe göre sıralar.
    */
   async getSuggestions(query: string): Promise<SearchResultItem[]> {
     const trimmed = query.trim();
 
-    // Birim testler (debounceMs: 0 veya inputEl olmayan mock ortamı) için doğrudan arama desteği
-    if (this.debounceMs === 0 || !this.inputEl) {
-      if (this.debounceTimer) {
-        clearTimeout(this.debounceTimer);
-        this.debounceTimer = null;
-      }
-      if (trimmed.length < 2) {
-        this.requestSeq++;
-        return [];
-      }
-      const currentSeq = ++this.requestSeq;
-      try {
-        const results = await this.aggregator.search(trimmed);
-        if (currentSeq !== this.requestSeq) return [];
-        return results;
-      } catch (error) {
-        console.error('Kitap arama hatası:', error);
-        return [];
-      }
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+    if (this.debounceResolver) {
+      this.debounceResolver(false);
+      this.debounceResolver = null;
     }
 
-    if (this.isSearching) {
+    if (trimmed.length < 2) {
+      this.requestSeq++;
+      this.currentResults = [];
+      this.emptyStateText = 'Aramak için en az 2 karakter girin...';
       return [];
     }
 
-    if (trimmed && trimmed === this.lastSearchedQuery) {
-      return this.currentResults;
+    const currentSeq = ++this.requestSeq;
+
+    if (this.debounceMs > 0) {
+      const shouldContinue = await new Promise<boolean>((resolve) => {
+        this.debounceResolver = resolve;
+        this.debounceTimer = setTimeout(() => {
+          this.debounceTimer = null;
+          this.debounceResolver = null;
+          resolve(currentSeq === this.requestSeq);
+        }, this.debounceMs);
+      });
+
+      if (!shouldContinue || currentSeq !== this.requestSeq) {
+        return [];
+      }
     }
 
-    // Kullanıcı henüz Enter'a basmadı veya arama sorgusunu değiştirdi
-    this.emptyStateText = trimmed.length > 0
-      ? 'Aramak için Enter tuşuna basın.'
-      : 'Kitap adı, yazar veya ISBN girip Enter tuşuna basın.';
-    this.updateInstructions(false);
-    return [];
+    this.isSearching = true;
+    this.emptyStateText = 'Kitaplar aranıyor, lütfen bekleyin...';
+
+    try {
+      const rawResults = await this.aggregator.search(trimmed);
+      if (currentSeq !== this.requestSeq) {
+        return [];
+      }
+
+      // Case-insensitive & fuzzy sıralama uygula
+      const sortedResults = fuzzySortBooks(trimmed, rawResults);
+      this.currentResults = sortedResults;
+      this.emptyStateText = sortedResults.length === 0 ? 'Aramanızla eşleşen kitap bulunamadı.' : '';
+      return sortedResults;
+    } catch (error) {
+      console.error('Kitap arama hatası:', error);
+      this.currentResults = [];
+      this.emptyStateText = 'Arama sırasında bir hata oluştu.';
+      return [];
+    } finally {
+      this.isSearching = false;
+    }
   }
 
   /**
