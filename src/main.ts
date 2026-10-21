@@ -9,8 +9,6 @@ export default class KitapPlugin extends Plugin {
   aggregator: BookAggregator = new BookAggregator();
 
   async onload(): Promise<void> {
-    console.log('obsidian-kitap eklentisi yükleniyor...');
-
     // 1. Ayarları diskten oku veya varsayılanlarla başlat
     await this.loadSettings();
 
@@ -25,7 +23,6 @@ export default class KitapPlugin extends Plugin {
   }
 
   onunload(): void {
-    console.log('obsidian-kitap eklentisi kaldırıldı.');
   }
 
   /**
