@@ -630,6 +630,7 @@ if (typeof vi !== "undefined") {
     TFolder,
     lastNotices,
     MockSetting,
+    DropdownComponent: MockDropdownComponent,
   }));
 }
 

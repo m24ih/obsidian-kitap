@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
+import { App, DropdownComponent, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type KitapPlugin from './main';
 import { DEFAULT_NOTE_TEMPLATE } from './types';
 import { FileSuggest } from './settings/fileSuggest';
@@ -95,6 +95,8 @@ export class KitapSettingTab extends PluginSettingTab {
     // ----------------------------------------------------
     containerEl.createEl('h3', { text: 'Okuma Durumu Ayarları' });
 
+    let defaultStatusDropdown: DropdownComponent | null = null;
+
     new Setting(containerEl)
       .setName('Okuma Durumu Seçenekleri')
       .setDesc('Kitaplar için kullanabileceğiniz durum seçenekleri (virgülle ayırarak girin). Örn: Okunacak, Okunuyor, Okundu veya TBR, Reading, Read.')
@@ -110,7 +112,23 @@ export class KitapSettingTab extends PluginSettingTab {
               this.plugin.settings.defaultReadingStatus = options[0];
             }
             await this.plugin.saveSettings();
-            this.display();
+
+            // Sayfayı yeniden çizmek (this.display) odak kaybına yol açtığı için
+            // sadece açılır kutu (dropdown) seçeneklerini yerinde güncelliyoruz.
+            if (defaultStatusDropdown) {
+              const selectEl = defaultStatusDropdown.selectEl;
+              selectEl.innerHTML = '';
+              if ((defaultStatusDropdown as any).options) {
+                (defaultStatusDropdown as any).options = {};
+              }
+              for (const opt of options) {
+                defaultStatusDropdown.addOption(opt, opt);
+              }
+              if (!options.includes(this.plugin.settings.defaultReadingStatus)) {
+                defaultStatusDropdown.addOption(this.plugin.settings.defaultReadingStatus, this.plugin.settings.defaultReadingStatus);
+              }
+              defaultStatusDropdown.setValue(this.plugin.settings.defaultReadingStatus);
+            }
           })
       );
 
@@ -118,6 +136,7 @@ export class KitapSettingTab extends PluginSettingTab {
       .setName('Varsayılan Okuma Durumu')
       .setDesc('Yeni eklenen kitap notuna otomatik atanacak başlangıç okuma durumu.')
       .addDropdown((dropdown) => {
+        defaultStatusDropdown = dropdown;
         const opts = this.plugin.settings.readingStatusOptions;
         for (const opt of opts) {
           dropdown.addOption(opt, opt);

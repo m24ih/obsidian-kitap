@@ -230,6 +230,41 @@ describe('Reading Status Customization & Migration Suite', () => {
       expect(mockData.defaultReadingStatus).toBe('Okunuyor');
     });
 
+    it('preserves input element in DOM without losing focus when typing in options', async () => {
+      settingTab.display();
+
+      const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');
+      let optionsInput: HTMLInputElement | undefined;
+
+      for (const item of Array.from(settingItems)) {
+        const nameEl = item.querySelector('.setting-item-name');
+        if (nameEl?.textContent?.includes('Okuma Durumu Seçenekleri')) {
+          optionsInput = item.querySelector('input') as HTMLInputElement;
+        }
+      }
+
+      expect(optionsInput).toBeDefined();
+      const initialInput = optionsInput!;
+
+      // Harf harf yazma simülasyonu
+      for (const val of ['T', 'TB', 'TBR', 'TBR, Reading']) {
+        const component = (initialInput as any).component;
+        await component.simulateChange(val);
+
+        // Input elemanının DOM'dan silinmediğini (re-render edilmediğini) doğrula
+        const currentItems = settingTab.containerEl.querySelectorAll('.setting-item');
+        let currentInput: HTMLInputElement | undefined;
+        for (const item of Array.from(currentItems)) {
+          const nameEl = item.querySelector('.setting-item-name');
+          if (nameEl?.textContent?.includes('Okuma Durumu Seçenekleri')) {
+            currentInput = item.querySelector('input') as HTMLInputElement;
+          }
+        }
+
+        expect(currentInput).toBe(initialInput);
+      }
+    });
+
     it('defensively sanitizes empty options and invalid defaults in loadSettings()', async () => {
       mockData = {
         readingStatusOptions: '   ',
