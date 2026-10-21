@@ -133,7 +133,7 @@ export class KitapSettingTab extends PluginSettingTab {
             // sadece açılır kutu (dropdown) seçeneklerini yerinde güncelliyoruz.
             if (defaultStatusDropdown) {
               const selectEl = defaultStatusDropdown.selectEl;
-              selectEl.innerHTML = '';
+              selectEl.empty();
               if ((defaultStatusDropdown as any).options) {
                 (defaultStatusDropdown as any).options = {};
               }

@@ -3,8 +3,8 @@
   "name": "Kitap",
   "version": "0.3.0",
   "minAppVersion": "0.15.0",
-  "description": "Kitapyurdu üzerinden kitap arama ve metaveri ile not oluşturma eklentisi.",
+  "description": "Search books and metadata from Kitapyurdu to create structured reading notes.",
   "author": "Melih",
-  "authorUrl": "",
+  "authorUrl": "https://github.com/m24ih",
   "isDesktopOnly": false
 }

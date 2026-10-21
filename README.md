@@ -1,4 +1,33 @@
-# Obsidian Kitap Eklentisi (`obsidian-kitap`)
+# Obsidian Kitap (`obsidian-kitap`)
+
+An Obsidian plugin to search Turkish books and metadata from [Kitapyurdu](https://www.kitapyurdu.com) and create structured reading notes with rich bibliographic data, customizable templates, Dataview reactive progress tracking, and Templater integration.
+
+*(Aşağıda Türkçe açıklama ve detaylı rehber yer almaktadır.)*
+
+---
+
+## English Overview
+
+### ✨ Features
+- **Direct Kitapyurdu Integration**: Accurate bibliographic metadata using `schema.org/Book` JSON-LD structured data and page DOM parsers.
+- **Rich Book Metadata**: Title, author(s), translator(s), publisher, 13-digit ISBN, page count, publish date, list price (`{{price}}`), format/binding (`{{format}}`), categories/genres (`{{genres}}`), original title (`{{originalTitle}}`), language (`{{language}}`), reader rating (`{{rating}}`), rating count (`{{ratingCount}}`), synopsis (`{{description}}`), and cover image.
+- **Flexible Template Modes**:
+  - **Static Template**: Clean YAML frontmatter and standard Markdown layout.
+  - **Reactive Template**: DataviewJS reading progress bar, reading logs, and dynamic inline fields.
+  - **Custom Template**: Select any `.md` template from your vault or edit custom template in settings.
+- **Local Cover Image Download**: Automatically downloads cover images locally to your vault (e.g. `Kitaplar/Kapaklar/`) and embeds them as Obsidian wikilinks (`![[cover.jpg]]`).
+- **Templater Integration**: Automatically triggers Templater syntax upon creation and exposes the raw `book` object (`<%* const b = book; %>`).
+- **Customizable Property Mappings & Reading Statuses**: Configure Obsidian Properties and reading statuses (`TBR`, `Reading`, `Read`, etc.).
+- **Client-Side & Offline Friendly**: Uses Obsidian's native `requestUrl` without external servers or API keys.
+
+### 📦 Installation
+- **Community Plugins**: Search for **Kitap** in Obsidian's Community Plugins list and click Install.
+- **BRAT**: Add `m24ih/obsidian-kitap` in the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin settings.
+- **Manual**: Download `main.js`, `manifest.json`, and `styles.css` from the latest [Release](https://github.com/m24ih/obsidian-kitap/releases) and place them in `<Vault>/.obsidian/plugins/obsidian-kitap/`.
+
+---
+
+# Türkçe Dokümantasyon
 
 **Obsidian Kitap**, Türkçe kitap okurları için geliştirilmiş, tamamen istemci taraflı çalışan modern bir Obsidian eklentisidir. **Kitapyurdu** üzerinden kapsamlı bibliyografik kitap verilerini (başlık, yazarlar, çevirmenler, yayınevi, ISBN, sayfa sayısı, yayın tarihi, fiyat, cilt/baskı formatı, türler, orijinal başlık, dil, puan ve arka kapak açıklaması) çeker; özelleştirilebilir şablonlar, Dataview reaktif görünümleri ve Templater desteğiyle kişisel kütüphane notlarına dönüştürür.
 

@@ -1,13 +1,55 @@
-node_modules/
+# Obsidian derleme çıktıları
 main.js
 dist/
-.DS_Store
-*.log
+build/
+
+# Bağımlılıklar
+node_modules/
+
+# Ortam değişkenleri ve gizli anahtarlar
 .env
 .env.*
+.env.local
 *.key
 *.pem
 credentials.json
 token*
 id_rsa*
 id_ed25519*
+
+# İşletim sistemi kalıntıları
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log dosyaları
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun.log*
+
+# Editör ve IDE ayarları
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# Test ve Kapsam çıktıları
+coverage/
+.nyc_output/
+
+# Geçici dosyalar ve derleme önbellekleri
+.cache/
+.turbo/
+.temp/
+.tmp/
+*.tsbuildinfo
