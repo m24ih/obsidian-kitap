@@ -69,7 +69,10 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
           this.flushDebounce();
           return false;
         }
-        const chooser = (this as any).chooser;
+        const modalWithChooser = this as unknown as {
+          chooser?: { useSelectedItem?: (evt: KeyboardEvent) => void };
+        };
+        const chooser = modalWithChooser.chooser;
         if (chooser && typeof chooser.useSelectedItem === 'function') {
           chooser.useSelectedItem(_evt);
           return false;
@@ -252,7 +255,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     content: string,
     bookData: BookMetadata
   ): Promise<TFile | null> {
-    const vault = (this.app as any)?.vault;
+    const vault = this.app.vault;
     if (!vault) {
       new Notice('Vault erişimi bulunamadı.');
       return null;
@@ -292,7 +295,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
       }
     }
 
-    const workspace = (this.app as any)?.workspace;
+    const workspace = this.app.workspace;
     if (file && workspace?.getLeaf) {
       const leaf = workspace.getLeaf(false);
       if (leaf && typeof leaf.openFile === 'function') {
@@ -310,8 +313,8 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     content: string,
     bookData: BookMetadata
   ): Promise<TFile | null> {
-    const workspace = (this.app as any)?.workspace;
-    const vault = (this.app as any)?.vault;
+    const workspace = this.app.workspace;
+    const vault = this.app.vault;
     const activeFile = workspace?.getActiveFile?.() as TFile | null;
 
     if (!activeFile) {
@@ -319,7 +322,8 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
       return null;
     }
 
-    const activeEditor = workspace?.activeEditor?.editor;
+    const activeEditor = (workspace as unknown as { activeEditor?: { editor?: { replaceSelection?: (s: string) => void } } })
+      ?.activeEditor?.editor;
     if (activeEditor && typeof activeEditor.replaceSelection === 'function') {
       activeEditor.replaceSelection(content);
       new Notice(`"${bookData.title}" bilgileri aktif nota eklendi.`);
@@ -342,7 +346,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
    * İç içe klasör yollarını (ör. "Kitaplar/2026/Roman") kademeli ve güvenli olarak oluşturur.
    */
   async ensureFolderExists(folderPath: string): Promise<void> {
-    const vault = (this.app as any)?.vault;
+    const vault = this.app.vault;
     await ensureFolderExists(vault, folderPath);
   }
 

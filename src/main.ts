@@ -113,7 +113,7 @@ export default class KitapPlugin extends Plugin {
     // 10. defaultReadingStatus doğrulaması
     const rawDefaultStatus =
       typeof rawRecord.defaultReadingStatus === 'string'
-        ? (rawRecord.defaultReadingStatus as string).trim()
+        ? rawRecord.defaultReadingStatus.trim()
         : '';
     this.settings.defaultReadingStatus =
       rawDefaultStatus || DEFAULT_SETTINGS.defaultReadingStatus;

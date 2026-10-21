@@ -15,8 +15,14 @@ export function sanitizeFileName(name: string): string {
     return 'Kitap Notu';
   }
 
-  // 1. Kontrol karakterlerini (\x00-\x1f, \x7f) boşluğa dönüştür ve uç boşlukları kırp
-  let cleaned = name.replace(new RegExp('[\\x00-\\x1f\\x7f]+', 'g'), ' ').trim();
+  // 1. Kontrol karakterlerini (0-31, 127) boşluğa dönüştür ve uç boşlukları kırp
+  let cleaned = Array.from(name)
+    .map((ch) => {
+      const code = ch.charCodeAt(0);
+      return code <= 31 || code === 127 ? ' ' : ch;
+    })
+    .join('')
+    .trim();
 
   // 2. Başta ve sonda bulunan yasaklı karakterleri ve boşlukları tamamen kaldır
   cleaned = cleaned.replace(/^[\s\\/:*?"<>|]+|[\s\\/:*?"<>|]+$/g, '');

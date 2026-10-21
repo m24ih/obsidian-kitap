@@ -5,24 +5,22 @@ import { AbstractInputSuggest, App, TFolder } from 'obsidian';
  */
 export class FolderSuggest extends AbstractInputSuggest<TFolder> {
   protected inputEl: HTMLInputElement;
-  private onSelectCb?: (folder: TFolder, evt: MouseEvent | KeyboardEvent) => any;
+  private onSelectCb?: (folder: TFolder, evt: MouseEvent | KeyboardEvent) => void;
 
   constructor(app: App, textInputEl: HTMLInputElement) {
     super(app, textInputEl);
     this.inputEl = textInputEl;
   }
 
-  onSelect(callback: (value: TFolder, evt: MouseEvent | KeyboardEvent) => any): this {
+  override onSelect(callback: (value: TFolder, evt: MouseEvent | KeyboardEvent) => unknown): this {
     this.onSelectCb = callback;
-    if (typeof (super.onSelect as any) === 'function') {
-      super.onSelect(callback);
-    }
+    super.onSelect(callback);
     return this;
   }
 
   protected getSuggestions(query: string): TFolder[] {
     const lowerCaseInputStr = query.toLowerCase().trim();
-    const vault = (this.app as any)?.vault;
+    const vault = this.app.vault;
     if (!vault || typeof vault.getAllLoadedFiles !== 'function') {
       return [];
     }

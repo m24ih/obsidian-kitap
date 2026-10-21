@@ -23,18 +23,20 @@ export async function getTemplateContentFromVault(
 ): Promise<string | null> {
   if (!templatePath || !app?.vault) return null;
 
-  const vault = (app as any).vault;
+  const vault = app.vault;
   let file = vault.getAbstractFileByPath?.(templatePath);
 
   // Doğrudan tam yol ile bulunamazsa dosya adına göre ara (fallback)
   if (!file && typeof vault.getFiles === 'function') {
-    const allFiles = vault.getFiles() as TFile[];
-    file = allFiles.find((f) => f.path === templatePath || f.name === templatePath);
+    const allFiles = vault.getFiles();
+    file = allFiles.find((f) => f.path === templatePath || f.name === templatePath) ?? null;
   }
 
-  if (file && typeof vault.read === 'function') {
+  const isFile = file instanceof TFile || (file !== null && typeof file === 'object' && 'path' in file);
+  if (isFile && typeof vault.read === 'function') {
     try {
-      return await vault.read(file);
+      const content = await vault.read(file as TFile);
+      return content;
     } catch (err) {
       console.warn('Şablon dosyası okunamadı:', templatePath, err);
       return null;
@@ -132,7 +134,7 @@ export async function buildBookNoteContent(
     let templateFrontmatterObj: Record<string, unknown> = {};
     if (hasFrontmatter && frontmatterRaw.trim()) {
       try {
-        const parsed = parseYaml(frontmatterRaw);
+        const parsed: unknown = parseYaml(frontmatterRaw);
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           templateFrontmatterObj = parsed as Record<string, unknown>;
         }

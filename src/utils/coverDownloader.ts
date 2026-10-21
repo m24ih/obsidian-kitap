@@ -66,7 +66,7 @@ export async function downloadBookCover(
     return { success: false };
   }
 
-  const vault = (app as any)?.vault;
+  const vault = app.vault;
   if (!vault) {
     return { success: false, error: new Error('Vault erişimi bulunamadı') };
   }

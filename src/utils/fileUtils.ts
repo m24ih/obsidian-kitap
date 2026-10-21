@@ -1,9 +1,9 @@
-import { normalizePath } from 'obsidian';
+import { normalizePath, Vault } from 'obsidian';
 
 /**
  * İç içe klasör yollarını (ör. "Kitaplar/Kapaklar/2026") kademeli ve güvenli olarak oluşturur.
  */
-export async function ensureFolderExists(vault: any, folderPath: string): Promise<void> {
+export async function ensureFolderExists(vault: Vault, folderPath: string): Promise<void> {
   if (!vault || typeof vault.createFolder !== 'function') return;
 
   const normalized = normalizePath(folderPath).replace(/^\/+|\/+$/g, '');

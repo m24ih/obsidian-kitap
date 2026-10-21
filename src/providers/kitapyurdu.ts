@@ -334,23 +334,28 @@ export class KitapyurduProvider implements IKitapyurduProvider {
       if (!content) continue;
 
       try {
-        const parsed = JSON.parse(content);
-        const nodes = Array.isArray(parsed['@graph'])
-          ? parsed['@graph']
+        const parsed: unknown = JSON.parse(content);
+        const parsedObj = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+        if (!parsedObj) continue;
+
+        const graph = parsedObj['@graph'];
+        const nodes: unknown[] = Array.isArray(graph)
+          ? (graph as unknown[])
           : Array.isArray(parsed)
-          ? parsed
+          ? (parsed as unknown[])
           : [parsed];
 
         for (const node of nodes) {
           if (!node || typeof node !== 'object') continue;
-          const rawType = node['@type'];
-          const types = Array.isArray(rawType) ? rawType : [rawType];
+          const nodeObj = node as Record<string, unknown>;
+          const rawType = nodeObj['@type'];
+          const types: unknown[] = Array.isArray(rawType) ? (rawType as unknown[]) : [rawType];
 
           if (types.includes('Book') && !bookNode) {
-            bookNode = node as JsonLdBook;
+            bookNode = node as unknown as JsonLdBook;
           }
           if (types.includes('Product') && !productNode) {
-            productNode = node as JsonLdProduct;
+            productNode = node as unknown as JsonLdProduct;
           }
         }
       } catch {

@@ -78,7 +78,7 @@ export class KitapSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.downloadCovers = value;
             await this.plugin.saveSettings();
-            this.display();
+            this.refresh();
           })
       );
 
@@ -132,8 +132,9 @@ export class KitapSettingTab extends PluginSettingTab {
             if (defaultStatusDropdown) {
               const selectEl = defaultStatusDropdown.selectEl;
               selectEl.empty();
-              if ((defaultStatusDropdown as any).options) {
-                (defaultStatusDropdown as any).options = {};
+              const internalDropdown = defaultStatusDropdown as unknown as { options?: Record<string, string> };
+              if (internalDropdown.options) {
+                internalDropdown.options = {};
               }
               for (const opt of options) {
                 defaultStatusDropdown.addOption(opt, opt);
@@ -185,7 +186,7 @@ export class KitapSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.templateMode = value as 'static' | 'reactive' | 'custom';
             await this.plugin.saveSettings();
-            this.display();
+            this.refresh();
           });
       });
 
@@ -202,7 +203,7 @@ export class KitapSettingTab extends PluginSettingTab {
             this.plugin.settings.noteTemplate = DEFAULT_STATIC_TEMPLATE;
             await this.plugin.saveSettings();
             new Notice('Statik şablon düzenlenebilir özel şablon alanına kopyalandı.');
-            this.display();
+            this.refresh();
           });
         });
     } else if (currentMode === 'reactive') {
@@ -218,7 +219,7 @@ export class KitapSettingTab extends PluginSettingTab {
             this.plugin.settings.noteTemplate = DEFAULT_REACTIVE_TEMPLATE;
             await this.plugin.saveSettings();
             new Notice('Reaktif şablon düzenlenebilir özel şablon alanına kopyalandı.');
-            this.display();
+            this.refresh();
           });
         });
     } else {
@@ -268,7 +269,7 @@ export class KitapSettingTab extends PluginSettingTab {
               this.plugin.settings.noteTemplate = DEFAULT_STATIC_TEMPLATE;
               await this.plugin.saveSettings();
               new Notice('Not şablonu orijinal Statik şablona dönüştürüldü.');
-              this.display();
+              this.refresh();
             })
         )
         .addButton((button) =>
@@ -278,7 +279,7 @@ export class KitapSettingTab extends PluginSettingTab {
               this.plugin.settings.noteTemplate = DEFAULT_REACTIVE_TEMPLATE;
               await this.plugin.saveSettings();
               new Notice('Not şablonu Reaktif şablona dönüştürüldü.');
-              this.display();
+              this.refresh();
             })
         );
     }
@@ -316,7 +317,7 @@ export class KitapSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.useDefaultFrontMatter = value;
             await this.plugin.saveSettings();
-            this.display();
+            this.refresh();
           })
       );
 
@@ -368,5 +369,12 @@ export class KitapSettingTab extends PluginSettingTab {
       item.createEl('code', { text: v.tag });
       item.appendText(`: ${v.desc}`);
     }
+  }
+
+  /**
+   * Ayarlar sekmesini güvenle yeniden çizer.
+   */
+  private refresh(): void {
+    this.display();
   }
 }

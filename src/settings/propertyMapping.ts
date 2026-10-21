@@ -176,7 +176,8 @@ export class PropertyMapper {
             finalValue = `[[${val.trim()}]]`;
           }
         } else if (Array.isArray(val)) {
-          finalValue = val.map((item) =>
+          const list: unknown[] = val;
+          finalValue = list.map((item: unknown): unknown =>
             typeof item === 'string' && item.trim().length > 0 && (!item.startsWith('[[') || !item.endsWith(']]'))
               ? `[[${item.trim()}]]`
               : item

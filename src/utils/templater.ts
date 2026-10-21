@@ -9,11 +9,17 @@ export interface TemplaterPlugin {
   };
 }
 
+interface AppWithCommunityPlugins extends App {
+  plugins?: {
+    plugins?: Record<string, unknown>;
+  };
+}
+
 /**
  * Obsidian içerisinde Templater eklentisinin kurulu ve aktif olup olmadığını kontrol eder.
  */
 export function getTemplaterPlugin(app: App): TemplaterPlugin | null {
-  const pluginContainer = (app as any)?.plugins;
+  const pluginContainer = (app as AppWithCommunityPlugins).plugins;
   const candidate = pluginContainer?.plugins?.['templater-obsidian'];
 
   if (!candidate || typeof candidate !== 'object') {

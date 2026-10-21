@@ -1,7 +1,7 @@
 {
   "id": "kitap",
   "name": "Kitap",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "minAppVersion": "1.14.4",
   "description": "Search books and metadata from Kitapyurdu to create structured reading notes.",
   "author": "Melih",

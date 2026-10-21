@@ -123,11 +123,11 @@ export async function fetchJson<T = unknown>(
   }
 
   if (response.json !== undefined) {
-    return response.json as T;
+    return (response.json as unknown) as T;
   }
 
   if (typeof response.text === 'string' && response.text.trim()) {
-    return JSON.parse(response.text) as T;
+    return (JSON.parse(response.text) as unknown) as T;
   }
 
   throw new Error(`Geçersiz JSON yanıtı: ${url}`);
