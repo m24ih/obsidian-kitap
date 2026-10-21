@@ -65,6 +65,29 @@ export function renderBookTemplate(template: string, data: BookMetadata): string
     okumaDurumu: strValue(data.readingStatus || 'Okunacak'),
     durum: strValue(data.readingStatus || 'Okunacak'),
 
+    // Yeni bibliyografik alanlar
+    price: strValue(data.price),
+    fiyat: strValue(data.price),
+    format: strValue(data.format),
+    ciltTipi: strValue(data.format),
+    binding: strValue(data.format),
+    genres: Array.isArray(data.genres) ? data.genres.join(', ') : strValue(data.genres),
+    tur: Array.isArray(data.genres) ? data.genres.join(', ') : strValue(data.genres),
+    category: Array.isArray(data.genres) ? data.genres.join(', ') : strValue(data.genres),
+    genresList:
+      Array.isArray(data.genres) && data.genres.length > 0
+        ? data.genres.map((g) => `  - ${JSON.stringify(g)}`).join('\n')
+        : '  - ""',
+    originalTitle: strValue(data.originalTitle),
+    orijinalAdi: strValue(data.originalTitle),
+    orijinalBaslik: strValue(data.originalTitle),
+    language: strValue(data.language),
+    dil: strValue(data.language),
+
+    // media-db ve şablon uyumluluk takma adları
+    total_pages: data.pages !== undefined && data.pages !== null ? String(data.pages) : '',
+    image: rawCover,
+
     // Eski şablonlarla geriye dönük uyumluluk için güvenli boş değerler
     binkitapRating: '',
     binkitapReadCount: '',
@@ -72,10 +95,21 @@ export function renderBookTemplate(template: string, data: BookMetadata): string
     quotes: '',
   };
 
-  return processedTemplate.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (fullMatch, key: string) => {
+  // 1. Standart {{değişken}} yer tutucularını çöz
+  let rendered = processedTemplate.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (fullMatch, key: string) => {
     if (Object.prototype.hasOwnProperty.call(replacements, key)) {
       return replacements[key];
     }
     return fullMatch;
   });
+
+  // 2. Basit <% degisken %> kalıpları (tp.* veya kod blokları hariç saf kitap değişkenleri için tolerans)
+  rendered = rendered.replace(/<%\s*([a-zA-Z0-9_]+)\s*%>/g, (fullMatch, key: string) => {
+    if (Object.prototype.hasOwnProperty.call(replacements, key)) {
+      return replacements[key];
+    }
+    return fullMatch;
+  });
+
+  return rendered;
 }

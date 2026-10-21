@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import KitapPlugin from '../src/main';
 import { KitapSettingTab } from '../src/settings';
-import { DEFAULT_SETTINGS, DEFAULT_NOTE_TEMPLATE } from '../src/types';
+import {
+  DEFAULT_SETTINGS,
+  DEFAULT_NOTE_TEMPLATE,
+  DEFAULT_STATIC_TEMPLATE,
+  DEFAULT_REACTIVE_TEMPLATE,
+} from '../src/types';
 import { lastNotices, MockSetting, TFile, TFolder } from './setup';
 
 describe('Plugin Settings & Lifecycle', () => {
@@ -170,7 +175,32 @@ describe('Plugin Settings & Lifecycle', () => {
       expect(mockData?.fileNameTemplate).toBe('{{isbn}} - {{title}}');
     });
 
+    it('renders templateMode dropdown and updates settings when changed', async () => {
+      settingTab.display();
+
+      const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');
+      let templateModeDropdown: HTMLSelectElement | undefined;
+      for (const item of Array.from(settingItems)) {
+        const nameEl = item.querySelector('.setting-item-name');
+        if (nameEl?.textContent?.includes('Şablon Modu')) {
+          templateModeDropdown = item.querySelector('select') as HTMLSelectElement;
+        }
+      }
+
+      expect(templateModeDropdown).toBeDefined();
+      expect(templateModeDropdown?.value).toBe('static');
+
+      const component = (templateModeDropdown as any).component;
+      if (component) {
+        await component.simulateChange('reactive');
+      }
+
+      expect(plugin.settings.templateMode).toBe('reactive');
+      expect(mockData?.templateMode).toBe('reactive');
+    });
+
     it('renders noteTemplate textarea and resets to default when reset button is clicked', async () => {
+      plugin.settings.templateMode = 'custom';
       plugin.settings.noteTemplate = 'Custom template content';
       settingTab.display();
 
@@ -178,7 +208,7 @@ describe('Plugin Settings & Lifecycle', () => {
       let resetButton: HTMLButtonElement | undefined;
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Varsayılan Şablona Sıfırla')) {
+        if (nameEl?.textContent?.includes('Statik Şablona Dönüştür') || nameEl?.textContent?.includes('Şablonu Sıfırla')) {
           resetButton = item.querySelector('button') as HTMLButtonElement;
         }
       }
@@ -192,8 +222,8 @@ describe('Plugin Settings & Lifecycle', () => {
         }
       }
 
-      expect(plugin.settings.noteTemplate).toBe(DEFAULT_NOTE_TEMPLATE);
-      expect(lastNotices).toContain('Kitap not şablonu varsayılan ayarlara sıfırlandı.');
+      expect(plugin.settings.noteTemplate).toBe(DEFAULT_STATIC_TEMPLATE);
+      expect(lastNotices).toContain('Not şablonu orijinal Statik şablona dönüştürüldü.');
     });
 
     it('renders downloadCovers toggle and coverFolder input and updates settings when changed', async () => {
@@ -237,6 +267,7 @@ describe('Plugin Settings & Lifecycle', () => {
     });
 
     it('saves templateFile when selected from FileSuggest and retains value on reopen', async () => {
+      plugin.settings.templateMode = 'custom';
       settingTab.display();
 
       const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');

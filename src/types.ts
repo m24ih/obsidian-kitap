@@ -43,7 +43,14 @@ export interface BookMetadata {
   rating?: number; // Kitapyurdu 0-5 puanı
   ratingCount?: number;
   readingStatus?: string;
+  price?: string;
+  format?: string;
+  genres?: string[];
+  originalTitle?: string;
+  language?: string;
 }
+
+export type TemplateMode = 'static' | 'reactive' | 'custom';
 
 /**
  * Eklenti kullanıcı yapılandırma ayarları
@@ -53,6 +60,7 @@ export interface KitapPluginSettings {
   fileNameTemplate: string;
   templateFile: string;
   noteTemplate: string;
+  templateMode: TemplateMode;
   useDefaultFrontMatter: boolean;
   propertyMappings: PropertyMappingData[];
   enableTemplaterIntegration: boolean;
@@ -63,9 +71,9 @@ export interface KitapPluginSettings {
 }
 
 /**
- * Varsayılan Markdown ve YAML Frontmatter kitap notu şablonu
+ * Varsayılan Statik Markdown ve YAML Frontmatter kitap notu şablonu
  */
-export const DEFAULT_NOTE_TEMPLATE = `---
+export const DEFAULT_STATIC_TEMPLATE = `---
 baslik: "{{title}}"
 yazar: "{{author}}"
 yayinevi: "{{publisher}}"
@@ -73,6 +81,12 @@ cevirmen: "{{translator}}"
 isbn: "{{isbn}}"
 sayfa: {{pages}}
 yayin_tarihi: "{{publishDate}}"
+fiyat: "{{price}}"
+format: "{{format}}"
+tur:
+{{genresList}}
+orijinal_baslik: "{{originalTitle}}"
+dil: "{{language}}"
 puan_kitapyurdu: {{rating}}
 kapak: "{{coverUrl}}"
 url: "{{url}}"
@@ -87,6 +101,7 @@ kisisel_puan:
 > **Yayınevi:** {{publisher}}  
 > **Çevirmen:** {{translator}}  
 > **ISBN:** {{isbn}} | **Sayfa:** {{pages}}  
+> **Format:** {{format}} | **Fiyat:** {{price}}  
 > **Puan:** {{rating}} / 5  
 
 ![Kapak|200]({{coverUrl}})
@@ -99,6 +114,73 @@ kisisel_puan:
 `;
 
 /**
+ * Varsayılan Reaktif (Dataview & Templater uyumlu) kitap notu şablonu
+ */
+export const DEFAULT_REACTIVE_TEMPLATE = `---
+type: book
+baslik: "{{title}}"
+yazar: "{{author}}"
+yayinevi: "{{publisher}}"
+cevirmen: "{{translator}}"
+isbn: "{{isbn}}"
+sayfa: {{pages}}
+yayin_tarihi: "{{publishDate}}"
+fiyat: "{{price}}"
+format: "{{format}}"
+tur:
+{{genresList}}
+orijinal_baslik: "{{originalTitle}}"
+dil: "{{language}}"
+puan_kitapyurdu: {{rating}}
+kapak: "{{coverUrl}}"
+url: "{{url}}"
+okuma_durumu: "{{readingStatus}}"
+current_page: 0
+total_pages: {{pages}}
+okunma_tarihi:
+kisisel_puan:
+---
+
+# 📖 \`$= dv.current().baslik || "{{title}}"\`
+
+\`$= '![Kapak|250](' + (dv.current().kapak || '{{coverUrl}}') + ')'\`
+
+> **Yazar:** \`$= dv.current().yazar || "{{author}}"\`  
+> **Yayınevi:** \`$= dv.current().yayinevi || "{{publisher}}"\`  
+> **Format:** \`$= dv.current().format || "{{format}}"\` | **Fiyat:** \`$= dv.current().fiyat || "{{price}}"\`  
+> **Kitapyurdu Puanı:** \`$= dv.current().puan_kitapyurdu || "{{rating}}"\` / 5  
+
+## 📊 Okuma İlerlemesi
+\`\`\`dataviewjs
+const p = dv.current();
+const current = Number(p?.current_page) || 0;
+const total = Number(p?.total_pages || p?.sayfa) || 1;
+const percent = Math.min(100, Math.round((current / total) * 100));
+const status = p?.okuma_durumu || 'Okunacak';
+
+dv.paragraph(\`**Durum:** \\\`\${status}\\\` | **İlerleme:** \\\`\${current} / \${total} sayfa\\\` (%\${percent})\`);
+dv.paragraph(\`<progress value="\${percent}" max="100" style="width: 100%; height: 18px;"></progress>\`);
+\`\`\`
+
+## 📝 Notlar & Alıntılar
+
+| **Alıntı / Not** | **Sayfa** | **Tarih** |
+| :--------------: | :-------: | :-------: |
+|                  |           |           |
+
+## ⏳ Okuma Günlüğü
+
+| **Tarih** | **Başlangıç** | **Bitiş** | **Okunan Sayfa** | **Notlar** |
+| :-------: | :-----------: | :-------: | :--------------: | :--------: |
+|           |               |           |                  |            |
+
+## 📖 Kitap Açıklaması
+{{description}}
+`;
+
+export const DEFAULT_NOTE_TEMPLATE = DEFAULT_STATIC_TEMPLATE;
+
+/**
  * Eklenti başlangıç varsayılan ayarları
  */
 export const DEFAULT_SETTINGS: KitapPluginSettings = {
@@ -106,6 +188,7 @@ export const DEFAULT_SETTINGS: KitapPluginSettings = {
   fileNameTemplate: '{{title}} - {{author}}',
   templateFile: '',
   noteTemplate: DEFAULT_NOTE_TEMPLATE,
+  templateMode: 'static',
   useDefaultFrontMatter: true,
   propertyMappings: DEFAULT_BOOK_PROPERTY_MAPPINGS,
   enableTemplaterIntegration: false,

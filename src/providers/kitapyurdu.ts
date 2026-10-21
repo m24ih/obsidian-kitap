@@ -69,6 +69,11 @@ interface JsonLdAggregateRating {
   reviewCount?: number | string;
 }
 
+interface JsonLdOffer {
+  price?: number | string;
+  priceCurrency?: string;
+}
+
 interface JsonLdProduct {
   '@type'?: string | string[];
   name?: string;
@@ -79,6 +84,7 @@ interface JsonLdProduct {
   gtin13?: string;
   description?: string;
   aggregateRating?: JsonLdAggregateRating;
+  offers?: JsonLdOffer | JsonLdOffer[];
 }
 
 export class KitapyurduProvider implements IKitapyurduProvider {
@@ -265,6 +271,21 @@ export class KitapyurduProvider implements IKitapyurduProvider {
     // 12. Puan ve değerlendirme sayısı (Baskısı tükenmiş veya puansız ise undefined)
     const { rating, ratingCount } = this.extractRatings(doc, productNode);
 
+    // 13. Fiyat
+    const price = this.extractPrice(doc, productNode);
+
+    // 14. Format / Cilt Tipi
+    const format = this.extractFormat(doc, bookNode);
+
+    // 15. Kategoriler / Tür
+    const genres = this.extractGenres(doc);
+
+    // 16. Orijinal Adı
+    const originalTitle = this.extractOriginalTitle(doc, bookNode);
+
+    // 17. Dil
+    const language = this.extractLanguage(doc, bookNode);
+
     return {
       id,
       url,
@@ -279,6 +300,11 @@ export class KitapyurduProvider implements IKitapyurduProvider {
       ...(description ? { description } : {}),
       ...(rating !== undefined ? { rating } : {}),
       ...(ratingCount !== undefined ? { ratingCount } : {}),
+      ...(price ? { price } : {}),
+      ...(format ? { format } : {}),
+      ...(genres && genres.length > 0 ? { genres } : {}),
+      ...(originalTitle ? { originalTitle } : {}),
+      ...(language ? { language } : {}),
     };
   }
 
@@ -679,5 +705,132 @@ export class KitapyurduProvider implements IKitapyurduProvider {
     }
 
     return { rating, ratingCount };
+  }
+
+  private extractPrice(doc: Document, productNode?: JsonLdProduct): string | undefined {
+    // 1. JSON-LD Product.offers kontrolü
+    const offers = productNode?.offers;
+    const firstOffer = Array.isArray(offers) ? offers[0] : offers;
+    if (firstOffer?.price !== undefined && firstOffer.price !== null && firstOffer.price !== '') {
+      const pVal = firstOffer.price;
+      const currency = firstOffer.priceCurrency || 'TL';
+      return `${pVal} ${currency}`;
+    }
+
+    // 2. DOM attributes tablosu (Liste Fiyatı veya Satış Fiyatı)
+    const attributeItems = doc.querySelectorAll('.ky-pd-attributes__item');
+    for (let i = 0; i < attributeItems.length; i++) {
+      const item = attributeItems[i];
+      const label = item.querySelector('.ky-pd-attributes__label')?.textContent?.trim().toLowerCase() || '';
+      if (label.includes('fiyat')) {
+        const valText = item.querySelector('.ky-pd-attributes__value')?.textContent?.trim();
+        if (valText) return valText.replace(/\s+/g, ' ');
+      }
+    }
+
+    // 3. Fiyat kutusu DOM elemanları (.price__current veya .pr_price-current)
+    const priceCurrent = doc.querySelector('.price__current, .pr_price-current, .price-current');
+    if (priceCurrent?.textContent) {
+      return priceCurrent.textContent.trim().replace(/\s+/g, ' ');
+    }
+
+    return undefined;
+  }
+
+  private extractFormat(doc: Document, bookNode?: JsonLdBook): string | undefined {
+    // 1. DOM attributes tablosu (Cilt Tipi)
+    const attributeItems = doc.querySelectorAll('.ky-pd-attributes__item');
+    for (let i = 0; i < attributeItems.length; i++) {
+      const item = attributeItems[i];
+      const label = item.querySelector('.ky-pd-attributes__label')?.textContent?.trim().toLowerCase() || '';
+      if (label.includes('cilt tipi') || label.includes('cilt') || label.includes('kapak tipi')) {
+        const valText = item.querySelector('.ky-pd-attributes__value')?.textContent?.trim();
+        if (valText) return valText;
+      }
+    }
+
+    // 2. JSON-LD bookFormat
+    if (bookNode?.bookFormat) {
+      const raw = String(bookNode.bookFormat).toLowerCase();
+      if (raw.includes('paperback')) return 'Karton Kapak';
+      if (raw.includes('hardcover')) return 'Ciltli';
+      if (raw.includes('ebook')) return 'E-Kitap';
+      if (raw.includes('audiobook')) return 'Sesli Kitap';
+      return bookNode.bookFormat;
+    }
+
+    return undefined;
+  }
+
+  private extractGenres(doc: Document): string[] | undefined {
+    const categories: string[] = [];
+    const catLinks = doc.querySelectorAll('.ky-pd-attributes__categories .ky-pd-attributes__category-link');
+    if (catLinks.length > 0) {
+      catLinks.forEach((link) => {
+        const items = link.querySelectorAll('.ky-pd-attributes__category-item');
+        items.forEach((item) => {
+          const text = item.textContent?.trim();
+          if (text && text.toLowerCase() !== 'kitap' && !categories.includes(text)) {
+            categories.push(text);
+          }
+        });
+      });
+    }
+
+    // Fallback: .ky-pd-attributes__category-item
+    if (categories.length === 0) {
+      const catItems = doc.querySelectorAll('.ky-pd-attributes__category-item');
+      catItems.forEach((item) => {
+        const text = item.textContent?.trim();
+        if (text && text.toLowerCase() !== 'kitap' && !categories.includes(text)) {
+          categories.push(text);
+        }
+      });
+    }
+
+    return categories.length > 0 ? categories : undefined;
+  }
+
+  private extractOriginalTitle(doc: Document, bookNode?: JsonLdBook): string | undefined {
+    // 1. DOM attributes tablosu (Orijinal Adı)
+    const attributeItems = doc.querySelectorAll('.ky-pd-attributes__item');
+    for (let i = 0; i < attributeItems.length; i++) {
+      const item = attributeItems[i];
+      const label = item.querySelector('.ky-pd-attributes__label')?.textContent?.trim().toLowerCase() || '';
+      if (label.includes('orijinal adı') || label.includes('orijinal adi')) {
+        const valText = item.querySelector('.ky-pd-attributes__value')?.textContent?.trim();
+        if (valText) return valText;
+      }
+    }
+
+    // 2. JSON-LD alternateName (Eğer ana başlıktan farklıysa)
+    if (bookNode?.alternateName && bookNode.alternateName !== bookNode.name) {
+      return bookNode.alternateName.trim();
+    }
+
+    return undefined;
+  }
+
+  private extractLanguage(doc: Document, bookNode?: JsonLdBook): string | undefined {
+    // 1. DOM attributes tablosu (Dil)
+    const attributeItems = doc.querySelectorAll('.ky-pd-attributes__item');
+    for (let i = 0; i < attributeItems.length; i++) {
+      const item = attributeItems[i];
+      const label = item.querySelector('.ky-pd-attributes__label')?.textContent?.trim().toLowerCase() || '';
+      if (label.includes('dil')) {
+        const valText = item.querySelector('.ky-pd-attributes__value')?.textContent?.trim();
+        if (valText) return valText;
+      }
+    }
+
+    // 2. JSON-LD inLanguage
+    if (bookNode?.inLanguage) {
+      const lang = bookNode.inLanguage.trim().toLowerCase();
+      if (lang === 'tr' || lang === 'turkish') return 'TÜRKÇE';
+      if (lang === 'en' || lang === 'english') return 'İNGİLİZCE';
+      return bookNode.inLanguage.trim();
+    }
+
+    return undefined;
   }
 }

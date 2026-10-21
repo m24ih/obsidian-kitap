@@ -1,5 +1,10 @@
 import { App, parseYaml, stringifyYaml, TFile } from 'obsidian';
-import { BookMetadata, KitapPluginSettings } from '../types';
+import {
+  BookMetadata,
+  KitapPluginSettings,
+  DEFAULT_STATIC_TEMPLATE,
+  DEFAULT_REACTIVE_TEMPLATE,
+} from '../types';
 import { PropertyMapper } from '../settings/propertyMapping';
 import { renderBookTemplate } from './engine';
 
@@ -73,14 +78,22 @@ export async function buildBookNoteContent(
 ): Promise<string> {
   const { book, settings, app } = options;
 
-  // 1. Şablon içeriğini belirle (Şablon dosyası veya doğrudan metin şablonu)
+  // 1. Şablon içeriğini belirle (Şablon dosyası veya şablon modu)
   let rawTemplate: string | null = null;
   if (settings.templateFile && app) {
     rawTemplate = await getTemplateContentFromVault(settings.templateFile, app);
   }
 
   if (!rawTemplate) {
-    rawTemplate = settings.noteTemplate || '';
+    const mode = settings.templateMode || 'static';
+    if (mode === 'reactive') {
+      rawTemplate = DEFAULT_REACTIVE_TEMPLATE;
+    } else if (mode === 'custom') {
+      rawTemplate = settings.noteTemplate || DEFAULT_STATIC_TEMPLATE;
+    } else {
+      // Statik şablon (Varsayılan)
+      rawTemplate = settings.noteTemplate || DEFAULT_STATIC_TEMPLATE;
+    }
   }
 
   // 2. Şablonu frontmatter ve gövdeye ayır
@@ -98,6 +111,11 @@ export async function buildBookNoteContent(
       isbn: book.isbn,
       sayfa: book.pages !== undefined && book.pages !== null ? book.pages : '',
       yayin_tarihi: book.publishDate || '',
+      fiyat: book.price || '',
+      format: book.format || '',
+      tur: book.genres && book.genres.length > 0 ? book.genres : '',
+      orijinal_baslik: book.originalTitle || '',
+      dil: book.language || '',
       puan_kitapyurdu: book.rating !== undefined && book.rating !== null ? book.rating : '',
       kapak: book.coverUrl || '',
       url: book.url || '',
@@ -133,6 +151,11 @@ export async function buildBookNoteContent(
       'isbn',
       'sayfa',
       'yayin_tarihi',
+      'fiyat',
+      'format',
+      'tur',
+      'orijinal_baslik',
+      'dil',
       'puan_kitapyurdu',
       'kapak',
       'url',
@@ -146,10 +169,19 @@ export async function buildBookNoteContent(
       'translator',
       'pages',
       'publishDate',
+      'price',
+      'cilt_tipi',
+      'binding',
+      'genres',
+      'category',
+      'originalTitle',
+      'language',
       'rating',
       'coverUrl',
       'readingStatus',
       'status',
+      'total_pages',
+      'image',
     ]);
 
     const customTemplateMetadata: Record<string, unknown> = {};

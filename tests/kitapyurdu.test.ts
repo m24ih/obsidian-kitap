@@ -74,6 +74,12 @@ describe('Kitapyurdu Provider Tests', () => {
       expect(book.description).toContain('Yüzüklerin Efendisi dışında');
       expect(book.rating).toBe(5);
       expect(book.ratingCount).toBeGreaterThan(0);
+      expect(book.price).toBe('477.95 TRY');
+      expect(book.format).toBe('Karton Kapak');
+      expect(book.genres).toBeDefined();
+      expect(book.genres).toContain('Bilimkurgu-Fantazya');
+      expect(book.originalTitle).toBe('Dune');
+      expect(book.language).toBe('TÜRKÇE');
     });
   });
 
@@ -117,6 +123,9 @@ describe('Kitapyurdu Provider Tests', () => {
       expect(book.author).toBe('Sabahattin Ali');
       expect(book.translator).toBeUndefined();
       expect(book.isbn).toBeDefined();
+      expect(book.format).toBe('Karton Kapak');
+      expect(book.language).toBe('TÜRKÇE');
+      expect(book.originalTitle).toBeUndefined();
     });
 
     it('correctly parses multiple co-authors and trims trailing commas (product_uluslarin_dususu_325768.html)', async () => {

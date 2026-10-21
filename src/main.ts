@@ -60,6 +60,16 @@ export default class KitapPlugin extends Plugin {
       this.settings.noteTemplate = DEFAULT_SETTINGS.noteTemplate;
     }
 
+    // 4b. templateMode doğrulaması ('static' | 'reactive' | 'custom')
+    const validModes = ['static', 'reactive', 'custom'];
+    if (!validModes.includes(this.settings.templateMode)) {
+      if (this.settings.templateFile) {
+        this.settings.templateMode = 'custom';
+      } else {
+        this.settings.templateMode = DEFAULT_SETTINGS.templateMode;
+      }
+    }
+
     // 5. useDefaultFrontMatter doğrulaması
     this.settings.useDefaultFrontMatter =
       typeof this.settings.useDefaultFrontMatter === 'boolean'

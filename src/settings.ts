@@ -1,6 +1,10 @@
 import { App, DropdownComponent, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type KitapPlugin from './main';
-import { DEFAULT_NOTE_TEMPLATE } from './types';
+import {
+  DEFAULT_NOTE_TEMPLATE,
+  DEFAULT_STATIC_TEMPLATE,
+  DEFAULT_REACTIVE_TEMPLATE,
+} from './types';
 import { FileSuggest } from './settings/fileSuggest';
 import { FolderSuggest } from './settings/folderSuggest';
 import { PropertyMappingComponent } from './settings/propertyMappingComponent';
@@ -169,55 +173,121 @@ export class KitapSettingTab extends PluginSettingTab {
     // ----------------------------------------------------
     containerEl.createEl('h3', { text: 'Not Şablonu ve Biçimlendirme' });
 
-    new Setting(containerEl)
-      .setClass('kitap-setting-wide-control')
-      .setName('Şablon Dosyası (Vault İçi)')
-      .setDesc('Kitap notları oluşturulurken kullanılacak vault içi Markdown şablon dosyası (.md). Belirtilirse aşağıdaki metin şablonu yerine bu dosya kullanılır.')
-      .addSearch((cb) => {
-        const suggester = new FileSuggest(this.app, cb.inputEl);
-        suggester.onSelect(async (file) => {
-          cb.setValue(file.path);
-          this.plugin.settings.templateFile = file.path.trim();
-          await this.plugin.saveSettings();
-          suggester.close();
-        });
-        cb.setPlaceholder('Örnek: Sablonlar/KitapSablonu.md')
-          .setValue(this.plugin.settings.templateFile || '')
-          .onChange(async (value) => {
-            this.plugin.settings.templateFile = value.trim();
-            await this.plugin.saveSettings();
-          });
-      });
+    const currentMode = this.plugin.settings.templateMode || 'static';
 
     new Setting(containerEl)
-      .setClass('kitap-setting-stacked')
-      .setName('Doğrudan Not Şablonu (Markdown)')
-      .setDesc('Şablon dosyası seçilmediğinde veya bulunamadığında kullanılacak standart metin şablonu.')
-      .addTextArea((textArea) => {
-        textArea
-          .setPlaceholder('Markdown şablonunuzu buraya girin...')
-          .setValue(this.plugin.settings.noteTemplate)
+      .setName('Şablon Modu')
+      .setDesc('Kitap notları oluşturulurken kullanılacak şablon yapısı.')
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption('static', 'Statik Şablon (Standart Markdown)')
+          .addOption('reactive', 'Reaktif Şablon (Dataview & Templater)')
+          .addOption('custom', 'Özel Şablon (Vault İçi Dosya veya Metin)')
+          .setValue(currentMode)
           .onChange(async (value) => {
-            this.plugin.settings.noteTemplate = value;
+            this.plugin.settings.templateMode = value as 'static' | 'reactive' | 'custom';
             await this.plugin.saveSettings();
-          });
-        textArea.inputEl.rows = 14;
-      });
-
-    new Setting(containerEl)
-      .setName('Varsayılan Şablona Sıfırla')
-      .setDesc('Not şablonunu eklentinin orijinal varsayılan şablonuna geri döndürür.')
-      .addButton((button) =>
-        button
-          .setButtonText('Varsayılana Sıfırla')
-          .setWarning()
-          .onClick(async () => {
-            this.plugin.settings.noteTemplate = DEFAULT_NOTE_TEMPLATE;
-            await this.plugin.saveSettings();
-            new Notice('Kitap not şablonu varsayılan ayarlara sıfırlandı.');
             this.display();
-          })
-      );
+          });
+      });
+
+    if (currentMode === 'static') {
+      const modeDesc = containerEl.createDiv({ cls: 'setting-item-description' });
+      modeDesc.style.marginBottom = '12px';
+      modeDesc.style.color = 'var(--text-muted)';
+      modeDesc.setText('ℹ️ Standart Statik Markdown şablonu etkindir. Ek eklenti gerektirmeden sade ve kalıcı notlar üretir.');
+
+      new Setting(containerEl)
+        .setName('Bu Şablonu Özelleştir')
+        .setDesc('Statik şablonu temel alarak düzenlemek için Özel Şablon moduna aktarın.')
+        .addButton((btn) => {
+          btn.setButtonText('Özel Şablona Kopyala ve Düzenle').onClick(async () => {
+            this.plugin.settings.templateMode = 'custom';
+            this.plugin.settings.noteTemplate = DEFAULT_STATIC_TEMPLATE;
+            await this.plugin.saveSettings();
+            new Notice('Statik şablon düzenlenebilir özel şablon alanına kopyalandı.');
+            this.display();
+          });
+        });
+    } else if (currentMode === 'reactive') {
+      const modeDesc = containerEl.createDiv({ cls: 'setting-item-description' });
+      modeDesc.style.marginBottom = '12px';
+      modeDesc.style.color = 'var(--text-muted)';
+      modeDesc.setText('✨ Reaktif şablon etkindir. Dataview / DataviewJS ve Templater desteğiyle dinamik okuma ilerlemesi (%), okuma günlüğü ve alıntılar tablosu sunar.');
+
+      new Setting(containerEl)
+        .setName('Bu Şablonu Özelleştir')
+        .setDesc('Reaktif şablonu temel alarak düzenlemek için Özel Şablon moduna aktarın.')
+        .addButton((btn) => {
+          btn.setButtonText('Özel Şablona Kopyala ve Düzenle').onClick(async () => {
+            this.plugin.settings.templateMode = 'custom';
+            this.plugin.settings.noteTemplate = DEFAULT_REACTIVE_TEMPLATE;
+            await this.plugin.saveSettings();
+            new Notice('Reaktif şablon düzenlenebilir özel şablon alanına kopyalandı.');
+            this.display();
+          });
+        });
+    } else {
+      // custom modu: Hem dosya hem doğrudan metin alanı
+      new Setting(containerEl)
+        .setClass('kitap-setting-wide-control')
+        .setName('Şablon Dosyası (Vault İçi)')
+        .setDesc('Kitap notları oluşturulurken kullanılacak vault içi Markdown şablon dosyası (.md). Belirtilirse aşağıdaki metin şablonu yerine bu dosya kullanılır.')
+        .addSearch((cb) => {
+          const suggester = new FileSuggest(this.app, cb.inputEl);
+          suggester.onSelect(async (file) => {
+            cb.setValue(file.path);
+            this.plugin.settings.templateFile = file.path.trim();
+            await this.plugin.saveSettings();
+            suggester.close();
+          });
+          cb.setPlaceholder('Örnek: Sablonlar/KitapSablonu.md')
+            .setValue(this.plugin.settings.templateFile || '')
+            .onChange(async (value) => {
+              this.plugin.settings.templateFile = value.trim();
+              await this.plugin.saveSettings();
+            });
+        });
+
+      new Setting(containerEl)
+        .setClass('kitap-setting-stacked')
+        .setName('Doğrudan Not Şablonu (Markdown)')
+        .setDesc('Şablon dosyası seçilmediğinde veya bulunamadığında kullanılacak standart metin şablonu.')
+        .addTextArea((textArea) => {
+          textArea
+            .setPlaceholder('Markdown şablonunuzu buraya girin...')
+            .setValue(this.plugin.settings.noteTemplate)
+            .onChange(async (value) => {
+              this.plugin.settings.noteTemplate = value;
+              await this.plugin.saveSettings();
+            });
+          textArea.inputEl.rows = 14;
+        });
+
+      new Setting(containerEl)
+        .setName('Şablonu Sıfırla / İçe Aktar')
+        .setDesc('Özel metin şablonunu yerleşik şablonlardan birine dönüştürür.')
+        .addButton((button) =>
+          button
+            .setButtonText('Statik Şablona Dönüştür')
+            .onClick(async () => {
+              this.plugin.settings.noteTemplate = DEFAULT_STATIC_TEMPLATE;
+              await this.plugin.saveSettings();
+              new Notice('Not şablonu orijinal Statik şablona dönüştürüldü.');
+              this.display();
+            })
+        )
+        .addButton((button) =>
+          button
+            .setButtonText('Reaktif Şablona Dönüştür')
+            .onClick(async () => {
+              this.plugin.settings.noteTemplate = DEFAULT_REACTIVE_TEMPLATE;
+              await this.plugin.saveSettings();
+              new Notice('Not şablonu Reaktif şablona dönüştürüldü.');
+              this.display();
+            })
+        );
+    }
 
     // ----------------------------------------------------
     // Bölüm 3: Templater Entegrasyonu
@@ -291,6 +361,11 @@ export class KitapSettingTab extends PluginSettingTab {
       { tag: '{{coverPath}}', desc: 'İndirilen kapak görselinin vault içi ham dosya yolu' },
       { tag: '{{readingStatus}}', desc: 'Kitap okuma durumu (örn: Okunacak, TBR)' },
       { tag: '{{okumaDurumu}}', desc: 'Kitap okuma durumu (Türkçe değişken adı)' },
+      { tag: '{{price}}', desc: 'Kitap liste veya satış fiyatı (örn: 477.95 TL)' },
+      { tag: '{{format}}', desc: 'Cilt tipi / baskı formatı (örn: Karton Kapak, Ciltli)' },
+      { tag: '{{genres}}', desc: 'Kategoriler / Türler (örn: Edebiyat, Bilimkurgu)' },
+      { tag: '{{originalTitle}}', desc: 'Kitabın orijinal adı (Dune vb.)' },
+      { tag: '{{language}}', desc: 'Basım dili (TÜRKÇE vb.)' },
       { tag: '{{rating}}', desc: 'Kitapyurdu okur puanı (0-5)' },
       { tag: '{{description}}', desc: 'Kitap açıklaması / arka kapak tanıtım metni' },
       { tag: '{{url}}', desc: 'Kitapyurdu ürün sayfası bağlantısı' },

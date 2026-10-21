@@ -22,6 +22,9 @@ export interface KitapyurduBookDetails extends BookMetadata {
   paperType?: string;
   language?: string;
   price?: string;
+  genres?: string[];
+  originalTitle?: string;
+  format?: string;
 }
 
 /**

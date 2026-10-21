@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { renderBookTemplate, sanitizeFileName } from '../src/templates/engine';
-import { BookMetadata, DEFAULT_NOTE_TEMPLATE } from '../src/types';
+import {
+  BookMetadata,
+  DEFAULT_NOTE_TEMPLATE,
+  DEFAULT_STATIC_TEMPLATE,
+  DEFAULT_REACTIVE_TEMPLATE,
+} from '../src/types';
 
 describe('Template Engine & Filename Sanitizer Tests', () => {
   const sampleBook: BookMetadata = {
@@ -17,6 +22,11 @@ describe('Template Engine & Filename Sanitizer Tests', () => {
     description: 'Yüzüklerin Efendisi dışında bu kitapla kıyaslanacak başka bir kitap yok.',
     rating: 5,
     ratingCount: 819,
+    price: '477.95 TL',
+    format: 'Karton Kapak',
+    genres: ['Edebiyat', 'Bilimkurgu-Fantazya'],
+    originalTitle: 'Dune',
+    language: 'TÜRKÇE',
   };
 
   describe('Feature Coverage — Variable Interpolation', () => {
@@ -57,6 +67,57 @@ URL: {{url}}`;
       expect(rendered).toContain('okuma_durumu: "Okunacak"');
       expect(rendered).toContain('# Dune');
       expect(rendered).toContain('puan_kitapyurdu: 5');
+    });
+
+    it('renders new bibliographic fields: price, format, genres, originalTitle, language', () => {
+      const template = `Price: {{price}}, Format: {{format}}, Genres: {{genres}}, Orig: {{originalTitle}}, Lang: {{language}}`;
+      const rendered = renderBookTemplate(template, sampleBook);
+
+      expect(rendered).toBe('Price: 477.95 TL, Format: Karton Kapak, Genres: Edebiyat, Bilimkurgu-Fantazya, Orig: Dune, Lang: TÜRKÇE');
+    });
+
+    it('renders DEFAULT_STATIC_TEMPLATE cleanly with all fields', () => {
+      const rendered = renderBookTemplate(DEFAULT_STATIC_TEMPLATE, sampleBook);
+
+      expect(rendered).toContain('fiyat: "477.95 TL"');
+      expect(rendered).toContain('format: "Karton Kapak"');
+      expect(rendered).toContain('orijinal_baslik: "Dune"');
+      expect(rendered).toContain('dil: "TÜRKÇE"');
+      expect(rendered).toContain('okuma_durumu: "Okunacak"');
+      expect(rendered).toContain('- "Edebiyat"');
+      expect(rendered).toContain('- "Bilimkurgu-Fantazya"');
+    });
+
+    it('renders DEFAULT_REACTIVE_TEMPLATE cleanly with DataviewJS blocks', () => {
+      const rendered = renderBookTemplate(DEFAULT_REACTIVE_TEMPLATE, sampleBook);
+
+      expect(rendered).toContain('type: book');
+      expect(rendered).toContain('current_page: 0');
+      expect(rendered).toContain('total_pages: 712');
+      expect(rendered).toContain('```dataviewjs');
+      expect(rendered).toContain('const p = dv.current();');
+      expect(rendered).toContain('<progress value=');
+      expect(rendered).toContain('## 📊 Okuma İlerlemesi');
+      expect(rendered).toContain('## ⏳ Okuma Günlüğü');
+    });
+
+    it('tolerates simple <% variable %> tags from user templates while preserving Templater expressions', () => {
+      const mixedTemplate = `title: "<% title %>"
+author: "<% author %>"
+total: <% total_pages %>
+img: "<% image %>"
+created: <% tp.file.creation_date("YYYY-MM-DD") %>
+code: <%* const x = 1; %>`;
+
+      const rendered = renderBookTemplate(mixedTemplate, sampleBook);
+
+      expect(rendered).toContain('title: "Dune"');
+      expect(rendered).toContain('author: "Frank Herbert"');
+      expect(rendered).toContain('total: 712');
+      expect(rendered).toContain('img: "https://img.kitapyurdu.com/v1/getImage');
+      // Templater ifadelerine dokunulmamalı:
+      expect(rendered).toContain('created: <% tp.file.creation_date("YYYY-MM-DD") %>');
+      expect(rendered).toContain('code: <%* const x = 1; %>');
     });
   });
 
