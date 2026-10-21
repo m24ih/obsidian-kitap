@@ -27,12 +27,15 @@ export interface PropertyMappingData {
  * Kitap için varsayılan YAML frontmatter alanları
  */
 export const DEFAULT_BOOK_PROPERTY_MAPPINGS: PropertyMappingData[] = [
+  { property: 'tip', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'baslik', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'yazar', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'yayinevi', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'cevirmen', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'isbn', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'sayfa', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
+  { property: 'okunan_sayfa', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
+  { property: 'toplam_sayfa', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'yayin_tarihi', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'fiyat', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'format', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
@@ -43,8 +46,6 @@ export const DEFAULT_BOOK_PROPERTY_MAPPINGS: PropertyMappingData[] = [
   { property: 'kapak', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'url', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'okuma_durumu', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
-  { property: 'current_page', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
-  { property: 'total_pages', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'okunma_tarihi', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'kisisel_puan', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
 ];
@@ -67,6 +68,14 @@ export function migratePropertyMappings(
     // Eski "durum" alanını "okuma_durumu"na geriye dönük olarak uyarla
     if (!existing && def.property === 'okuma_durumu') {
       existing = loadedMap.get('durum');
+    }
+    // Eski "current_page" alanını "okunan_sayfa"ya geriye dönük olarak uyarla
+    if (!existing && def.property === 'okunan_sayfa') {
+      existing = loadedMap.get('current_page');
+    }
+    // Eski "total_pages" alanını "toplam_sayfa"ya geriye dönük olarak uyarla
+    if (!existing && def.property === 'toplam_sayfa') {
+      existing = loadedMap.get('total_pages');
     }
     if (!existing) {
       migrated.push({ ...def });

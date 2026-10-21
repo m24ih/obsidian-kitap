@@ -161,7 +161,7 @@ describe('Plugin Settings & Lifecycle', () => {
       }
 
       expect(fileNameInput).toBeDefined();
-      expect(fileNameInput?.value).toBe('{{title}} - {{author}}');
+      expect(fileNameInput?.value).toBe('{{baslik}} - {{yazar}}');
 
       if (fileNameInput) {
         const component = (fileNameInput as any).component;
@@ -363,7 +363,7 @@ describe('Plugin Settings & Lifecycle', () => {
     it('sanitizes whitespace in fileNameTemplate', async () => {
       mockData = { fileNameTemplate: '   ' };
       await plugin.loadSettings();
-      expect(plugin.settings.fileNameTemplate).toBe('{{title}} - {{author}}');
+      expect(plugin.settings.fileNameTemplate).toBe('{{baslik}} - {{yazar}}');
     });
 
     it('falls back to default noteTemplate when non-string is provided', async () => {

@@ -91,9 +91,9 @@ URL: {{url}}`;
     it('renders DEFAULT_REACTIVE_TEMPLATE cleanly with DataviewJS blocks', () => {
       const rendered = renderBookTemplate(DEFAULT_REACTIVE_TEMPLATE, sampleBook);
 
-      expect(rendered).toContain('type: book');
-      expect(rendered).toContain('current_page: 0');
-      expect(rendered).toContain('total_pages: 712');
+      expect(rendered).toContain('tip: kitap');
+      expect(rendered).toContain('okunan_sayfa: 0');
+      expect(rendered).toContain('toplam_sayfa: 712');
       expect(rendered).toContain('```dataviewjs');
       expect(rendered).toContain('const p = dv.current();');
       expect(rendered).toContain('<progress value=');

@@ -54,10 +54,10 @@ export class KitapSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Dosya Adı Şablonu')
-      .setDesc('Oluşturulacak kitap notu dosyasının adı formatı. Kullanılabilir değişkenler: {{title}}, {{author}}, {{publisher}}, {{isbn}}, {{publishDate}}.')
+      .setDesc('Oluşturulacak kitap notu dosyasının adı formatı. Kullanılabilir değişkenler: {{baslik}}, {{yazar}}, {{yayinevi}}, {{isbn}}, {{yayin_tarihi}} (İngilizce takma adlar: {{title}}, {{author}}).')
       .addText((text) =>
         text
-          .setPlaceholder('{{title}} - {{author}}')
+          .setPlaceholder('{{baslik}} - {{yazar}}')
           .setValue(this.plugin.settings.fileNameTemplate)
           .onChange(async (value) => {
             this.plugin.settings.fileNameTemplate = value.trim();
@@ -350,24 +350,25 @@ export class KitapSettingTab extends PluginSettingTab {
     const list = infoContainer.createEl('ul', { cls: 'kitap-vars-list' });
 
     const variables: { tag: string; desc: string }[] = [
-      { tag: '{{title}}', desc: 'Kitap Başlığı' },
-      { tag: '{{author}}', desc: 'Yazar(lar)' },
-      { tag: '{{publisher}}', desc: 'Yayınevi' },
-      { tag: '{{translator}}', desc: 'Çevirmen (varsa)' },
+      { tag: '{{baslik}} / {{title}}', desc: 'Kitap Başlığı' },
+      { tag: '{{yazar}} / {{author}}', desc: 'Yazar(lar)' },
+      { tag: '{{yayinevi}} / {{publisher}}', desc: 'Yayınevi' },
+      { tag: '{{cevirmen}} / {{translator}}', desc: 'Çevirmen (varsa)' },
       { tag: '{{isbn}}', desc: '13 haneli ISBN numarası' },
-      { tag: '{{pages}}', desc: 'Sayfa sayısı' },
-      { tag: '{{publishDate}}', desc: 'Yayın tarihi' },
-      { tag: '{{coverUrl}}', desc: 'Kapak görseli bağlantısı (indirildiğinde vault içi wikilink formatı)' },
+      { tag: '{{sayfa}} / {{pages}}', desc: 'Sayfa sayısı' },
+      { tag: '{{okunan_sayfa}}', desc: 'Okunan mevcut sayfa (varsayılan: 0)' },
+      { tag: '{{toplam_sayfa}}', desc: 'Toplam sayfa sayısı' },
+      { tag: '{{yayin_tarihi}} / {{publishDate}}', desc: 'Yayın tarihi' },
+      { tag: '{{kapak}} / {{coverUrl}}', desc: 'Kapak görseli bağlantısı (indirildiğinde vault içi wikilink formatı)' },
       { tag: '{{coverPath}}', desc: 'İndirilen kapak görselinin vault içi ham dosya yolu' },
-      { tag: '{{readingStatus}}', desc: 'Kitap okuma durumu (örn: Okunacak, TBR)' },
-      { tag: '{{okumaDurumu}}', desc: 'Kitap okuma durumu (Türkçe değişken adı)' },
-      { tag: '{{price}}', desc: 'Kitap liste veya satış fiyatı (örn: 477.95 TL)' },
+      { tag: '{{okuma_durumu}} / {{readingStatus}}', desc: 'Kitap okuma durumu (örn: Okunacak, Okunuyor)' },
+      { tag: '{{fiyat}} / {{price}}', desc: 'Kitap liste veya satış fiyatı (örn: 220.35 TRY)' },
       { tag: '{{format}}', desc: 'Cilt tipi / baskı formatı (örn: Karton Kapak, Ciltli)' },
-      { tag: '{{genres}}', desc: 'Kategoriler / Türler (örn: Edebiyat, Bilimkurgu)' },
-      { tag: '{{originalTitle}}', desc: 'Kitabın orijinal adı (Dune vb.)' },
-      { tag: '{{language}}', desc: 'Basım dili (TÜRKÇE vb.)' },
-      { tag: '{{rating}}', desc: 'Kitapyurdu okur puanı (0-5)' },
-      { tag: '{{description}}', desc: 'Kitap açıklaması / arka kapak tanıtım metni' },
+      { tag: '{{tur}} / {{genres}}', desc: 'Kategoriler / Türler (örn: Edebiyat, Bilimkurgu)' },
+      { tag: '{{orijinal_baslik}} / {{originalTitle}}', desc: 'Kitabın orijinal adı (Dune vb.)' },
+      { tag: '{{dil}} / {{language}}', desc: 'Basım dili (TÜRKÇE vb.)' },
+      { tag: '{{puan}} / {{rating}}', desc: 'Kitapyurdu okur puanı (0-5)' },
+      { tag: '{{aciklama}} / {{description}}', desc: 'Kitap açıklaması / tanıtım bülteni' },
       { tag: '{{url}}', desc: 'Kitapyurdu ürün sayfası bağlantısı' },
     ];
 

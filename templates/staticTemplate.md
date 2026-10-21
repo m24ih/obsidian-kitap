@@ -1,10 +1,13 @@
 ---
+tip: kitap
 baslik: "{{title}}"
 yazar: "{{author}}"
 yayinevi: "{{publisher}}"
 cevirmen: "{{translator}}"
 isbn: "{{isbn}}"
 sayfa: {{pages}}
+okunan_sayfa: 0
+toplam_sayfa: {{pages}}
 yayin_tarihi: "{{publishDate}}"
 fiyat: "{{price}}"
 format: "{{format}}"
@@ -16,8 +19,6 @@ puan_kitapyurdu: {{rating}}
 kapak: "{{coverUrl}}"
 url: "{{url}}"
 okuma_durumu: "{{readingStatus}}"
-current_page: 0
-total_pages: {{pages}}
 okunma_tarihi:
 kisisel_puan:
 ---

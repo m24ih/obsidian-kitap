@@ -9,7 +9,7 @@ import {
 describe('Core Types & Defaults', () => {
   it('contains expected default settings values in Turkish', () => {
     expect(DEFAULT_SETTINGS.targetFolder).toBe('Kitaplar');
-    expect(DEFAULT_SETTINGS.fileNameTemplate).toBe('{{title}} - {{author}}');
+    expect(DEFAULT_SETTINGS.fileNameTemplate).toBe('{{baslik}} - {{yazar}}');
     expect(DEFAULT_SETTINGS.noteTemplate).toBe(DEFAULT_NOTE_TEMPLATE);
     expect(DEFAULT_SETTINGS.downloadCovers).toBe(false);
     expect(DEFAULT_SETTINGS.coverFolder).toBe('Kitaplar/Kapaklar');

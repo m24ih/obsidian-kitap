@@ -56,12 +56,30 @@ export function renderBookTemplate(
   }
 
   const replacements: Record<string, string> = {
+    // Türkçe temel alanlar
+    tip: 'kitap',
+    baslik: strValue(data.title),
+    yazar: strValue(data.author),
+    yayinevi: strValue(data.publisher),
+    cevirmen: strValue(data.translator),
+    isbn: strValue(data.isbn),
+    sayfa: data.pages !== undefined && data.pages !== null ? String(data.pages) : '',
+    okunan_sayfa: '0',
+    toplam_sayfa: data.pages !== undefined && data.pages !== null ? String(data.pages) : '',
+    yayin_tarihi: strValue(data.publishDate),
+    yayinTarihi: strValue(data.publishDate),
+    kapak: rawCover,
+    puan: data.rating !== undefined && data.rating !== null ? String(data.rating) : '',
+    puan_kitapyurdu: data.rating !== undefined && data.rating !== null ? String(data.rating) : '',
+
+    // İngilizce uyumluluk takma adları
     title: strValue(data.title),
     author: strValue(data.author),
     publisher: strValue(data.publisher),
     translator: strValue(data.translator),
-    isbn: strValue(data.isbn),
     pages: data.pages !== undefined && data.pages !== null ? String(data.pages) : '',
+    current_page: '0',
+    total_pages: data.pages !== undefined && data.pages !== null ? String(data.pages) : '',
     publishDate: strValue(data.publishDate),
     coverUrl: rawCover,
     coverPath: innerCoverPath,
@@ -71,10 +89,12 @@ export function renderBookTemplate(
         ? String(data.ratingCount)
         : '',
     description: strValue(data.description),
+    aciklama: strValue(data.description),
     url: strValue(data.url),
     readingStatus: strValue(data.readingStatus || 'Okunacak'),
     status: strValue(data.readingStatus || 'Okunacak'),
     okumaDurumu: strValue(data.readingStatus || 'Okunacak'),
+    okuma_durumu: strValue(data.readingStatus || 'Okunacak'),
     durum: strValue(data.readingStatus || 'Okunacak'),
 
     // Yeni bibliyografik alanlar
@@ -97,7 +117,6 @@ export function renderBookTemplate(
     dil: strValue(data.language),
 
     // media-db ve şablon uyumluluk takma adları
-    total_pages: data.pages !== undefined && data.pages !== null ? String(data.pages) : '',
     image: rawCover,
 
     // Eski şablonlarla geriye dönük uyumluluk için güvenli boş değerler

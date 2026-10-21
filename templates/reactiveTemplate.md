@@ -1,11 +1,13 @@
 ---
-type: book
+tip: kitap
 baslik: "{{title}}"
 yazar: "{{author}}"
 yayinevi: "{{publisher}}"
 cevirmen: "{{translator}}"
 isbn: "{{isbn}}"
 sayfa: {{pages}}
+okunan_sayfa: 0
+toplam_sayfa: {{pages}}
 yayin_tarihi: "{{publishDate}}"
 fiyat: "{{price}}"
 format: "{{format}}"
@@ -17,8 +19,6 @@ puan_kitapyurdu: {{rating}}
 kapak: "{{coverUrl}}"
 url: "{{url}}"
 okuma_durumu: "{{readingStatus}}"
-current_page: 0
-total_pages: {{pages}}
 okunma_tarihi:
 kisisel_puan:
 ---
@@ -35,10 +35,10 @@ kisisel_puan:
 ## 📊 Okuma İlerlemesi
 ```dataviewjs
 const p = dv.current();
-const current = Number(p?.current_page ?? p?.okunan_sayfa ?? p?.sayfa_no ?? 0);
-const total = Number(p?.total_pages ?? p?.toplam_sayfa ?? p?.sayfa ?? p?.pages ?? 1);
+const current = Number(p?.okunan_sayfa ?? p?.current_page ?? 0);
+const total = Number(p?.toplam_sayfa ?? p?.sayfa ?? p?.total_pages ?? 1);
 const percent = Math.min(100, Math.round((current / total) * 100));
-const status = p?.okuma_durumu ?? p?.durum ?? p?.reading_status ?? p?.status ?? 'Okunacak';
+const status = p?.okuma_durumu ?? p?.durum ?? 'Okunacak';
 
 dv.paragraph(`**Durum:** \`${status}\` | **İlerleme:** \`${current} / ${total} sayfa\` (%${percent})`);
 dv.paragraph(`<progress value="${percent}" max="100" style="width: 100%; height: 18px;"></progress>`);

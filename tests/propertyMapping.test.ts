@@ -189,8 +189,8 @@ describe('YAML Property Mapping & Templater Integration', () => {
       expect(result).toContain('author: "[[Frank Herbert]]"');
       expect(result).not.toContain('cevirmen:');
       expect(result).toContain('# Dune');
-      expect(result).toContain('current_page: 0');
-      expect(result).toContain('total_pages: 712');
+      expect(result).toContain('okunan_sayfa: 0');
+      expect(result).toContain('toplam_sayfa: 712');
     });
 
     it('injects Templater variable declaration when enableTemplaterIntegration is true', async () => {

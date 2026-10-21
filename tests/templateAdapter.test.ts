@@ -89,12 +89,12 @@ const status = p?.okuma_durumu || 'Okunacak';
     it('produces synced YAML frontmatter and template body when user customizes property mappings', async () => {
       const customMappings: PropertyMappingData[] = [
         ...DEFAULT_SETTINGS.propertyMappings.filter(
-          (m) => !['kapak', 'current_page', 'total_pages', 'okuma_durumu', 'baslik'].includes(m.property)
+          (m) => !['kapak', 'okunan_sayfa', 'toplam_sayfa', 'okuma_durumu', 'baslik'].includes(m.property)
         ),
         { property: 'baslik', newProperty: 'title', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
         { property: 'kapak', newProperty: 'cover', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
-        { property: 'current_page', newProperty: 'okunan_sayfa', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
-        { property: 'total_pages', newProperty: 'toplam_sayfa', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
+        { property: 'okunan_sayfa', newProperty: 'current_page', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
+        { property: 'toplam_sayfa', newProperty: 'total_pages', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
         { property: 'okuma_durumu', newProperty: 'status', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
       ];
 
@@ -113,13 +113,13 @@ const status = p?.okuma_durumu || 'Okunacak';
       // 1. YAML frontmatter remapped kontrolleri
       expect(note).toContain('title: "Vakıf"');
       expect(note).toContain('cover: "[[99-System/Files/BookCovers/Vakıf - Isaac Asimov.jpg]]"');
-      expect(note).toContain('okunan_sayfa: 0');
-      expect(note).toContain('toplam_sayfa: 240');
+      expect(note).toContain('current_page: 0');
+      expect(note).toContain('total_pages: 240');
       expect(note).toContain('status: "Okunuyor"');
 
       // 2. Şablon gövdesi remapped kontrolleri (Dataview etiketleri senkronize)
-      expect(note).toContain('p?.okunan_sayfa');
-      expect(note).toContain('p?.toplam_sayfa');
+      expect(note).toContain('p?.current_page');
+      expect(note).toContain('p?.total_pages');
       expect(note).toContain('p?.status');
       expect(note).toContain('dv.current()?.cover');
       expect(note).toContain('dv.current()?.title');

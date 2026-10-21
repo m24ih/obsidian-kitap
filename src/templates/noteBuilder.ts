@@ -105,12 +105,15 @@ export async function buildBookNoteContent(
   if (settings.useDefaultFrontMatter) {
     // Varsayılan kitap alanlarını oluştur
     const baseBookMetadata: Record<string, unknown> = {
+      tip: 'kitap',
       baslik: book.title,
       yazar: book.author,
       yayinevi: book.publisher,
       cevirmen: book.translator || '',
       isbn: book.isbn,
       sayfa: book.pages !== undefined && book.pages !== null ? book.pages : '',
+      okunan_sayfa: 0,
+      toplam_sayfa: book.pages !== undefined && book.pages !== null ? book.pages : '',
       yayin_tarihi: book.publishDate || '',
       fiyat: book.price || '',
       format: book.format || '',
@@ -121,8 +124,6 @@ export async function buildBookNoteContent(
       kapak: book.coverUrl || '',
       url: book.url || '',
       okuma_durumu: book.readingStatus || settings.defaultReadingStatus || 'Okunacak',
-      current_page: 0,
-      total_pages: book.pages !== undefined && book.pages !== null ? book.pages : '',
       okunma_tarihi: '',
       kisisel_puan: '',
     };
@@ -147,12 +148,15 @@ export async function buildBookNoteContent(
     // Şablondaki ek alanlar ile kitap metaverilerini birleştir
     // Varsayılan kitap anahtarları şablonda olsa bile kullanıcının remap/remove ayarlarına öncelik verilir.
     const defaultPropKeys = new Set([
+      'tip',
       'baslik',
       'yazar',
       'yayinevi',
       'cevirmen',
       'isbn',
       'sayfa',
+      'okunan_sayfa',
+      'toplam_sayfa',
       'yayin_tarihi',
       'fiyat',
       'format',
@@ -164,10 +168,11 @@ export async function buildBookNoteContent(
       'url',
       'okuma_durumu',
       'durum',
-      'current_page',
-      'total_pages',
       'okunma_tarihi',
       'kisisel_puan',
+      'type',
+      'current_page',
+      'total_pages',
       'title',
       'author',
       'publisher',
