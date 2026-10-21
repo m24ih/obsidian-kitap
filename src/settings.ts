@@ -91,6 +91,49 @@ export class KitapSettingTab extends PluginSettingTab {
     }
 
     // ----------------------------------------------------
+    // Bölüm: Okuma Durumu Ayarları
+    // ----------------------------------------------------
+    containerEl.createEl('h3', { text: 'Okuma Durumu Ayarları' });
+
+    new Setting(containerEl)
+      .setName('Okuma Durumu Seçenekleri')
+      .setDesc('Kitaplar için kullanabileceğiniz durum seçenekleri (virgülle ayırarak girin). Örn: Okunacak, Okunuyor, Okundu veya TBR, Reading, Read.')
+      .addText((text) =>
+        text
+          .setPlaceholder('Okunacak, Okunuyor, Okundu')
+          .setValue(this.plugin.settings.readingStatusOptions.join(', '))
+          .onChange(async (value) => {
+            const rawOpts = value.split(',').map((s) => s.trim()).filter(Boolean);
+            const options = rawOpts.length > 0 ? rawOpts : ['Okunacak'];
+            this.plugin.settings.readingStatusOptions = options;
+            if (!options.includes(this.plugin.settings.defaultReadingStatus)) {
+              this.plugin.settings.defaultReadingStatus = options[0];
+            }
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Varsayılan Okuma Durumu')
+      .setDesc('Yeni eklenen kitap notuna otomatik atanacak başlangıç okuma durumu.')
+      .addDropdown((dropdown) => {
+        const opts = this.plugin.settings.readingStatusOptions;
+        for (const opt of opts) {
+          dropdown.addOption(opt, opt);
+        }
+        if (!opts.includes(this.plugin.settings.defaultReadingStatus)) {
+          dropdown.addOption(this.plugin.settings.defaultReadingStatus, this.plugin.settings.defaultReadingStatus);
+        }
+        dropdown
+          .setValue(this.plugin.settings.defaultReadingStatus)
+          .onChange(async (value) => {
+            this.plugin.settings.defaultReadingStatus = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    // ----------------------------------------------------
     // Bölüm 2: Not Şablonu ve Biçimlendirme
     // ----------------------------------------------------
     containerEl.createEl('h3', { text: 'Not Şablonu ve Biçimlendirme' });
@@ -209,6 +252,8 @@ export class KitapSettingTab extends PluginSettingTab {
       { tag: '{{publishDate}}', desc: 'Yayın tarihi' },
       { tag: '{{coverUrl}}', desc: 'Kapak görseli bağlantısı (indirildiğinde vault içi wikilink formatı)' },
       { tag: '{{coverPath}}', desc: 'İndirilen kapak görselinin vault içi ham dosya yolu' },
+      { tag: '{{readingStatus}}', desc: 'Kitap okuma durumu (örn: Okunacak, TBR)' },
+      { tag: '{{okumaDurumu}}', desc: 'Kitap okuma durumu (Türkçe değişken adı)' },
       { tag: '{{rating}}', desc: 'Kitapyurdu okur puanı (0-5)' },
       { tag: '{{description}}', desc: 'Kitap açıklaması / arka kapak tanıtım metni' },
       { tag: '{{url}}', desc: 'Kitapyurdu ürün sayfası bağlantısı' },

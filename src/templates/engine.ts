@@ -60,6 +60,10 @@ export function renderBookTemplate(template: string, data: BookMetadata): string
         : '',
     description: strValue(data.description),
     url: strValue(data.url),
+    readingStatus: strValue(data.readingStatus || 'Okunacak'),
+    status: strValue(data.readingStatus || 'Okunacak'),
+    okumaDurumu: strValue(data.readingStatus || 'Okunacak'),
+    durum: strValue(data.readingStatus || 'Okunacak'),
 
     // Eski şablonlarla geriye dönük uyumluluk için güvenli boş değerler
     binkitapRating: '',

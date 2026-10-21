@@ -101,7 +101,7 @@ export async function buildBookNoteContent(
       puan_kitapyurdu: book.rating !== undefined && book.rating !== null ? book.rating : '',
       kapak: book.coverUrl || '',
       url: book.url || '',
-      durum: 'Okunacak',
+      okuma_durumu: book.readingStatus || settings.defaultReadingStatus || 'Okunacak',
       okunma_tarihi: '',
       kisisel_puan: '',
     };
@@ -136,6 +136,7 @@ export async function buildBookNoteContent(
       'puan_kitapyurdu',
       'kapak',
       'url',
+      'okuma_durumu',
       'durum',
       'okunma_tarihi',
       'kisisel_puan',
@@ -147,6 +148,8 @@ export async function buildBookNoteContent(
       'publishDate',
       'rating',
       'coverUrl',
+      'readingStatus',
+      'status',
     ]);
 
     const customTemplateMetadata: Record<string, unknown> = {};

@@ -216,6 +216,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
 
     try {
       const bookData = await this.aggregator.getFullBookData(item, this.plugin.settings);
+      bookData.readingStatus = this.plugin.settings.defaultReadingStatus || 'Okunacak';
 
       // Kapak indirme ayarı etkinse görseli indir ve bookData'yı güncelle
       if (this.plugin.settings.downloadCovers) {

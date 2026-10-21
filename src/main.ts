@@ -83,7 +83,33 @@ export default class KitapPlugin extends Plugin {
       typeof rawCoverFolder === 'string' ? rawCoverFolder.trim() : '';
     this.settings.coverFolder = trimmedCoverFolder || DEFAULT_SETTINGS.coverFolder;
 
-    // 9. propertyMappings migrasyonu
+    // 9. readingStatusOptions doğrulaması
+    if (Array.isArray((rawSettings as any).readingStatusOptions)) {
+      const opts = (rawSettings as any).readingStatusOptions
+        .map((s: unknown) => (typeof s === 'string' ? s.trim() : ''))
+        .filter(Boolean);
+      this.settings.readingStatusOptions =
+        opts.length > 0 ? opts : [...DEFAULT_SETTINGS.readingStatusOptions];
+    } else if (typeof (rawSettings as any).readingStatusOptions === 'string') {
+      const opts = (rawSettings as any).readingStatusOptions
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+      this.settings.readingStatusOptions =
+        opts.length > 0 ? opts : [...DEFAULT_SETTINGS.readingStatusOptions];
+    } else {
+      this.settings.readingStatusOptions = [...DEFAULT_SETTINGS.readingStatusOptions];
+    }
+
+    // 10. defaultReadingStatus doğrulaması
+    const rawDefaultStatus =
+      typeof (rawSettings as any).defaultReadingStatus === 'string'
+        ? (rawSettings as any).defaultReadingStatus.trim()
+        : '';
+    this.settings.defaultReadingStatus =
+      rawDefaultStatus || DEFAULT_SETTINGS.defaultReadingStatus;
+
+    // 11. propertyMappings migrasyonu
     const { migratePropertyMappings } = await import('./settings/propertyMapping');
     this.settings.propertyMappings = migratePropertyMappings(this.settings.propertyMappings);
   }

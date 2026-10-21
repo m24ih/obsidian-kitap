@@ -201,6 +201,55 @@ export class MockToggleComponent {
   }
 }
 
+export class MockDropdownComponent {
+  selectEl = document.createElement("select");
+  value = "";
+  options: Record<string, string> = {};
+  onChangeHandler?: (value: string) => void | Promise<void>;
+
+  constructor() {
+    (this.selectEl as any).component = this;
+    this.selectEl.onchange = async () => {
+      this.value = this.selectEl.value;
+      if (this.onChangeHandler) {
+        await this.onChangeHandler(this.value);
+      }
+    };
+  }
+
+  addOption(value: string, display: string) {
+    this.options[value] = display;
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = display;
+    this.selectEl.appendChild(opt);
+    if (!this.value) {
+      this.value = value;
+      this.selectEl.value = value;
+    }
+    return this;
+  }
+
+  setValue(val: string) {
+    this.value = val;
+    this.selectEl.value = val;
+    return this;
+  }
+
+  onChange(cb: (val: string) => void | Promise<void>) {
+    this.onChangeHandler = cb;
+    return this;
+  }
+
+  async simulateChange(val: string) {
+    this.value = val;
+    this.selectEl.value = val;
+    if (this.onChangeHandler) {
+      await this.onChangeHandler(val);
+    }
+  }
+}
+
 export class MockSliderComponent {
   inputEl = document.createElement("input");
   min = 0;
@@ -304,6 +353,7 @@ export class MockSetting {
   toggleComponent?: MockToggleComponent;
   sliderComponent?: MockSliderComponent;
   buttonComponent?: MockButtonComponent;
+  dropdownComponent?: MockDropdownComponent;
 
   constructor(containerEl: HTMLElement) {
     this.settingEl = containerEl.createDiv({ cls: "setting-item" });
@@ -365,6 +415,13 @@ export class MockSetting {
     this.buttonComponent = new MockButtonComponent();
     this.settingEl.appendChild(this.buttonComponent.buttonEl);
     cb(this.buttonComponent);
+    return this;
+  }
+
+  addDropdown(cb: (dropdown: MockDropdownComponent) => void) {
+    this.dropdownComponent = new MockDropdownComponent();
+    this.settingEl.appendChild(this.dropdownComponent.selectEl);
+    cb(this.dropdownComponent);
     return this;
   }
 }

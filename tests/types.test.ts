@@ -13,6 +13,8 @@ describe('Core Types & Defaults', () => {
     expect(DEFAULT_SETTINGS.noteTemplate).toBe(DEFAULT_NOTE_TEMPLATE);
     expect(DEFAULT_SETTINGS.downloadCovers).toBe(false);
     expect(DEFAULT_SETTINGS.coverFolder).toBe('Kitaplar/Kapaklar');
+    expect(DEFAULT_SETTINGS.readingStatusOptions).toEqual(['Okunacak', 'Okunuyor', 'Okundu']);
+    expect(DEFAULT_SETTINGS.defaultReadingStatus).toBe('Okunacak');
   });
 
   it('default template includes required template placeholders', () => {
@@ -47,7 +49,7 @@ describe('Core Types & Defaults', () => {
       'puan_kitapyurdu:',
       'kapak:',
       'url:',
-      'durum:',
+      'okuma_durumu:',
     ];
 
     for (const key of requiredFrontmatterKeys) {

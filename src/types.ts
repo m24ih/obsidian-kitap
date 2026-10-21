@@ -42,6 +42,7 @@ export interface BookMetadata {
   description?: string;
   rating?: number; // Kitapyurdu 0-5 puanı
   ratingCount?: number;
+  readingStatus?: string;
 }
 
 /**
@@ -57,6 +58,8 @@ export interface KitapPluginSettings {
   enableTemplaterIntegration: boolean;
   downloadCovers: boolean;
   coverFolder: string;
+  readingStatusOptions: string[];
+  defaultReadingStatus: string;
 }
 
 /**
@@ -73,7 +76,7 @@ yayin_tarihi: "{{publishDate}}"
 puan_kitapyurdu: {{rating}}
 kapak: "{{coverUrl}}"
 url: "{{url}}"
-durum: Okunacak
+okuma_durumu: "{{readingStatus}}"
 okunma_tarihi:
 kisisel_puan:
 ---
@@ -108,4 +111,6 @@ export const DEFAULT_SETTINGS: KitapPluginSettings = {
   enableTemplaterIntegration: false,
   downloadCovers: false,
   coverFolder: 'Kitaplar/Kapaklar',
+  readingStatusOptions: ['Okunacak', 'Okunuyor', 'Okundu'],
+  defaultReadingStatus: 'Okunacak',
 };

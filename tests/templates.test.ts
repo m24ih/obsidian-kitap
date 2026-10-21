@@ -54,6 +54,7 @@ URL: {{url}}`;
       expect(rendered.startsWith('---')).toBe(true);
       expect(rendered).toContain('baslik: "Dune"');
       expect(rendered).toContain('yazar: "Frank Herbert"');
+      expect(rendered).toContain('okuma_durumu: "Okunacak"');
       expect(rendered).toContain('# Dune');
       expect(rendered).toContain('puan_kitapyurdu: 5');
     });

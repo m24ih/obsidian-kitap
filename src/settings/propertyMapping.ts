@@ -37,7 +37,7 @@ export const DEFAULT_BOOK_PROPERTY_MAPPINGS: PropertyMappingData[] = [
   { property: 'puan_kitapyurdu', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'kapak', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'url', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
-  { property: 'durum', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
+  { property: 'okuma_durumu', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'okunma_tarihi', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'kisisel_puan', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
 ];
@@ -56,7 +56,11 @@ export function migratePropertyMappings(
   const loadedMap = new Map(loadedMappings.map((m) => [m.property, m]));
 
   for (const def of DEFAULT_BOOK_PROPERTY_MAPPINGS) {
-    const existing = loadedMap.get(def.property);
+    let existing = loadedMap.get(def.property);
+    // Eski "durum" alanını "okuma_durumu"na geriye dönük olarak uyarla
+    if (!existing && def.property === 'okuma_durumu') {
+      existing = loadedMap.get('durum');
+    }
     if (!existing) {
       migrated.push({ ...def });
     } else {
