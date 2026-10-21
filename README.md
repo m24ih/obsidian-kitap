@@ -25,6 +25,11 @@ An Obsidian plugin to search Turkish books and metadata from [Kitapyurdu](https:
 - **BRAT**: Add `m24ih/obsidian-kitap` in the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin settings.
 - **Manual**: Download `main.js`, `manifest.json`, and `styles.css` from the latest [Release](https://github.com/m24ih/obsidian-kitap/releases) and place them in `<Vault>/.obsidian/plugins/obsidian-kitap/`.
 
+### 🔒 Privacy & Network Use
+- **Remote Services**: Queries `https://www.kitapyurdu.com` and downloads book covers from `https://img.kitapyurdu.com` only when you actively search for books or create book notes.
+- **Client-Side Only**: All network communication is executed locally on your device using Obsidian's native `requestUrl` API. No intermediary backend or third-party proxy is involved.
+- **Zero Telemetry**: No tracking, analytics, or personal user data is ever collected or transmitted.
+
 ---
 
 # Türkçe Dokümantasyon
@@ -147,6 +152,14 @@ Hem **Not Şablonu** hem de **Dosya Adı Şablonu** içinde aşağıdaki yer tut
 | `{{readingStatus}}`| Kitabın okuma durumu | `Okunacak` |
 | `{{description}}`| Kitap açıklaması / arka kapak bülteni | `Frank Herbert'ın muazzam bilimkurgu evreni...` |
 | `{{url}}` | Kitapyurdu ürün sayfası bağlantısı | `https://www.kitapyurdu.com/kitap/dune/375312.html` |
+
+---
+
+## 🔒 Gizlilik ve Ağ Erişimi (Privacy & Disclosures)
+
+- **Harici Servis Kullanımı**: Eklenti yalnızca kullanıcı kitap araması yaptığında veya kitap notu oluşturduğunda `https://www.kitapyurdu.com` ve kapak görsel sunucularına (`https://img.kitapyurdu.com`) doğrudan istek gönderir.
+- **Tamamen İstemci Taraflı**: İstekler Obsidian'ın yerel `requestUrl` mekanizması ile doğrudan kullanıcının cihazından yürütülür; arada üçüncü taraf bir sunucu veya aracı proxy bulunmaz.
+- **Sıfır Telemetri**: Hiçbir kullanıcı verisi, arama geçmişi veya kişisel bilgi toplanmaz, izlenmez ve harici sistemlere aktarılmaz.
 
 ---
 
