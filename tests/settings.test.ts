@@ -195,6 +195,46 @@ describe('Plugin Settings & Lifecycle', () => {
       expect(plugin.settings.noteTemplate).toBe(DEFAULT_NOTE_TEMPLATE);
       expect(lastNotices).toContain('Kitap not şablonu varsayılan ayarlara sıfırlandı.');
     });
+
+    it('renders downloadCovers toggle and coverFolder input and updates settings when changed', async () => {
+      plugin.settings.downloadCovers = true;
+      plugin.settings.coverFolder = 'Kitaplar/Kapaklar';
+      settingTab.display();
+
+      const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');
+      let downloadToggleInput: HTMLInputElement | undefined;
+      let coverFolderInput: HTMLInputElement | undefined;
+
+      for (const item of Array.from(settingItems)) {
+        const nameEl = item.querySelector('.setting-item-name');
+        if (nameEl?.textContent?.includes('Kapak Görsellerini İndir')) {
+          downloadToggleInput = item.querySelector('input[type="checkbox"]') as HTMLInputElement;
+        }
+        if (nameEl?.textContent?.includes('Kapak Klasörü')) {
+          coverFolderInput = item.querySelector('input') as HTMLInputElement;
+        }
+      }
+
+      expect(downloadToggleInput).toBeDefined();
+      expect(coverFolderInput).toBeDefined();
+      expect(coverFolderInput?.value).toBe('Kitaplar/Kapaklar');
+
+      if (downloadToggleInput) {
+        const component = (downloadToggleInput as any).component;
+        if (component) {
+          await component.simulateToggle(false);
+        }
+      }
+      expect(plugin.settings.downloadCovers).toBe(false);
+
+      if (coverFolderInput) {
+        const component = (coverFolderInput as any).component;
+        if (component) {
+          await component.simulateChange('Medya/Kapaklar');
+        }
+      }
+      expect(plugin.settings.coverFolder).toBe('Medya/Kapaklar');
+    });
   });
 
   describe('Adversarial & Defensive Tests', () => {
@@ -214,6 +254,23 @@ describe('Plugin Settings & Lifecycle', () => {
       mockData = { noteTemplate: 12345 };
       await plugin.loadSettings();
       expect(plugin.settings.noteTemplate).toBe(DEFAULT_NOTE_TEMPLATE);
+    });
+
+    it('sanitizes and migrates downloadCovers and coverFolder with media-db compatibility', async () => {
+      // media-db pluginindeki imageDownload ve imageFolder alanları için geriye dönük fallback testi
+      mockData = {
+        imageDownload: true,
+        imageFolder: 'Media DB/covers  ',
+      };
+      await plugin.loadSettings();
+      expect(plugin.settings.downloadCovers).toBe(true);
+      expect(plugin.settings.coverFolder).toBe('Media DB/covers');
+    });
+
+    it('sanitizes empty whitespace in coverFolder to default', async () => {
+      mockData = { coverFolder: '   ' };
+      await plugin.loadSettings();
+      expect(plugin.settings.coverFolder).toBe('Kitaplar/Kapaklar');
     });
   });
 });

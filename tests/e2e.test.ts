@@ -463,6 +463,79 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
       expect(openFileMock).toHaveBeenCalledWith(existingFileObj);
       expect(resultFile).toBe(existingFileObj);
     });
+
+    it('downloads cover locally and embeds wikilink image in note when downloadCovers is enabled', async () => {
+      const { BookSearchModal } = await import('../src/modal/searchModal');
+      const fakeBuffer = new ArrayBuffer(16);
+      (requestUrl as any).mockResolvedValueOnce({
+        status: 200,
+        headers: { 'content-type': 'image/jpeg' },
+        arrayBuffer: fakeBuffer,
+      });
+
+      let createdNoteContent = '';
+      const createdBinaries: Record<string, ArrayBuffer> = {};
+
+      const mockApp: any = {
+        vault: {
+          getAbstractFileByPath: vi.fn().mockReturnValue(null),
+          createFolder: vi.fn().mockResolvedValue(undefined),
+          createBinary: vi.fn(async (p: string, buf: ArrayBuffer) => {
+            createdBinaries[p] = buf;
+          }),
+          create: vi.fn(async (_p: string, content: string) => {
+            createdNoteContent = content;
+            return { path: _p };
+          }),
+        },
+        workspace: {
+          getLeaf: vi.fn(() => ({ openFile: vi.fn() })),
+        },
+      };
+
+      const mockAggregator = {
+        search: vi.fn().mockResolvedValue([]),
+        getFullBookData: vi.fn().mockResolvedValue({
+          id: '375312',
+          url: 'https://www.kitapyurdu.com/kitap/dune/375312.html',
+          title: 'Dune',
+          author: 'Frank Herbert',
+          publisher: 'İthaki Yayınları',
+          isbn: '9786053754794',
+          coverUrl: 'https://img.kitapyurdu.com/covers/dune.jpg',
+        }),
+      };
+
+      const mockPlugin: any = {
+        settings: {
+          ...DEFAULT_SETTINGS,
+          downloadCovers: true,
+          coverFolder: 'Kitaplar/Kapaklar',
+        },
+      };
+
+      const modal = new BookSearchModal(mockApp, mockPlugin, {
+        debounceMs: 0,
+        aggregator: mockAggregator as any,
+      });
+
+      await modal.processBookSelection({
+        id: '375312',
+        title: 'Dune',
+        author: 'Frank Herbert',
+        publisher: 'İthaki Yayınları',
+        url: 'https://www.kitapyurdu.com/kitap/dune/375312.html',
+        coverUrl: 'https://img.kitapyurdu.com/covers/dune.jpg',
+      });
+
+      // Kapak binary dosyası indirilip kaydedilmeli
+      expect(createdBinaries['Kitaplar/Kapaklar/Dune - Frank Herbert.jpg']).toBe(fakeBuffer);
+
+      // Not içeriğinde hem frontmatter'da hem gövdede yerel kapak olmalı
+      expect(createdNoteContent).toContain('kapak: "[[Kitaplar/Kapaklar/Dune - Frank Herbert.jpg]]"');
+      expect(createdNoteContent).toContain('![[Kitaplar/Kapaklar/Dune - Frank Herbert.jpg|200]]');
+      expect(createdNoteContent).not.toContain('https://img.kitapyurdu.com/covers/dune.jpg');
+    });
   });
 });
 

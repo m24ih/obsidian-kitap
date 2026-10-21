@@ -2,6 +2,7 @@ import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type KitapPlugin from './main';
 import { DEFAULT_NOTE_TEMPLATE } from './types';
 import { FileSuggest } from './settings/fileSuggest';
+import { FolderSuggest } from './settings/folderSuggest';
 import { PropertyMappingComponent } from './settings/propertyMappingComponent';
 import { PropertyMappingData } from './settings/propertyMapping';
 
@@ -31,15 +32,16 @@ export class KitapSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Hedef Klasör')
       .setDesc('Oluşturulan kitap notlarının kaydedileceği vault klasörü. Klasör mevcut değilse otomatik olarak oluşturulur.')
-      .addText((text) =>
+      .addText((text) => {
+        new FolderSuggest(this.app, text.inputEl);
         text
           .setPlaceholder('Kitaplar')
           .setValue(this.plugin.settings.targetFolder)
           .onChange(async (value) => {
             this.plugin.settings.targetFolder = value.trim();
             await this.plugin.saveSettings();
-          })
-      );
+          });
+      });
 
     new Setting(containerEl)
       .setName('Dosya Adı Şablonu')
@@ -53,6 +55,40 @@ export class KitapSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    // ----------------------------------------------------
+    // Bölüm: Kapak Görselleri
+    // ----------------------------------------------------
+    containerEl.createEl('h3', { text: 'Kapak Görselleri' });
+
+    new Setting(containerEl)
+      .setName('Kapak Görsellerini İndir')
+      .setDesc('Yeni kitap notları oluşturulurken kapak görselini yerel olarak indirir ve vault içine kaydeder. Böylece her kitap için harici bağlantıya gerek kalmaz.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.downloadCovers)
+          .onChange(async (value) => {
+            this.plugin.settings.downloadCovers = value;
+            await this.plugin.saveSettings();
+            this.display();
+          })
+      );
+
+    if (this.plugin.settings.downloadCovers) {
+      new Setting(containerEl)
+        .setClass('kitap-setting-wide-control')
+        .setName('Kapak Klasörü')
+        .setDesc('İndirilen kitap kapaklarının kaydedileceği vault klasörü. Klasör mevcut değilse otomatik olarak oluşturulur.')
+        .addSearch((cb) => {
+          new FolderSuggest(this.app, cb.inputEl);
+          cb.setPlaceholder('Kitaplar/Kapaklar')
+            .setValue(this.plugin.settings.coverFolder)
+            .onChange(async (value) => {
+              this.plugin.settings.coverFolder = value.trim();
+              await this.plugin.saveSettings();
+            });
+        });
+    }
 
     // ----------------------------------------------------
     // Bölüm 2: Not Şablonu ve Biçimlendirme
@@ -171,7 +207,8 @@ export class KitapSettingTab extends PluginSettingTab {
       { tag: '{{isbn}}', desc: '13 haneli ISBN numarası' },
       { tag: '{{pages}}', desc: 'Sayfa sayısı' },
       { tag: '{{publishDate}}', desc: 'Yayın tarihi' },
-      { tag: '{{coverUrl}}', desc: 'Yüksek çözünürlüklü kapak görseli bağlantısı' },
+      { tag: '{{coverUrl}}', desc: 'Kapak görseli bağlantısı (indirildiğinde vault içi wikilink formatı)' },
+      { tag: '{{coverPath}}', desc: 'İndirilen kapak görselinin vault içi ham dosya yolu' },
       { tag: '{{rating}}', desc: 'Kitapyurdu okur puanı (0-5)' },
       { tag: '{{description}}', desc: 'Kitap açıklaması / arka kapak tanıtım metni' },
       { tag: '{{url}}', desc: 'Kitapyurdu ürün sayfası bağlantısı' },

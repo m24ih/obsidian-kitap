@@ -55,6 +55,8 @@ export interface KitapPluginSettings {
   useDefaultFrontMatter: boolean;
   propertyMappings: PropertyMappingData[];
   enableTemplaterIntegration: boolean;
+  downloadCovers: boolean;
+  coverFolder: string;
 }
 
 /**
@@ -104,4 +106,6 @@ export const DEFAULT_SETTINGS: KitapPluginSettings = {
   useDefaultFrontMatter: true,
   propertyMappings: DEFAULT_BOOK_PROPERTY_MAPPINGS,
   enableTemplaterIntegration: false,
+  downloadCovers: false,
+  coverFolder: 'Kitaplar/Kapaklar',
 };

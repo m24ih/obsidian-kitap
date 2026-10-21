@@ -6,6 +6,8 @@ import { buildBookNoteContent } from '../templates/noteBuilder';
 import { BookMetadata, SearchResultItem } from '../types';
 import { fuzzySortBooks } from '../utils/fuzzy';
 import { useTemplaterPluginInFile } from '../utils/templater';
+import { downloadBookCover } from '../utils/coverDownloader';
+import { ensureFolderExists } from '../utils/fileUtils';
 
 export interface SearchModalOptions {
   insertIntoActive?: boolean;
@@ -214,6 +216,16 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
 
     try {
       const bookData = await this.aggregator.getFullBookData(item, this.plugin.settings);
+
+      // Kapak indirme ayarı etkinse görseli indir ve bookData'yı güncelle
+      if (this.plugin.settings.downloadCovers) {
+        new Notice(`"${bookData.title}" kapak görseli indiriliyor...`);
+        const coverResult = await downloadBookCover(this.app, bookData, this.plugin.settings);
+        if (!coverResult.success && coverResult.error) {
+          new Notice(`"${bookData.title}" kapak görseli indirilemedi, harici bağlantı kullanılacak.`);
+        }
+      }
+
       const renderedContent = await buildBookNoteContent({
         book: bookData,
         settings: this.plugin.settings,
@@ -327,25 +339,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
    */
   async ensureFolderExists(folderPath: string): Promise<void> {
     const vault = (this.app as any)?.vault;
-    if (!vault || typeof vault.createFolder !== 'function') return;
-
-    const normalized = normalizePath(folderPath).replace(/^\/+|\/+$/g, '');
-    if (!normalized || normalized === '.') return;
-
-    const segments = normalized.split('/').filter(Boolean);
-    let currentPath = '';
-
-    for (const segment of segments) {
-      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-      const existing = vault.getAbstractFileByPath?.(currentPath);
-      if (!existing) {
-        try {
-          await vault.createFolder(currentPath);
-        } catch {
-          // Klasör eşzamanlı oluşturulmuşsa hatayı yoksay
-        }
-      }
-    }
+    await ensureFolderExists(vault, folderPath);
   }
 
   onClose(): void {

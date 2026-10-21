@@ -72,7 +72,18 @@ export default class KitapPlugin extends Plugin {
         ? this.settings.enableTemplaterIntegration
         : false;
 
-    // 7. propertyMappings migrasyonu
+    // 7. downloadCovers doğrulaması (media-db uyumluluğu için imageDownload fallback)
+    const rawDownload = (rawSettings as any).downloadCovers ?? (rawSettings as any).imageDownload;
+    this.settings.downloadCovers =
+      typeof rawDownload === 'boolean' ? rawDownload : DEFAULT_SETTINGS.downloadCovers;
+
+    // 8. coverFolder doğrulaması (media-db uyumluluğu için imageFolder fallback)
+    const rawCoverFolder = (rawSettings as any).coverFolder ?? (rawSettings as any).imageFolder;
+    const trimmedCoverFolder =
+      typeof rawCoverFolder === 'string' ? rawCoverFolder.trim() : '';
+    this.settings.coverFolder = trimmedCoverFolder || DEFAULT_SETTINGS.coverFolder;
+
+    // 9. propertyMappings migrasyonu
     const { migratePropertyMappings } = await import('./settings/propertyMapping');
     this.settings.propertyMappings = migratePropertyMappings(this.settings.propertyMappings);
   }
