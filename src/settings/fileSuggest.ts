@@ -29,7 +29,7 @@ export class FileSuggest extends AbstractInputSuggest<TFile> {
     if (typeof vault.getMarkdownFiles === 'function') {
       files = vault.getMarkdownFiles();
     } else if (typeof vault.getFiles === 'function') {
-      files = (vault.getFiles() as TFile[]).filter((file) => file.path.endsWith('.md'));
+      files = vault.getFiles().filter((file) => file.path.endsWith('.md'));
     } else if (typeof vault.getAllLoadedFiles === 'function') {
       files = (vault.getAllLoadedFiles() as unknown[]).filter(
         (file): file is TFile => file instanceof TFile && file.path.endsWith('.md')

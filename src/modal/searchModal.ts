@@ -315,7 +315,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
   ): Promise<TFile | null> {
     const workspace = this.app.workspace;
     const vault = this.app.vault;
-    const activeFile = workspace?.getActiveFile?.() as TFile | null;
+    const activeFile = workspace?.getActiveFile?.();
 
     if (!activeFile) {
       new Notice('Aktif bir not bulunamadı.');

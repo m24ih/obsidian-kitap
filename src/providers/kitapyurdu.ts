@@ -352,10 +352,10 @@ export class KitapyurduProvider implements IKitapyurduProvider {
           const types: unknown[] = Array.isArray(rawType) ? (rawType as unknown[]) : [rawType];
 
           if (types.includes('Book') && !bookNode) {
-            bookNode = node as unknown as JsonLdBook;
+            bookNode = node;
           }
           if (types.includes('Product') && !productNode) {
-            productNode = node as unknown as JsonLdProduct;
+            productNode = node;
           }
         }
       } catch {

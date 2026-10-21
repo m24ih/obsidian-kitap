@@ -209,7 +209,7 @@ describe('YAML Property Mapping & Templater Integration', () => {
       const mockVault = {
         getAbstractFileByPath: (path: string) => {
           if (path === 'Templates/CustomBook.md') {
-            return { path: 'Templates/CustomBook.md' };
+            return Object.assign(new TFile(), { path: 'Templates/CustomBook.md' });
           }
           return null;
         },

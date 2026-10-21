@@ -32,10 +32,9 @@ export async function getTemplateContentFromVault(
     file = allFiles.find((f) => f.path === templatePath || f.name === templatePath) ?? null;
   }
 
-  const isFile = file instanceof TFile || (file !== null && typeof file === 'object' && 'path' in file);
-  if (isFile && typeof vault.read === 'function') {
+  if (file instanceof TFile && typeof vault.read === 'function') {
     try {
-      const content = await vault.read(file as TFile);
+      const content = await vault.read(file);
       return content;
     } catch (err) {
       console.warn('Şablon dosyası okunamadı:', templatePath, err);

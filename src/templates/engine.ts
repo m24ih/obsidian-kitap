@@ -12,7 +12,9 @@ export function renderBookTemplate(template: string, data: BookMetadata): string
 
   const strValue = (val: unknown): string => {
     if (val === undefined || val === null) return '';
-    return String(val);
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+    return '';
   };
 
   const rawCover = strValue(data.coverUrl);
@@ -25,17 +27,17 @@ export function renderBookTemplate(template: string, data: BookMetadata): string
     // 1. ![[ {{coverUrl}} ]] veya ![[ {{coverUrl}} | 200 ]] wikilink embed kalıpları
     processedTemplate = processedTemplate.replace(
       /!\[\[\s*\{\{\s*coverUrl\s*\}\}\s*(?:\|([^\]]+))?\]\]/g,
-      (_match, extra) => (extra ? `![[${innerCoverPath}|${extra.trim()}]]` : `![[${innerCoverPath}]]`)
+      (_match: string, extra?: string) => (extra ? `![[${innerCoverPath}|${extra.trim()}]]` : `![[${innerCoverPath}]]`)
     );
 
     // 2. ![Kapak|200]({{coverUrl}}) veya ![alt]({{coverUrl}}) standart markdown imaj kalıpları
     // Yerel wikilink durumunda Obsidian'ın doğal ![[resim.jpg|200]] formatına dönüştürülür
     processedTemplate = processedTemplate.replace(
       /!\[(.*?)\]\(\{\{\s*coverUrl\s*\}\}\)/g,
-      (_match, alt) => {
-        const trimmedAlt = alt.trim();
+      (_match: string, alt: string) => {
+        const trimmedAlt = typeof alt === 'string' ? alt.trim() : '';
         const sizeMatch = trimmedAlt.match(/(?:^|\|)(\d+(?:x\d+)?)$/);
-        if (sizeMatch) {
+        if (sizeMatch && sizeMatch[1]) {
           return `![[${innerCoverPath}|${sizeMatch[1]}]]`;
         }
         return `![[${innerCoverPath}]]`;
