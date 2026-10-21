@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit --skipLibCheck",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
+    "pretest": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
