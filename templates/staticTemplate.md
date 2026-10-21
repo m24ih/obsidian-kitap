@@ -16,6 +16,8 @@ puan_kitapyurdu: {{rating}}
 kapak: "{{coverUrl}}"
 url: "{{url}}"
 okuma_durumu: "{{readingStatus}}"
+current_page: 0
+total_pages: {{pages}}
 okunma_tarihi:
 kisisel_puan:
 ---

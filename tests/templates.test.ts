@@ -99,6 +99,7 @@ URL: {{url}}`;
       expect(rendered).toContain('<progress value=');
       expect(rendered).toContain('## 📊 Okuma İlerlemesi');
       expect(rendered).toContain('## ⏳ Okuma Günlüğü');
+      expect(rendered).toContain("k.path : String(k).replace(/^\\[\\[/, '').replace(/\\]\\]$/, '')");
     });
 
     it('tolerates simple <% variable %> tags from user templates while preserving Templater expressions', () => {

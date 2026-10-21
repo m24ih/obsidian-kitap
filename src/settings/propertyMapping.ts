@@ -43,6 +43,8 @@ export const DEFAULT_BOOK_PROPERTY_MAPPINGS: PropertyMappingData[] = [
   { property: 'kapak', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'url', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'okuma_durumu', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
+  { property: 'current_page', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
+  { property: 'total_pages', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'okunma_tarihi', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'kisisel_puan', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
 ];

@@ -121,6 +121,8 @@ export async function buildBookNoteContent(
       kapak: book.coverUrl || '',
       url: book.url || '',
       okuma_durumu: book.readingStatus || settings.defaultReadingStatus || 'Okunacak',
+      current_page: 0,
+      total_pages: book.pages !== undefined && book.pages !== null ? book.pages : '',
       okunma_tarihi: '',
       kisisel_puan: '',
     };
@@ -162,6 +164,8 @@ export async function buildBookNoteContent(
       'url',
       'okuma_durumu',
       'durum',
+      'current_page',
+      'total_pages',
       'okunma_tarihi',
       'kisisel_puan',
       'title',

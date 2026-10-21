@@ -25,7 +25,7 @@ kisisel_puan:
 
 # 📖 `$= dv.current().baslik || "{{title}}"`
 
-`$= '![Kapak|250](' + (dv.current().kapak || '{{coverUrl}}') + ')'`
+`$= (() => { const k = dv.current()?.kapak || '{{coverUrl}}'; const p = (typeof k === 'object' && k?.path) ? k.path : String(k).replace(/^\[\[/, '').replace(/\]\]$/, ''); return p.startsWith('http') ? '![Kapak|250](' + p + ')' : '![[' + p + '|250]]'; })()`
 
 > **Yazar:** `$= dv.current().yazar || "{{author}}"`  
 > **Yayınevi:** `$= dv.current().yayinevi || "{{publisher}}"`  
