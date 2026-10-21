@@ -1,41 +1,65 @@
 # Obsidian Kitap Eklentisi (`obsidian-kitap`)
 
-**Obsidian Kitap**, Türkçe kitap okurları için geliştirilmiş, tamamen istemci taraflı çalışan bir Obsidian eklentisidir. **Kitapyurdu** üzerinden birincil bibliyografik kitap verilerini (başlık, yazarlar, çevirmenler, yayınevi, ISBN, sayfa sayısı, yayın tarihi, yüksek çözünürlüklü kapak görseli ve arka kapak açıklaması) çeker; **1000Kitap** üzerinden okur puanı, okunma istatistiği ve en popüler okur alıntılarıyla zenginleştirerek özelleştirilebilir şablonlarla Markdown notuna dönüştürür.
+**Obsidian Kitap**, Türkçe kitap okurları için geliştirilmiş, tamamen istemci taraflı çalışan modern bir Obsidian eklentisidir. **Kitapyurdu** üzerinden kapsamlı bibliyografik kitap verilerini (başlık, yazarlar, çevirmenler, yayınevi, ISBN, sayfa sayısı, yayın tarihi, fiyat, cilt/baskı formatı, türler, orijinal başlık, dil, puan ve arka kapak açıklaması) çeker; özelleştirilebilir şablonlar, Dataview reaktif görünümleri ve Templater desteğiyle kişisel kütüphane notlarına dönüştürür.
 
 ---
 
 ## ✨ Temel Özellikler
 
-- **Çift Kaynaklı Hibrit Zenginleştirme**:
-  - **Kitapyurdu (Birincil Kaynak)**: `schema.org/Book` JSON-LD yapısal verisi ve `.ky-pd-attributes__item` DOM yedekleriyle eksiksiz bibliyografik doğruluk.
-  - **1000Kitap (İkincil Kaynak)**: Topluluk puanı (`9.2/10`), okunma sayısı ve sayfa numaralı popüler okur alıntıları.
-- **Kesintisiz Hata Toleransı (Graceful Degradation)**: 1000Kitap'a erişilemediğinde, Cloudflare engeline takıldığında veya kitap 1000Kitap'ta bulunamadığında eklenti asla çökmez; Kitapyurdu verileriyle notunuzu sorunsuz şekilde oluşturur.
-- **API Anahtarı veya Sunucu Gerektirmez**: Tüm istekler Obsidian'ın yerel `requestUrl` API'si üzerinden doğrudan yapılır.
-- **Çoklu Yazar ve Çoklu Çevirmen Desteği**: Ortak yazarlı veya birden fazla çevirmeni olan eserlerde isimleri kırpmadan virgülle birleştirir.
-- **Yüksek Çözünürlüklü Kapak Görselleri**: Kitapyurdu CDN görsellerini otomatik olarak yüksek çözünürlüğe (`wi:800`) yükseltir.
-- **Özelleştirilebilir Şablon Motoru**: YAML Frontmatter ve gövde metnini 13+ şablon değişkeniyle dilediğiniz gibi biçimlendirin.
-- **Güvenli Dosya ve Klasör Yönetimi**: İşletim sistemi ve Obsidian için geçersiz karakterleri (`/\:*?"<>|`) otomatik temizler, iç içe hedef klasörleri (`Kitaplar/2026/Roman` vb.) otomatik oluşturur.
+- **Doğrudan Kitapyurdu Entegrasyonu**: `schema.org/Book` JSON-LD yapısal verisi ve sayfa DOM ayrıştırıcıları ile eksiksiz bibliyografik doğruluk.
+- **Zengin Bibliyografik Metaveri Desteği**:
+  - Başlık, yazar(lar), çevirmen(ler) ve yayınevi
+  - 13 haneli ISBN, sayfa sayısı ve yayın tarihi
+  - Etiket/liste fiyatı (`{{price}}`) ve baskı formatı/cilt tipi (`{{format}}`)
+  - Kategori/türler (`{{genres}}`, `{{genresList}}`), orijinal başlık (`{{originalTitle}}`) ve basım dili (`{{language}}`)
+  - Kitapyurdu okur puanı (`{{rating}}`), değerlendirme sayısı (`{{ratingCount}}`) ve arka kapak tanıtım bülteni (`{{description}}`)
+- **Esnek Şablon Modları**:
+  - **Statik Şablon**: Ek eklenti gerektirmeyen, temiz YAML Frontmatter ve sade Markdown düzeni.
+  - **Reaktif Şablon (Dataview Destekli)**: Yerleşik DataviewJS okuma ilerleme çubuğu (`progress bar`), okuma günlüğü tablosu ve dinamik inline alanlar (`$= dv.current()...`).
+  - **Özel Şablon**: Kasanızdaki (vault) herhangi bir `.md` şablon dosyasını seçebilme veya ayarlar ekranından doğrudan düzenleme olanağı.
+- **Kapak Görsellerini Yerel İndirme**:
+  - Kitap kapaklarını vault içerisindeki istediğiniz klasöre (örn. `Kitaplar/Kapaklar`) yerel olarak indirir.
+  - İndirilen görseller otomatik önbelleğe alınır ve Markdown içerisinde `![[kapak.jpg]]` Obsidian wikilink formatına dönüştürülür.
+- **Templater Entegrasyonu**:
+  - Not oluşturulduğunda Templater fonksiyonlarının otomatik çalıştırılması.
+  - Şablonlar içerisinde `book` objesine (`<%* const b = book; %>`) doğrudan erişim.
+- **Özelleştirilebilir YAML Özellik Eşlemeleri (Property Mapping)**:
+  - Metaverilerin hangi Obsidian Properties (YAML frontmatter) alanlarına yazılacağını özelleştirebilme.
+  - Alan adlarını değiştirme, devre dışı bırakma veya varsayılan değerler atama imkanı.
+- **Özelleştirilebilir Okuma Durumları (Reading Status)**:
+  - `Okunacak`, `Okunuyor`, `Okundu` (veya `TBR`, `Reading`, `Read`) gibi durumları serbestçe tanımlama ve varsayılan başlangıç durumu seçme.
+- **API Anahtarı veya Sunucu Gerektirmez**:
+  - Tüm istekler doğrudan Obsidian'ın yerel `requestUrl` API'si üzerinden istemci taraflı yürütülür.
+- **Güvenli Dosya & Klasör Yönetimi**:
+  - İşletim sistemi ve Obsidian için geçersiz karakterleri (`/\:*?"<>|`) akıllıca temizler, iç içe hedef klasörleri otomatik oluşturur.
 
 ---
 
 ## 📦 Kurulum
 
-### Manuel Kurulum
-1. Bu depoyu indirin veya klonlayın:
-   ```bash
-   git clone https://github.com/m24ih/obsidian-kitap.git
-   cd obsidian-kitap
-   ```
-2. Bağımlılıkları yükleyin ve derleyin:
-   ```bash
-   npm install
-   npm run build
-   ```
-3. Oluşan `main.js`, `manifest.json` ve `styles.css` dosyalarını Obsidian kasanızın (vault) eklenti klasörüne kopyalayın:
+### Yöntem 1: BRAT Eklentisi ile (Önerilen)
+1. Obsidian'da [BRAT](https://github.com/TfTHacker/obsidian42-brat) eklentisini kurun ve etkinleştirin.
+2. BRAT ayarlarına gidin ve **Add Beta plugin** seçeneğine tıklayın.
+3. Depo adresi olarak `m24ih/obsidian-kitap` girin.
+4. Eklentiyi etkinleştirin.
+
+### Yöntem 2: Manuel Kurulum
+1. [Releases](https://github.com/m24ih/obsidian-kitap/releases) sayfasından en güncel sürümün `main.js`, `manifest.json` ve `styles.css` dosyalarını indirin.
+2. Obsidian kasanızın eklenti klasöründe `obsidian-kitap` adında bir dizin oluşturun:
    ```text
    <VaultKlasörünüz>/.obsidian/plugins/obsidian-kitap/
    ```
+3. İndirdiğiniz dosyaları bu klasöre yapıştırın.
 4. Obsidian'da **Ayarlar → Topluluk Eklentileri (Community Plugins)** bölümünden **Kitap** eklentisini etkinleştirin.
+
+### Yöntem 3: Kaynak Koddan Derleme
+```bash
+git clone https://github.com/m24ih/obsidian-kitap.git
+cd obsidian-kitap
+npm install
+npm run build
+```
+Oluşan `main.js`, `manifest.json` ve `styles.css` dosyalarını vault'unuzdaki eklenti klasörüne kopyalayın.
 
 ---
 
@@ -56,32 +80,43 @@ Sol şeritteki (Ribbon) **Kitap Ara ve Ekle** (`book-open`) ikonuna tıklayarak 
 
 - **Hedef Klasör**: Yeni kitap notlarının kaydedileceği klasör yolu (Varsayılan: `Kitaplar`). Klasör mevcut değilse otomatik olarak oluşturulur.
 - **Dosya Adı Şablonu**: Oluşturulacak dosyanın adlandırma formatı (Varsayılan: `{{title}} - {{author}}`).
-- **1000Kitap Alıntılarını Ekle**: Popüler 1000Kitap okur alıntılarının nota dahil edilip edilmeyeceğini belirler (Varsayılan: `Açık`).
-- **Maksimum Alıntı Sayısı**: 1000Kitap'tan çekilecek maksimum alıntı adedi (`1` ile `20` arası, Varsayılan: `5`).
-- **Not Şablonu**: Oluşturulacak kitap notunun Markdown ve YAML Frontmatter içeriği.
-- **Varsayılan Şablona Sıfırla**: Şablonu eklentinin orijinal Türkçe varsayılan şablonuna geri döndürür.
+- **Kapak Görsellerini İndir**: Kapak görselinin yerel olarak vault'a indirilip indirilmeyeceğini belirler.
+- **Kapak Klasörü**: İndirilen kapak görsellerinin saklanacağı klasör (Varsayılan: `Kitaplar/Kapaklar`).
+- **Okuma Durumu Ayarları**: Kullanılabilecek okuma durumu etiketleri ve yeni oluşturulan kitaplara atanacak varsayılan durum.
+- **Şablon Modu**:
+  - `Statik Şablon`: Sade ve standart Markdown çıktısı.
+  - `Reaktif Şablon`: DataviewJS okuma çubuğu, alıntılar tablosu ve okuma günlüğü içeren dinamik şablon.
+  - `Özel Şablon`: Vault içindeki bir `.md` şablon dosyası veya doğrudan ayarlar içerisindeki metin kutusu.
+- **Templater Entegrasyonu**: Templater eklentisi ile birlikte çalışma ve `book` objesini açığa çıkarma desteği.
+- **Varsayılan Frontmatter Oluştur & Özellik Eşlemeleri**: Obsidian Properties alanlarını ve veri eşlemelerini dinamik olarak düzenleyebilme.
 
 ---
 
 ## 🧩 Kullanılabilir Şablon Değişkenleri
 
-Hem **Not Şablonu** hem de **Dosya Adı Şablonu** içinde aşağıdaki yer tutucuları kullanabilirsiniz. Değer bulunamadığında `"undefined"` veya `"null"` yazılmaz, boş metin olarak bırakılır:
+Hem **Not Şablonu** hem de **Dosya Adı Şablonu** içinde aşağıdaki yer tutucuları kullanabilirsiniz. Değer bulunamadığında `"undefined"` veya `"null"` yazılmaz, temiz bir boş metin olarak bırakılır:
 
 | Değişken | Açıklama | Örnek Değer |
 |----------|----------|-------------|
 | `{{title}}` | Kitap başlığı | `Dune` |
-| `{{author}}` | Yazar(lar) veya derleyen | `Frank Herbert` |
+| `{{author}}` | Yazar(lar) | `Frank Herbert` |
 | `{{publisher}}` | Yayınevi | `İTHAKİ YAYINLARI` |
-| `{{translator}}` | Çevirmen(ler) (telif eserlerde boş kalır) | `Dost Körpe` |
-| `{{isbn}}` | 10 veya 13 haneli ISBN numarası | `9786053754794` |
+| `{{translator}}` | Çevirmen(ler) | `Dost Körpe` |
+| `{{isbn}}` | 13 haneli ISBN numarası | `9786053754794` |
 | `{{pages}}` | Toplam sayfa sayısı | `712` |
 | `{{publishDate}}` | Yayın tarihi (`YYYY-MM-DD` formatında) | `2021-09-08` |
-| `{{coverUrl}}` | Yüksek çözünürlüklü kapak görseli adresi | `https://img.kitapyurdu.com/.../wi:800/...` |
-| `{{rating}}` | Kitapyurdu okur puanı (5 üzerinden) | `5` |
-| `{{binkitapRating}}` | 1000Kitap okur puanı (10 üzerinden) | `9.2/10` |
-| `{{binkitapReadCount}}` | 1000Kitap okunma istatistiği | `169,8bin` |
-| `{{description}}` | Kitap açıklaması / arka kapak bülteni | `Yüzüklerin Efendisi dışında...` |
-| `{{quotes}}` | 1000Kitap alıntıları (Markdown `>` blokları) | `> “Korku katildir.”` |
+| `{{price}}` | Liste / satış fiyatı | `477.95 TL` |
+| `{{format}}` | Baskı / cilt tipi | `Karton Kapak` |
+| `{{genres}}` | Kategoriler / Türler (virgülle ayrılmış) | `Edebiyat, Bilimkurgu` |
+| `{{genresList}}` | YAML dizi formatında türler | `  - "Bilimkurgu"` |
+| `{{originalTitle}}`| Kitabın orijinal başlığı | `Dune` |
+| `{{language}}` | Basım dili | `TÜRKÇE` |
+| `{{coverUrl}}` | Kapak görseli adresi (yerel indirmede wikilink) | `https://img.kitapyurdu.com/.../wi:800/...` |
+| `{{coverPath}}` | İndirilen kapağın vault içi göreceli dosya yolu | `Kitaplar/Kapaklar/Dune - Frank Herbert.jpg` |
+| `{{rating}}` | Kitapyurdu okur puanı (0-5) | `4.8` |
+| `{{ratingCount}}`| Kitapyurdu değerlendirme / oy sayısı | `142` |
+| `{{readingStatus}}`| Kitabın okuma durumu | `Okunacak` |
+| `{{description}}`| Kitap açıklaması / arka kapak bülteni | `Frank Herbert'ın muazzam bilimkurgu evreni...` |
 | `{{url}}` | Kitapyurdu ürün sayfası bağlantısı | `https://www.kitapyurdu.com/kitap/dune/375312.html` |
 
 ---
