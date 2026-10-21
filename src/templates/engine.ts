@@ -1,14 +1,26 @@
 import { BookMetadata } from '../types';
 import { sanitizeFileName } from '../utils/sanitizer';
+import { PropertyMappingData, PropertyMappingOption } from '../settings/propertyMapping';
+import { adaptTemplateToPropertyMappings } from './templateAdapter';
 
-export { sanitizeFileName };
+export { sanitizeFileName, adaptTemplateToPropertyMappings };
 
 /**
  * Kitap şablonundaki tüm `{{degisken}}` yer tutucularını BookMetadata değerleriyle doldurur.
  * Eksik veya undefined olan opsiyonel alanlar "undefined" veya "null" yerine boş dize ("") olarak işlenir.
+ * Eğer özellik eşlemeleri (mappings) sağlanırsa, şablon gövdesi bu eşlemelere göre otomatik uyarlanır.
  */
-export function renderBookTemplate(template: string, data: BookMetadata): string {
+export function renderBookTemplate(
+  template: string,
+  data: BookMetadata,
+  mappings?: PropertyMappingData[]
+): string {
   if (!template) return '';
+
+  // Şablon gövdesini kullanıcının eşlemelerine göre adapte et
+  let processedTemplate = mappings && mappings.length > 0
+    ? adaptTemplateToPropertyMappings(template, mappings)
+    : template;
 
   const strValue = (val: unknown): string => {
     if (val === undefined || val === null) return '';
@@ -20,8 +32,6 @@ export function renderBookTemplate(template: string, data: BookMetadata): string
   const rawCover = strValue(data.coverUrl);
   const isWikilink = rawCover.startsWith('[[') && rawCover.endsWith(']]');
   const innerCoverPath = isWikilink ? rawCover.slice(2, -2).trim() : rawCover;
-
-  let processedTemplate = template;
 
   if (isWikilink && innerCoverPath) {
     // 1. ![[ {{coverUrl}} ]] veya ![[ {{coverUrl}} | 200 ]] wikilink embed kalıpları
@@ -96,6 +106,19 @@ export function renderBookTemplate(template: string, data: BookMetadata): string
     binkitapUrl: '',
     quotes: '',
   };
+
+  // Kullanıcı tarafından yeniden adlandırılan (remap) alanları da yer tutucu sözlüğüne ekle
+  if (mappings && mappings.length > 0) {
+    for (const m of mappings) {
+      if (m.mapping === PropertyMappingOption.Map && m.newProperty?.trim()) {
+        const target = m.newProperty.trim();
+        const origVal = replacements[m.property];
+        if (origVal !== undefined && !Object.prototype.hasOwnProperty.call(replacements, target)) {
+          replacements[target] = origVal;
+        }
+      }
+    }
+  }
 
   // 1. Standart {{değişken}} yer tutucularını çöz
   let rendered = processedTemplate.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (fullMatch, key: string) => {

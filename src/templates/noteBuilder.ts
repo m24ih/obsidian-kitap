@@ -224,6 +224,6 @@ export async function buildBookNoteContent(
     ? `${finalFrontmatterBlock}\n\n${body}`
     : body;
 
-  // 4. Standart {{değişken}} yer tutucularını çöz
-  return renderBookTemplate(combined, book);
+  // 4. Standart {{değişken}} yer tutucularını çöz ve gövdeyi kullanıcı eşlemelerine göre uyarla
+  return renderBookTemplate(combined, book, settings.propertyMappings);
 }

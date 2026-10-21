@@ -23,22 +23,22 @@ okunma_tarihi:
 kisisel_puan:
 ---
 
-# 📖 `$= dv.current().baslik || "{{title}}"`
+# 📖 `$= dv.current()?.baslik || dv.current()?.title || "{{title}}"`
 
-`$= (() => { const k = dv.current()?.kapak || '{{coverUrl}}'; const p = (typeof k === 'object' && k?.path) ? k.path : String(k).replace(/^\[\[/, '').replace(/\]\]$/, ''); return p.startsWith('http') ? '![Kapak|250](' + p + ')' : '![[' + p + '|250]]'; })()`
+`$= (() => { const k = dv.current()?.kapak || dv.current()?.cover || dv.current()?.coverUrl || dv.current()?.image || '{{coverUrl}}'; const p = (typeof k === 'object' && k?.path) ? k.path : String(k).replace(/^\[\[/, '').replace(/\]\]$/, ''); return p.startsWith('http') ? '![Kapak|250](' + p + ')' : '![[' + p + '|250]]'; })()`
 
-> **Yazar:** `$= dv.current().yazar || "{{author}}"`  
-> **Yayınevi:** `$= dv.current().yayinevi || "{{publisher}}"`  
-> **Format:** `$= dv.current().format || "{{format}}"` | **Fiyat:** `$= dv.current().fiyat || "{{price}}"`  
-> **Kitapyurdu Puanı:** `$= dv.current().puan_kitapyurdu || "{{rating}}"` / 5  
+> **Yazar:** `$= dv.current()?.yazar || dv.current()?.author || "{{author}}"`  
+> **Yayınevi:** `$= dv.current()?.yayinevi || dv.current()?.publisher || "{{publisher}}"`  
+> **Format:** `$= dv.current()?.format || "{{format}}"` | **Fiyat:** `$= dv.current()?.fiyat || dv.current()?.price || "{{price}}"`  
+> **Kitapyurdu Puanı:** `$= dv.current()?.puan_kitapyurdu || dv.current()?.rating || "{{rating}}"` / 5  
 
 ## 📊 Okuma İlerlemesi
 ```dataviewjs
 const p = dv.current();
-const current = Number(p?.current_page) || 0;
-const total = Number(p?.total_pages || p?.sayfa) || 1;
+const current = Number(p?.current_page ?? p?.okunan_sayfa ?? p?.sayfa_no ?? 0);
+const total = Number(p?.total_pages ?? p?.toplam_sayfa ?? p?.sayfa ?? p?.pages ?? 1);
 const percent = Math.min(100, Math.round((current / total) * 100));
-const status = p?.okuma_durumu || 'Okunacak';
+const status = p?.okuma_durumu ?? p?.durum ?? p?.reading_status ?? p?.status ?? 'Okunacak';
 
 dv.paragraph(`**Durum:** \`${status}\` | **İlerleme:** \`${current} / ${total} sayfa\` (%${percent})`);
 dv.paragraph(`<progress value="${percent}" max="100" style="width: 100%; height: 18px;"></progress>`);

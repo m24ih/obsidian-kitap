@@ -8,6 +8,7 @@ import { FileSuggest } from './settings/fileSuggest';
 import { FolderSuggest } from './settings/folderSuggest';
 import { PropertyMappingComponent } from './settings/propertyMappingComponent';
 import { PropertyMappingData } from './settings/propertyMapping';
+import { adaptTemplateToPropertyMappings } from './templates/templateAdapter';
 
 export class KitapSettingTab extends PluginSettingTab {
   plugin: KitapPlugin;
@@ -327,8 +328,14 @@ export class KitapSettingTab extends PluginSettingTab {
         mappings: this.plugin.settings.propertyMappings,
         save: async (updated: PropertyMappingData[]) => {
           this.plugin.settings.propertyMappings = updated;
+          if (this.plugin.settings.noteTemplate) {
+            this.plugin.settings.noteTemplate = adaptTemplateToPropertyMappings(
+              this.plugin.settings.noteTemplate,
+              updated
+            );
+          }
           await this.plugin.saveSettings();
-          new Notice('Özellik eşlemeleri başarıyla kaydedildi.');
+          new Notice('Özellik eşlemeleri kaydedildi ve şablon etiketleri güncellendi.');
         },
       });
       comp.onload();
