@@ -80,25 +80,27 @@ export default class KitapPlugin extends Plugin {
         : false;
 
     // 7. downloadCovers doğrulaması (media-db uyumluluğu için imageDownload fallback)
-    const rawDownload = (rawSettings as any).downloadCovers ?? (rawSettings as any).imageDownload;
+    const rawRecord = rawSettings as Record<string, unknown>;
+    const rawDownload = rawRecord.downloadCovers ?? rawRecord.imageDownload;
     this.settings.downloadCovers =
       typeof rawDownload === 'boolean' ? rawDownload : DEFAULT_SETTINGS.downloadCovers;
 
     // 8. coverFolder doğrulaması (media-db uyumluluğu için imageFolder fallback)
-    const rawCoverFolder = (rawSettings as any).coverFolder ?? (rawSettings as any).imageFolder;
+    const rawCoverFolder = rawRecord.coverFolder ?? rawRecord.imageFolder;
     const trimmedCoverFolder =
       typeof rawCoverFolder === 'string' ? rawCoverFolder.trim() : '';
     this.settings.coverFolder = trimmedCoverFolder || DEFAULT_SETTINGS.coverFolder;
 
     // 9. readingStatusOptions doğrulaması
-    if (Array.isArray((rawSettings as any).readingStatusOptions)) {
-      const opts = (rawSettings as any).readingStatusOptions
+    const rawOptions = rawRecord.readingStatusOptions;
+    if (Array.isArray(rawOptions)) {
+      const opts = rawOptions
         .map((s: unknown) => (typeof s === 'string' ? s.trim() : ''))
         .filter(Boolean);
       this.settings.readingStatusOptions =
         opts.length > 0 ? opts : [...DEFAULT_SETTINGS.readingStatusOptions];
-    } else if (typeof (rawSettings as any).readingStatusOptions === 'string') {
-      const opts = (rawSettings as any).readingStatusOptions
+    } else if (typeof rawOptions === 'string') {
+      const opts = rawOptions
         .split(',')
         .map((s: string) => s.trim())
         .filter(Boolean);
@@ -110,8 +112,8 @@ export default class KitapPlugin extends Plugin {
 
     // 10. defaultReadingStatus doğrulaması
     const rawDefaultStatus =
-      typeof (rawSettings as any).defaultReadingStatus === 'string'
-        ? (rawSettings as any).defaultReadingStatus.trim()
+      typeof rawRecord.defaultReadingStatus === 'string'
+        ? (rawRecord.defaultReadingStatus as string).trim()
         : '';
     this.settings.defaultReadingStatus =
       rawDefaultStatus || DEFAULT_SETTINGS.defaultReadingStatus;
@@ -177,7 +179,7 @@ export default class KitapPlugin extends Plugin {
       id: 'insert-book-into-active-note',
       name: 'Aktif nota bilgileri ekle',
       checkCallback: (checking: boolean) => {
-        const activeFile = (this.app as any).workspace?.getActiveFile?.();
+        const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) {
           return false;
         }

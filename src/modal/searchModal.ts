@@ -61,7 +61,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
   }
 
   override onOpen(): void {
-    super.onOpen?.();
+    void super.onOpen?.();
     if (this.scope && typeof this.scope.register === 'function') {
       this.scope.register([], 'Enter', (_evt: KeyboardEvent) => {
         // Eğer sonuç yoksa veya henüz arama tamamlanmadıysa Enter ile aramayı hemen başlat
@@ -273,23 +273,14 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
       : normalizePath(`${safeFileName}.md`);
 
     const abstractFile = vault.getAbstractFileByPath?.(fullPath);
-    let file: TFile | null = null;
-    if (abstractFile instanceof TFile) {
-      file = abstractFile;
-    } else if (abstractFile && typeof (abstractFile as any).path === 'string') {
-      file = abstractFile as any;
-    }
+    let file: TFile | null = abstractFile instanceof TFile ? abstractFile : null;
 
     if (file && typeof vault.modify === 'function') {
       await vault.modify(file, content);
       new Notice(`"${bookData.title}" notu güncellendi: ${fullPath}`);
     } else if (typeof vault.create === 'function') {
       const createdFile = await vault.create(fullPath, content);
-      if (createdFile instanceof TFile) {
-        file = createdFile;
-      } else if (createdFile) {
-        file = createdFile as any;
-      }
+      file = createdFile instanceof TFile ? createdFile : null;
       new Notice(`"${bookData.title}" notu oluşturuldu: ${fullPath}`);
     }
 

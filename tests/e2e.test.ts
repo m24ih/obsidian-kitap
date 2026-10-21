@@ -4,7 +4,7 @@ import { BookAggregator } from '../src/providers/aggregator';
 import { renderBookTemplate, sanitizeFileName } from '../src/templates/engine';
 import { DEFAULT_SETTINGS, DEFAULT_NOTE_TEMPLATE, BookMetadata } from '../src/types';
 import { loadKitapyurduFixture } from './helpers/fixtureLoader';
-import { requestUrl } from 'obsidian';
+import { requestUrl, TFile } from 'obsidian';
 
 describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
   let kyProvider: KitapyurduProvider;
@@ -305,7 +305,7 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
           }),
           create: vi.fn(async (p: string, content: string) => {
             createdFiles[p] = content;
-            return { path: p };
+            return Object.assign(new TFile(), { path: p });
           }),
         },
         workspace: {
@@ -411,7 +411,7 @@ describe('Tier 3 & Tier 4: E2E Workflows & Real-World Scenarios', () => {
       const modifyMock = vi.fn();
       const createMock = vi.fn();
       const openFileMock = vi.fn();
-      const existingFileObj = { path: 'Kitaplar/Dune - Frank Herbert.md' };
+      const existingFileObj = Object.assign(new TFile(), { path: 'Kitaplar/Dune - Frank Herbert.md' });
 
       const mockApp: any = {
         vault: {

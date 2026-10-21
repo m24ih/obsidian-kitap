@@ -526,7 +526,10 @@ export class Notice {
 }
 
 export class App {
-  workspace: unknown;
+  workspace: any = {
+    getActiveFile: () => null,
+    getLeaf: () => ({ openFile: () => {} }),
+  };
   vault: unknown;
 }
 
