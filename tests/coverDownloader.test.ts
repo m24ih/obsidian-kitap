@@ -200,9 +200,9 @@ describe('Cover Downloader & Image Caching Suite', () => {
 
   describe('FolderSuggest Component Tests', () => {
     it('filters vault folders correctly and handles empty query', () => {
-      const folderA = Object.assign(new TFolder(), { path: 'Kitaplar' });
-      const folderB = Object.assign(new TFolder(), { path: 'Kitaplar/Kapaklar' });
-      const folderC = Object.assign(new TFolder(), { path: 'Notlar' });
+      const folderA = Object.assign(new TFolder(), { path: 'Kitaplar' }) as TFolder;
+      const folderB = Object.assign(new TFolder(), { path: 'Kitaplar/Kapaklar' }) as TFolder;
+      const folderC = Object.assign(new TFolder(), { path: 'Notlar' }) as TFolder;
 
       const mockVault = {
         getAllLoadedFiles: vi.fn().mockReturnValue([folderA, folderB, folderC]),
@@ -220,10 +220,10 @@ describe('Cover Downloader & Image Caching Suite', () => {
       expect(filtered[0].path).toBe('Kitaplar/Kapaklar');
 
       const renderedEl = document.createElement('div');
-      suggester.renderSuggestion(folderB, renderedEl);
+      suggester.renderSuggestion(folderB as any, renderedEl);
       expect(renderedEl.textContent).toBe('Kitaplar/Kapaklar');
 
-      suggester.selectSuggestion(folderB, new MouseEvent('click'));
+      suggester.selectSuggestion(folderB as any, new MouseEvent('click'));
       expect(inputEl.value).toBe('Kitaplar/Kapaklar');
     });
   });

@@ -16,9 +16,7 @@
   },
   "include": [
     "src/**/*.ts",
-    "tests/setup.ts",
-    "tests/types.test.ts",
-    "tests/settings.test.ts"
+    "tests/**/*.ts"
   ],
   "exclude": [
     "node_modules",
