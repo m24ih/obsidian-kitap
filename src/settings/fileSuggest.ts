@@ -4,23 +4,46 @@ import { AbstractInputSuggest, App, TFile } from 'obsidian';
  * Vault içerisindeki Markdown şablon dosyalarını filtreleyerek öneren suggester
  */
 export class FileSuggest extends AbstractInputSuggest<TFile> {
+  protected inputEl: HTMLInputElement;
+  private onSelectCb?: (file: TFile, evt: MouseEvent | KeyboardEvent) => any;
+
   constructor(app: App, textInputEl: HTMLInputElement) {
     super(app, textInputEl);
+    this.inputEl = textInputEl;
+  }
+
+  onSelect(callback: (value: TFile, evt: MouseEvent | KeyboardEvent) => any): this {
+    this.onSelectCb = callback;
+    if (typeof (super.onSelect as any) === 'function') {
+      super.onSelect(callback);
+    }
+    return this;
   }
 
   protected getSuggestions(query: string): TFile[] {
     const lowerQuery = query.toLowerCase().trim();
     const vault = (this.app as any)?.vault;
-    if (!vault || typeof vault.getFiles !== 'function') {
+    if (!vault) {
       return [];
     }
 
-    const files = vault.getFiles() as TFile[];
+    let files: TFile[] = [];
+    if (typeof vault.getMarkdownFiles === 'function') {
+      files = vault.getMarkdownFiles();
+    } else if (typeof vault.getFiles === 'function') {
+      files = (vault.getFiles() as TFile[]).filter((file) => file.path.endsWith('.md'));
+    } else if (typeof vault.getAllLoadedFiles === 'function') {
+      files = (vault.getAllLoadedFiles() as unknown[]).filter(
+        (file): file is TFile => file instanceof TFile && file.path.endsWith('.md')
+      );
+    }
+
     return files.filter((file) => {
-      const isMd = file.path.endsWith('.md');
-      if (!isMd) return false;
       if (!lowerQuery) return true;
-      return file.path.toLowerCase().includes(lowerQuery) || file.name.toLowerCase().includes(lowerQuery);
+      return (
+        file.path.toLowerCase().includes(lowerQuery) ||
+        file.name.toLowerCase().includes(lowerQuery)
+      );
     });
   }
 
@@ -28,8 +51,13 @@ export class FileSuggest extends AbstractInputSuggest<TFile> {
     el.setText(file.path);
   }
 
-  selectSuggestion(file: TFile, evt: MouseEvent | KeyboardEvent): void {
+  selectSuggestion(file: TFile, evt?: MouseEvent | KeyboardEvent): void {
     this.setValue(file.path);
+    if (this.onSelectCb) {
+      this.onSelectCb(file, evt as MouseEvent | KeyboardEvent);
+    }
+    this.inputEl?.dispatchEvent(new Event('input', { bubbles: true }));
+    this.inputEl?.dispatchEvent(new Event('change', { bubbles: true }));
     this.close();
   }
 }

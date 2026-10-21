@@ -33,7 +33,13 @@ export class KitapSettingTab extends PluginSettingTab {
       .setName('Hedef Klasör')
       .setDesc('Oluşturulan kitap notlarının kaydedileceği vault klasörü. Klasör mevcut değilse otomatik olarak oluşturulur.')
       .addText((text) => {
-        new FolderSuggest(this.app, text.inputEl);
+        const suggester = new FolderSuggest(this.app, text.inputEl);
+        suggester.onSelect(async (folder) => {
+          text.setValue(folder.path);
+          this.plugin.settings.targetFolder = folder.path.trim();
+          await this.plugin.saveSettings();
+          suggester.close();
+        });
         text
           .setPlaceholder('Kitaplar')
           .setValue(this.plugin.settings.targetFolder)
@@ -80,7 +86,13 @@ export class KitapSettingTab extends PluginSettingTab {
         .setName('Kapak Klasörü')
         .setDesc('İndirilen kitap kapaklarının kaydedileceği vault klasörü. Klasör mevcut değilse otomatik olarak oluşturulur.')
         .addSearch((cb) => {
-          new FolderSuggest(this.app, cb.inputEl);
+          const suggester = new FolderSuggest(this.app, cb.inputEl);
+          suggester.onSelect(async (folder) => {
+            cb.setValue(folder.path);
+            this.plugin.settings.coverFolder = folder.path.trim();
+            await this.plugin.saveSettings();
+            suggester.close();
+          });
           cb.setPlaceholder('Kitaplar/Kapaklar')
             .setValue(this.plugin.settings.coverFolder)
             .onChange(async (value) => {
@@ -162,7 +174,13 @@ export class KitapSettingTab extends PluginSettingTab {
       .setName('Şablon Dosyası (Vault İçi)')
       .setDesc('Kitap notları oluşturulurken kullanılacak vault içi Markdown şablon dosyası (.md). Belirtilirse aşağıdaki metin şablonu yerine bu dosya kullanılır.')
       .addSearch((cb) => {
-        new FileSuggest(this.app, cb.inputEl);
+        const suggester = new FileSuggest(this.app, cb.inputEl);
+        suggester.onSelect(async (file) => {
+          cb.setValue(file.path);
+          this.plugin.settings.templateFile = file.path.trim();
+          await this.plugin.saveSettings();
+          suggester.close();
+        });
         cb.setPlaceholder('Örnek: Sablonlar/KitapSablonu.md')
           .setValue(this.plugin.settings.templateFile || '')
           .onChange(async (value) => {

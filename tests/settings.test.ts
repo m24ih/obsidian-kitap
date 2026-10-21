@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import KitapPlugin from '../src/main';
 import { KitapSettingTab } from '../src/settings';
 import { DEFAULT_SETTINGS, DEFAULT_NOTE_TEMPLATE } from '../src/types';
-import { lastNotices, MockSetting } from './setup';
+import { lastNotices, MockSetting, TFile, TFolder } from './setup';
 
 describe('Plugin Settings & Lifecycle', () => {
   let plugin: KitapPlugin;
@@ -234,6 +234,92 @@ describe('Plugin Settings & Lifecycle', () => {
         }
       }
       expect(plugin.settings.coverFolder).toBe('Medya/Kapaklar');
+    });
+
+    it('saves templateFile when selected from FileSuggest and retains value on reopen', async () => {
+      settingTab.display();
+
+      const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');
+      let templateFileInput: HTMLInputElement | undefined;
+      for (const item of Array.from(settingItems)) {
+        const nameEl = item.querySelector('.setting-item-name');
+        if (nameEl?.textContent?.includes('Şablon Dosyası')) {
+          templateFileInput = item.querySelector('input') as HTMLInputElement;
+        }
+      }
+
+      expect(templateFileInput).toBeDefined();
+      expect(templateFileInput?.value).toBe('');
+
+      // Simüle et: suggester üzerinden dosya seçildi
+      const mockFile = Object.assign(new TFile(), { path: 'Books Template.md', name: 'Books Template.md' });
+      const suggester = (templateFileInput as any).suggester;
+      expect(suggester).toBeDefined();
+
+      await suggester.selectSuggestion(mockFile);
+
+      expect(plugin.settings.templateFile).toBe('Books Template.md');
+      expect(mockData?.templateFile).toBe('Books Template.md');
+      expect(templateFileInput?.value).toBe('Books Template.md');
+
+      // Ayarlar kapatılıp tekrar açıldığında (display yeniden çağrıldığında)
+      settingTab.display();
+      const reloadedItems = settingTab.containerEl.querySelectorAll('.setting-item');
+      let reloadedInput: HTMLInputElement | undefined;
+      for (const item of Array.from(reloadedItems)) {
+        const nameEl = item.querySelector('.setting-item-name');
+        if (nameEl?.textContent?.includes('Şablon Dosyası')) {
+          reloadedInput = item.querySelector('input') as HTMLInputElement;
+        }
+      }
+      expect(reloadedInput?.value).toBe('Books Template.md');
+    });
+
+    it('saves targetFolder when selected from FolderSuggest', async () => {
+      settingTab.display();
+
+      const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');
+      let targetFolderInput: HTMLInputElement | undefined;
+      for (const item of Array.from(settingItems)) {
+        const nameEl = item.querySelector('.setting-item-name');
+        if (nameEl?.textContent?.includes('Hedef Klasör')) {
+          targetFolderInput = item.querySelector('input') as HTMLInputElement;
+        }
+      }
+
+      expect(targetFolderInput).toBeDefined();
+      const mockFolder = Object.assign(new TFolder(), { path: 'Kitaplarim/2026' });
+      const suggester = (targetFolderInput as any).suggester;
+      expect(suggester).toBeDefined();
+
+      await suggester.selectSuggestion(mockFolder);
+
+      expect(plugin.settings.targetFolder).toBe('Kitaplarim/2026');
+      expect(mockData?.targetFolder).toBe('Kitaplarim/2026');
+    });
+
+    it('saves coverFolder when selected from FolderSuggest', async () => {
+      plugin.settings.downloadCovers = true;
+      settingTab.display();
+
+      const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');
+      let coverFolderInput: HTMLInputElement | undefined;
+      for (const item of Array.from(settingItems)) {
+        const nameEl = item.querySelector('.setting-item-name');
+        if (nameEl?.textContent?.includes('Kapak Klasörü')) {
+          coverFolderInput = item.querySelector('input') as HTMLInputElement;
+        }
+      }
+
+      expect(coverFolderInput).toBeDefined();
+      const mockFolder = Object.assign(new TFolder(), { path: 'Kapaklar/Gorseller' });
+      const suggester = (coverFolderInput as any).suggester;
+      expect(suggester).toBeDefined();
+
+      await suggester.selectSuggestion(mockFolder);
+
+      expect(plugin.settings.coverFolder).toBe('Kapaklar/Gorseller');
+      expect(mockData?.coverFolder).toBe('Kapaklar/Gorseller');
     });
   });
 

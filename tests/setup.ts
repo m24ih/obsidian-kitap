@@ -538,10 +538,22 @@ export class Component {
 }
 
 export abstract class AbstractInputSuggest<T> {
-  constructor(public app: unknown, public textInputEl: HTMLInputElement) {}
+  protected onSelectCallback?: (value: T, evt?: any) => any;
+  constructor(public app: unknown, public textInputEl: HTMLInputElement) {
+    (textInputEl as any).suggester = this;
+  }
   abstract renderSuggestion(value: T, el: HTMLElement): void;
   setValue(value: string): void {
     this.textInputEl.value = value;
+  }
+  onSelect(callback: (value: T, evt?: any) => any): this {
+    this.onSelectCallback = callback;
+    return this;
+  }
+  selectSuggestion(value: T, evt?: any): void {
+    this.setValue((value as any).path ?? (value as any).toString());
+    this.onSelectCallback?.(value, evt);
+    this.close();
   }
   close(): void {}
 }
