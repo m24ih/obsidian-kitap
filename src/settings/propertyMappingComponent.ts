@@ -74,10 +74,10 @@ export class PropertyMappingComponent extends Component {
 
     if (this.validationEl) {
       if (!validation.res && validation.err) {
-        this.validationEl.style.display = 'block';
+        this.validationEl.removeClass('is-hidden');
         this.validationEl.textContent = `Hata: ${validation.err}`;
       } else {
-        this.validationEl.style.display = 'none';
+        this.validationEl.addClass('is-hidden');
         this.validationEl.textContent = '';
       }
     }
@@ -111,7 +111,7 @@ export class PropertyMappingComponent extends Component {
       });
 
       if (autoFocus) {
-        setTimeout(() => inputEl.focus(), 0);
+        window.setTimeout(() => inputEl.focus(), 0);
       }
     } else {
       cellEl.createSpan({
@@ -176,9 +176,8 @@ export class PropertyMappingComponent extends Component {
 
     // Doğrulama Hatası Bildirimi
     this.validationEl = rootEl.createDiv({
-      cls: 'kitap-property-mapping-validation',
+      cls: 'kitap-property-mapping-validation is-hidden',
     });
-    this.validationEl.style.display = 'none';
 
     // Tablo
     const tableContainerEl = rootEl.createDiv('kitap-property-mappings-table-container');

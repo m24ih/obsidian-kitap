@@ -157,7 +157,7 @@ describe('Reading Status Customization & Migration Suite', () => {
       settingTab.display();
 
       const text = settingTab.containerEl.textContent || '';
-      expect(text).toContain('Okuma Durumu Ayarları');
+      expect(text.toLowerCase()).toContain('okuma durumu ayarları');
       expect(text).toContain('Okuma Durumu Seçenekleri');
       expect(text).toContain('Varsayılan Okuma Durumu');
 

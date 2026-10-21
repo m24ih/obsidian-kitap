@@ -148,52 +148,66 @@
 }
 
 /* Stacked full-width setting layout (for templates & large textareas) */
-.kitap-setting-stacked {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: stretch !important;
-  gap: 10px !important;
+.setting-item.kitap-setting-stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   border-top: 1px solid var(--background-modifier-border);
   padding-top: 16px;
   padding-bottom: 16px;
 }
 
-.kitap-setting-stacked .setting-item-info {
-  width: 100% !important;
-  max-width: 100% !important;
+.setting-item.kitap-setting-stacked .setting-item-info {
+  width: 100%;
+  max-width: 100%;
 }
 
-.kitap-setting-stacked .setting-item-control {
-  width: 100% !important;
-  max-width: 100% !important;
-  display: flex !important;
+.setting-item.kitap-setting-stacked .setting-item-control {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
 }
 
-.kitap-setting-stacked .setting-item-control textarea {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-height: 240px !important;
-  font-family: var(--font-monospace) !important;
-  font-size: var(--font-ui-smaller) !important;
-  line-height: 1.5 !important;
-  padding: 10px 12px !important;
-  background-color: var(--background-primary) !important;
-  border: 1px solid var(--background-modifier-border) !important;
-  border-radius: var(--radius-s) !important;
-  color: var(--text-normal) !important;
+.setting-item.kitap-setting-stacked .setting-item-control textarea {
+  width: 100%;
+  max-width: 100%;
+  min-height: 240px;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+  padding: 10px 12px;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  color: var(--text-normal);
   resize: vertical;
 }
 
 /* Wide search input control layout (for template file search) */
-.kitap-setting-wide-control .setting-item-control {
-  flex: 1 1 50% !important;
-  max-width: 60% !important;
-  justify-content: flex-end !important;
+.setting-item.kitap-setting-wide-control .setting-item-control {
+  flex: 1 1 50%;
+  max-width: 60%;
+  justify-content: flex-end;
 }
 
-.kitap-setting-wide-control .setting-item-control input {
-  width: 100% !important;
-  min-width: 260px !important;
+.setting-item.kitap-setting-wide-control .setting-item-control input {
+  width: 100%;
+  min-width: 260px;
+}
+
+.kitap-mode-desc {
+  margin-bottom: 12px;
+  color: var(--text-muted);
+}
+
+.kitap-vars-list {
+  padding-left: 20px;
+  line-height: 1.6;
+}
+
+.kitap-property-mapping-validation.is-hidden {
+  display: none;
 }
 
 .kitap-settings-vars {

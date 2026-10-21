@@ -365,6 +365,11 @@ export class MockSetting {
     return this;
   }
 
+  setHeading() {
+    this.settingEl.classList.add("setting-item-heading");
+    return this;
+  }
+
   setClass(cls: string) {
     this.settingEl.classList.add(cls);
     return this;

@@ -16,7 +16,7 @@ export function sanitizeFileName(name: string): string {
   }
 
   // 1. Kontrol karakterlerini (\x00-\x1f, \x7f) boşluğa dönüştür ve uç boşlukları kırp
-  let cleaned = name.replace(/[\x00-\x1f\x7f]+/g, ' ').trim();
+  let cleaned = name.replace(new RegExp('[\\x00-\\x1f\\x7f]+', 'g'), ' ').trim();
 
   // 2. Başta ve sonda bulunan yasaklı karakterleri ve boşlukları tamamen kaldır
   cleaned = cleaned.replace(/^[\s\\/:*?"<>|]+|[\s\\/:*?"<>|]+$/g, '');

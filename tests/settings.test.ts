@@ -76,14 +76,14 @@ describe('Plugin Settings & Lifecycle', () => {
       expect(plugin.addCommand).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'search-and-add-book',
-          name: 'Kitap Ara ve Ekle',
+          name: 'Ara ve yeni not oluştur',
         })
       );
 
       expect(plugin.addCommand).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'insert-book-into-active-note',
-          name: 'Aktif Nota Kitap Bilgilerini Ekle',
+          name: 'Aktif nota bilgileri ekle',
         })
       );
     });
@@ -112,11 +112,10 @@ describe('Plugin Settings & Lifecycle', () => {
     it('renders Turkish headers and descriptions in display()', () => {
       settingTab.display();
 
-      const text = settingTab.containerEl.textContent || '';
-      expect(text).toContain('Kitap Eklentisi Ayarları');
-      expect(text).toContain('Genel Dosya Ayarları');
-      expect(text).toContain('Not Şablonu ve Biçimlendirme');
-      expect(text).toContain('Kullanılabilir Şablon Değişkenleri');
+      const text = (settingTab.containerEl.textContent || '').toLowerCase();
+      expect(text).toContain('genel dosya ayarları');
+      expect(text).toContain('not şablonu ve biçimlendirme');
+      expect(text).toContain('kullanılabilir şablon değişkenleri');
       expect(text).toContain('{{title}}');
       expect(text).toContain('{{author}}');
       expect(text).toContain('{{publisher}}');

@@ -166,7 +166,7 @@ export default class KitapPlugin extends Plugin {
     // 1. Ana Komut: Yeni Kitap Notu Oluştur
     this.addCommand({
       id: 'search-and-add-book',
-      name: 'Kitap Ara ve Ekle',
+      name: 'Ara ve yeni not oluştur',
       callback: () => {
         this.openSearchModal();
       },
@@ -175,7 +175,7 @@ export default class KitapPlugin extends Plugin {
     // 2. İkincil Komut: Açık Olan Nota Kitap Bilgilerini Ekle
     this.addCommand({
       id: 'insert-book-into-active-note',
-      name: 'Aktif Nota Kitap Bilgilerini Ekle',
+      name: 'Aktif nota bilgileri ekle',
       checkCallback: (checking: boolean) => {
         const activeFile = (this.app as any).workspace?.getActiveFile?.();
         if (!activeFile) {

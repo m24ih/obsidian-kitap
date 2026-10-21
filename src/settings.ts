@@ -1,7 +1,6 @@
 import { App, DropdownComponent, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type KitapPlugin from './main';
 import {
-  DEFAULT_NOTE_TEMPLATE,
   DEFAULT_STATIC_TEMPLATE,
   DEFAULT_REACTIVE_TEMPLATE,
 } from './types';
@@ -22,7 +21,6 @@ export class KitapSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Kitap Eklentisi Ayarları' });
     containerEl.createEl('p', {
       text: 'Kitapyurdu üzerinden kitap arama, metaveri çekme, YAML özellik eşleme ve şablon seçeneklerini buradan özelleştirebilirsiniz.',
       cls: 'setting-item-description',
@@ -31,7 +29,7 @@ export class KitapSettingTab extends PluginSettingTab {
     // ----------------------------------------------------
     // Bölüm 1: Genel Dosya Ayarları
     // ----------------------------------------------------
-    containerEl.createEl('h3', { text: 'Genel Dosya Ayarları' });
+    new Setting(containerEl).setName('Genel dosya ayarları').setHeading();
 
     new Setting(containerEl)
       .setName('Hedef Klasör')
@@ -69,7 +67,7 @@ export class KitapSettingTab extends PluginSettingTab {
     // ----------------------------------------------------
     // Bölüm: Kapak Görselleri
     // ----------------------------------------------------
-    containerEl.createEl('h3', { text: 'Kapak Görselleri' });
+    new Setting(containerEl).setName('Kapak görselleri').setHeading();
 
     new Setting(containerEl)
       .setName('Kapak Görsellerini İndir')
@@ -109,7 +107,7 @@ export class KitapSettingTab extends PluginSettingTab {
     // ----------------------------------------------------
     // Bölüm: Okuma Durumu Ayarları
     // ----------------------------------------------------
-    containerEl.createEl('h3', { text: 'Okuma Durumu Ayarları' });
+    new Setting(containerEl).setName('Okuma durumu ayarları').setHeading();
 
     let defaultStatusDropdown: DropdownComponent | null = null;
 
@@ -171,7 +169,7 @@ export class KitapSettingTab extends PluginSettingTab {
     // ----------------------------------------------------
     // Bölüm 2: Not Şablonu ve Biçimlendirme
     // ----------------------------------------------------
-    containerEl.createEl('h3', { text: 'Not Şablonu ve Biçimlendirme' });
+    new Setting(containerEl).setName('Not şablonu ve biçimlendirme').setHeading();
 
     const currentMode = this.plugin.settings.templateMode || 'static';
 
@@ -192,9 +190,7 @@ export class KitapSettingTab extends PluginSettingTab {
       });
 
     if (currentMode === 'static') {
-      const modeDesc = containerEl.createDiv({ cls: 'setting-item-description' });
-      modeDesc.style.marginBottom = '12px';
-      modeDesc.style.color = 'var(--text-muted)';
+      const modeDesc = containerEl.createDiv({ cls: 'setting-item-description kitap-mode-desc' });
       modeDesc.setText('ℹ️ Standart Statik Markdown şablonu etkindir. Ek eklenti gerektirmeden sade ve kalıcı notlar üretir.');
 
       new Setting(containerEl)
@@ -210,9 +206,7 @@ export class KitapSettingTab extends PluginSettingTab {
           });
         });
     } else if (currentMode === 'reactive') {
-      const modeDesc = containerEl.createDiv({ cls: 'setting-item-description' });
-      modeDesc.style.marginBottom = '12px';
-      modeDesc.style.color = 'var(--text-muted)';
+      const modeDesc = containerEl.createDiv({ cls: 'setting-item-description kitap-mode-desc' });
       modeDesc.setText('✨ Reaktif şablon etkindir. Dataview / DataviewJS ve Templater desteğiyle dinamik okuma ilerlemesi (%), okuma günlüğü ve alıntılar tablosu sunar.');
 
       new Setting(containerEl)
@@ -292,7 +286,7 @@ export class KitapSettingTab extends PluginSettingTab {
     // ----------------------------------------------------
     // Bölüm 3: Templater Entegrasyonu
     // ----------------------------------------------------
-    containerEl.createEl('h3', { text: 'Templater Entegrasyonu' });
+    new Setting(containerEl).setName('Templater entegrasyonu').setHeading();
 
     new Setting(containerEl)
       .setName('Templater Entegrasyonunu Etkinleştir')
@@ -311,7 +305,7 @@ export class KitapSettingTab extends PluginSettingTab {
     // ----------------------------------------------------
     // Bölüm 4: YAML Frontmatter & Özellik Eşlemeleri (Property Mappings)
     // ----------------------------------------------------
-    containerEl.createEl('h3', { text: 'YAML Frontmatter & Özellik Eşlemeleri' });
+    new Setting(containerEl).setName('YAML frontmatter ve özellik eşlemeleri').setHeading();
 
     new Setting(containerEl)
       .setName('Varsayılan Frontmatter Oluştur')
@@ -344,10 +338,8 @@ export class KitapSettingTab extends PluginSettingTab {
     // ----------------------------------------------------
     const infoContainer = containerEl.createDiv({ cls: 'kitap-settings-guide' });
 
-    infoContainer.createEl('h4', { text: 'Kullanılabilir Şablon Değişkenleri' });
-    const list = infoContainer.createEl('ul');
-    list.style.paddingLeft = '20px';
-    list.style.lineHeight = '1.6';
+    new Setting(infoContainer).setName('Kullanılabilir şablon değişkenleri').setHeading();
+    const list = infoContainer.createEl('ul', { cls: 'kitap-vars-list' });
 
     const variables: { tag: string; desc: string }[] = [
       { tag: '{{title}}', desc: 'Kitap Başlığı' },

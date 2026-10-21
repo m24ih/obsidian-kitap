@@ -26,7 +26,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
   private readonly aggregator: IBookAggregator;
   private readonly insertIntoActive: boolean;
   private readonly debounceMs: number;
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private debounceTimer: number | null = null;
   private debounceResolver: ((value: boolean) => void) | null = null;
   private requestSeq = 0;
   private isSearching = false;
@@ -84,7 +84,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
    */
   private flushDebounce(): void {
     if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
+      window.clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
     }
     if (this.debounceResolver) {
@@ -103,7 +103,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     const trimmed = query.trim();
 
     if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
+      window.clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
     }
     if (this.debounceResolver) {
@@ -123,7 +123,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     if (this.debounceMs > 0) {
       const shouldContinue = await new Promise<boolean>((resolve) => {
         this.debounceResolver = resolve;
-        this.debounceTimer = setTimeout(() => {
+        this.debounceTimer = window.setTimeout(() => {
           this.debounceTimer = null;
           this.debounceResolver = null;
           resolve(currentSeq === this.requestSeq);
@@ -201,11 +201,11 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
   /**
    * Kullanıcı bir kitabı seçtiğinde tetiklenir.
    */
-  async onChooseSuggestion(
+  onChooseSuggestion(
     item: SearchResultItem,
     _evt: MouseEvent | KeyboardEvent
-  ): Promise<void> {
-    await this.processBookSelection(item);
+  ): void {
+    void this.processBookSelection(item);
   }
 
   /**
@@ -272,12 +272,24 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
       ? normalizePath(`${normalizedFolder}/${safeFileName}.md`)
       : normalizePath(`${safeFileName}.md`);
 
-    let file = vault.getAbstractFileByPath?.(fullPath) as TFile | null;
+    const abstractFile = vault.getAbstractFileByPath?.(fullPath);
+    let file: TFile | null = null;
+    if (abstractFile instanceof TFile) {
+      file = abstractFile;
+    } else if (abstractFile && typeof (abstractFile as any).path === 'string') {
+      file = abstractFile as any;
+    }
+
     if (file && typeof vault.modify === 'function') {
       await vault.modify(file, content);
       new Notice(`"${bookData.title}" notu güncellendi: ${fullPath}`);
     } else if (typeof vault.create === 'function') {
-      file = (await vault.create(fullPath, content)) as TFile;
+      const createdFile = await vault.create(fullPath, content);
+      if (createdFile instanceof TFile) {
+        file = createdFile;
+      } else if (createdFile) {
+        file = createdFile as any;
+      }
       new Notice(`"${bookData.title}" notu oluşturuldu: ${fullPath}`);
     }
 
@@ -345,7 +357,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
 
   onClose(): void {
     if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
+      window.clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
     }
     this.requestSeq++;

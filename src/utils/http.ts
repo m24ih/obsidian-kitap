@@ -39,9 +39,9 @@ export async function requestWithTimeout<T>(
   timeoutMs = 10000,
   url = ''
 ): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timer: number | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
+    timer = window.setTimeout(() => {
       reject(new Error(`İstek zaman aşımına uğradı (${timeoutMs}ms): ${url}`));
     }, timeoutMs);
   });
@@ -49,7 +49,7 @@ export async function requestWithTimeout<T>(
   try {
     return await Promise.race([promise, timeoutPromise]);
   } finally {
-    if (timer) clearTimeout(timer);
+    if (timer) window.clearTimeout(timer);
   }
 }
 

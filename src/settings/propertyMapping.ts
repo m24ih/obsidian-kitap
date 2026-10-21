@@ -99,7 +99,7 @@ export function validatePropertyMappings(
           err: `"${prop.property}" için yeni alan adı boş bırakılamaz.`,
         };
       }
-      if (!/^[a-zA-Z0-9_\-]+$/.test(trimmedNew)) {
+      if (!/^[a-zA-Z0-9_-]+$/.test(trimmedNew)) {
         return {
           res: false,
           err: `"${trimmedNew}" adı geçersiz. Yalnızca harf, rakam, alt çizgi ve tire içerebilir.`,
