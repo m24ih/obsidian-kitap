@@ -420,10 +420,18 @@
    Metadata Comparison & Selection Modal Styles (Hybrid Mode)
    -------------------------------------------------------------------------- */
 .modal.kitap-comparison-modal,
-.modal:has(.kitap-comparison-modal),
-.kitap-comparison-modal {
-  width: 860px;
-  max-width: 95vw;
+.modal:has(.kitap-comparison-content),
+.modal:has(.kitap-comparison-modal) {
+  width: 900px !important;
+  max-width: 94vw !important;
+  box-sizing: border-box !important;
+}
+
+.modal-content.kitap-comparison-modal,
+.kitap-comparison-content {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 .kitap-comparison-desc {
@@ -431,6 +439,7 @@
   color: var(--text-muted);
   font-size: var(--font-ui-small);
   line-height: 1.5;
+  box-sizing: border-box;
 }
 
 .kitap-comparison-toolbar {
@@ -440,6 +449,8 @@
   gap: 10px;
   margin-bottom: 12px;
   flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .kitap-quick-actions {
@@ -472,6 +483,7 @@
   background-color: rgba(var(--color-orange-rgb, 255, 165, 0), 0.15);
   color: var(--text-warning);
   border: 1px solid rgba(var(--color-orange-rgb, 255, 165, 0), 0.3);
+  white-space: nowrap;
 }
 
 .kitap-comparison-table-wrapper {
@@ -480,13 +492,17 @@
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-m, 8px);
   background-color: var(--background-primary);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .kitap-comparison-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   font-size: var(--font-ui-small);
+  box-sizing: border-box;
 }
 
 .kitap-comparison-table thead th {
@@ -499,6 +515,15 @@
   text-align: left;
   border-bottom: 2px solid var(--background-modifier-border);
   color: var(--text-muted);
+  box-sizing: border-box;
+}
+
+.kitap-comparison-table th.col-field-name {
+  width: 130px;
+}
+
+.kitap-comparison-table th.col-provider-header {
+  width: calc((100% - 130px) / 2);
 }
 
 .col-provider-header.kitap-th-selectable {
@@ -692,6 +717,13 @@
   margin-top: 14px;
   padding: 0;
   border: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.setting-item.kitap-comparison-footer .setting-item-control {
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 

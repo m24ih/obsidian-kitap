@@ -99,6 +99,7 @@ export class MetadataComparisonModal extends Modal {
     (this as unknown as { modalEl?: HTMLElement }).modalEl?.addClass('kitap-comparison-modal');
     contentEl.empty();
     contentEl.addClass('kitap-comparison-modal');
+    contentEl.addClass('kitap-comparison-content');
 
     const primaryData = this.options.providers[0]?.data;
     const bookTitle = primaryData?.title || 'Kitap Bilgileri';
