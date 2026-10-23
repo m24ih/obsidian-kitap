@@ -4,6 +4,7 @@ import {
   extractStockCode,
   parseDrPersons,
   parseDrAttributes,
+  extractGenresFromDrUrl,
   cleanHtml,
   normalizeDrRating,
   formatDrPrice,
@@ -12,6 +13,8 @@ import {
   cleanIsbn,
 } from '../src/providers/dr';
 import { BookAggregator } from '../src/providers/aggregator';
+import { buildBookNoteContent } from '../src/templates/noteBuilder';
+import { DEFAULT_SETTINGS } from '../src/types';
 import { requestUrl } from 'obsidian';
 import { SearchResultItem } from '../src/types';
 
@@ -151,9 +154,49 @@ describe('D&R Provider Suite (DrProvider)', () => {
       expect(result.authors).toEqual(['Bilinmeyen Rol']);
     });
 
+    it('correctly handles Ben Robot D&R payload with PersonGroupName and GroupNameCode', () => {
+      const benRobotPersons = [
+        { PersonGroupName: 'Yazar', GroupNameCode: '1', FullName: 'Isaac Asimov' },
+        { PersonGroupName: 'Çevirmen', GroupNameCode: '2', FullName: 'Ekin Odabaş' },
+        { PersonGroupName: 'Dizi Editörü', GroupNameCode: '68', FullName: 'Tuğçe Nida Sevin' },
+        { PersonGroupName: 'Yayın Koordinatörü', GroupNameCode: '1622', FullName: 'Saygı Ortanca' },
+        { PersonGroupName: 'Kapak Tasarımı', GroupNameCode: '66', FullName: 'Şükrü Karakoç' },
+        { PersonGroupName: 'Grafik Tasarım', GroupNameCode: '67', FullName: 'Emre Aygün' },
+      ];
+      const result = parseDrPersons(benRobotPersons);
+      expect(result.authors).toEqual(['Isaac Asimov']);
+      expect(result.translators).toEqual(['Ekin Odabaş']);
+    });
+
+    it('never treats editors, coordinators, proofreaders, or designers as authors', () => {
+      const variousRoles = [
+        { PersonGroupName: 'Editör', FullName: 'Ali Editör' },
+        { PersonGroupName: 'Kapak', FullName: 'Veli Tasarim' },
+        { PersonGroupName: 'Son Okuma', FullName: 'Ayşe Kontrol' },
+        { PersonGroupName: 'Redaksiyon', FullName: 'Fatma Düzelti' },
+        { Role: 'Yayın Koordinatörü', FullName: 'Hasan Koordinatör' },
+        { Duty: 'İllüstratör', FullName: 'Mehmet Çizer' },
+      ];
+      const result = parseDrPersons(variousRoles);
+      expect(result.authors).toEqual([]);
+      expect(result.translators).toEqual([]);
+    });
+
     it('handles null and undefined gracefully', () => {
       expect(parseDrPersons(null)).toEqual({ authors: [], translators: [] });
       expect(parseDrPersons(undefined)).toEqual({ authors: [], translators: [] });
+    });
+
+    it('correctly handles uppercase Turkish characters and executive editorial roles', () => {
+      const persons = [
+        { PersonGroupName: 'YAZAR', FullName: 'Orhan Pamuk' },
+        { PersonGroupName: 'ÇEVİRMEN', FullName: 'Can Belge' },
+        { PersonGroupName: 'GENEL YAYIN YÖNETMENİ', FullName: 'Ahmet Yönetici' },
+        { PersonGroupName: 'DİZGİ', FullName: 'Mehmet Dizgici' },
+      ];
+      const result = parseDrPersons(persons);
+      expect(result.authors).toEqual(['Orhan Pamuk']);
+      expect(result.translators).toEqual(['Can Belge']);
     });
   });
 
@@ -198,9 +241,104 @@ describe('D&R Provider Suite (DrProvider)', () => {
       expect(parsed.publishDate).toBe('2023-05-10');
     });
 
+    it('extracts attributes from Ben Robot actual ProductSpecifications using ValueRaw', () => {
+      const benRobotSpecs = [
+        { SpecificationAttributeName: 'Dil', ValueRaw: 'Türkçe' },
+        { SpecificationAttributeName: 'İlk Baskı Yılı', ValueRaw: '2016' },
+        { SpecificationAttributeName: 'Medya Cinsi', ValueRaw: 'Ciltsiz' },
+        { SpecificationAttributeName: 'Baskı Sayısı', ValueRaw: '10. Baskı' },
+        { SpecificationAttributeName: 'Ebat', ValueRaw: '13,5 x 21' },
+        { SpecificationAttributeName: 'Kağıt Cinsi', ValueRaw: '2. Hamur' },
+        { SpecificationAttributeName: 'Orijinal Adı', ValueRaw: 'I, Robot' },
+      ];
+
+      const parsed = parseDrAttributes(benRobotSpecs);
+      expect(parsed.language).toBe('Türkçe');
+      expect(parsed.publishDate).toBe('2016');
+      expect(parsed.format).toBe('Ciltsiz');
+      expect(parsed.edition).toBe('10. Baskı');
+      expect(parsed.dimensions).toBe('13,5 x 21');
+      expect(parsed.paperType).toBe('2. Hamur');
+      expect(parsed.originalTitle).toBe('I, Robot');
+    });
+
+    it('extracts attributes from D&R search Attributes structure using Text and Option.ValueText', () => {
+      const searchAttrs = [
+        { Text: 'Medya Cinsi', Option: { ValueText: 'Ciltsiz' } },
+        { Text: 'Dil', Option: { ValueText: 'Türkçe' } },
+        { Text: 'İlk Baskı Yılı', Option: { ValueText: '2016' } },
+        { Text: 'Sayfa Sayısı', Option: { ValueText: '350' } },
+      ];
+
+      const parsed = parseDrAttributes(searchAttrs);
+      expect(parsed.format).toBe('Ciltsiz');
+      expect(parsed.language).toBe('Türkçe');
+      expect(parsed.publishDate).toBe('2016');
+      expect(parsed.pages).toBe(350);
+    });
+
+    it('correctly handles uppercase Turkish attribute names with İ and I', () => {
+      const uppercaseAttrs = [
+        { SpecificationAttributeName: 'DİLİ', ValueRaw: 'Türkçe' },
+        { SpecificationAttributeName: 'İLK BASKI YILI', ValueRaw: '2016' },
+        { SpecificationAttributeName: 'MEDYA CİNSİ', ValueRaw: 'Ciltsiz' },
+        { SpecificationAttributeName: 'SAYFA SAYISI', ValueRaw: '420' },
+        { SpecificationAttributeName: 'ORİJİNAL ADI', ValueRaw: 'Foundation' },
+        { SpecificationAttributeName: 'BASKI SAYISI', ValueRaw: '5. Baskı' },
+      ];
+      const parsed = parseDrAttributes(uppercaseAttrs);
+      expect(parsed.language).toBe('Türkçe');
+      expect(parsed.publishDate).toBe('2016');
+      expect(parsed.format).toBe('Ciltsiz');
+      expect(parsed.pages).toBe(420);
+      expect(parsed.originalTitle).toBe('Foundation');
+      expect(parsed.edition).toBe('5. Baskı');
+    });
+
     it('safely handles non-array or empty inputs', () => {
       expect(parseDrAttributes(undefined)).toEqual({});
       expect(parseDrAttributes([])).toEqual({});
+    });
+  });
+
+  describe('extractGenresFromDrUrl Utility', () => {
+    it('extracts categories from standard D&R URL path segments', () => {
+      const url =
+        'https://www.dr.com.tr/Kitap/Ben-Robot/Edebiyat/Roman/Bilim-Kurgu/urunno=0000000373808';
+      const genres = extractGenresFromDrUrl(url, 'Ben Robot', 'Isaac Asimov');
+      expect(genres).toEqual(['Edebiyat', 'Roman', 'Bilim Kurgu']);
+    });
+
+    it('filters out author segment when present in URL', () => {
+      const url =
+        'https://www.dr.com.tr/Kitap/Dune/Frank-Herbert/Edebiyat/Bilim-Kurgu/urunno=0000000662978';
+      const genres = extractGenresFromDrUrl(url, 'Dune', 'Frank Herbert');
+      expect(genres).toEqual(['Edebiyat', 'Bilim Kurgu']);
+    });
+
+    it('filters out author with middle name and decodes URL percent-encoding', () => {
+      const url =
+        'https://www.dr.com.tr/Kitap/Suc-ve-Ceza/Fyodor-Mihaylovic-Dostoyevski/Edebiyat/%C3%87ocuk-Kitaplar%C4%B1/urunno=0000000063853';
+      const genres = extractGenresFromDrUrl(url, 'Suç ve Ceza (Özel Cilt)', 'Fyodor Dostoyevski');
+      expect(genres).toEqual(['Edebiyat', 'Çocuk Kitapları']);
+    });
+
+    it('strips query parameters and anchors cleanly', () => {
+      const url =
+        '/Kitap/Vakif/Isaac-Asimov/Edebiyat/Bilim-Kurgu/urunno=0000000063853?ref=search#details';
+      const genres = extractGenresFromDrUrl(url, 'Vakıf', 'Isaac Asimov');
+      expect(genres).toEqual(['Edebiyat', 'Bilim Kurgu']);
+    });
+
+    it('returns empty array when no categories are in modern slug URL', () => {
+      const url = 'https://www.dr.com.tr/kitap/dune-k-0000000662978';
+      const genres = extractGenresFromDrUrl(url, 'Dune', 'Frank Herbert');
+      expect(genres).toEqual([]);
+    });
+
+    it('handles empty or non-string inputs safely', () => {
+      expect(extractGenresFromDrUrl('')).toEqual([]);
+      expect(extractGenresFromDrUrl(undefined)).toEqual([]);
     });
   });
 
@@ -605,6 +743,93 @@ describe('D&R Provider Suite (DrProvider)', () => {
       expect(fullBook.pages).toBe(256);
       expect(fullBook.description).toBe('Galaktik İmparatorluk çöküyor.');
       expect(fullBook.provider).toBe('dr');
+    });
+
+    it('accurately resolves Ben Robot end-to-end with real D&R payload structure', async () => {
+      const mockDetailsResponse = {
+        data: {
+          ProductName: 'Ben Robot',
+          Barcode: '9786053756200',
+          PublisherName: 'İthaki Yayınları',
+          FullDescription: '<p>2058 yılında Susan Calvin emekli olurken...</p>',
+          Url: '/Kitap/Ben-Robot/Edebiyat/Roman/Bilim-Kurgu/urunno=0000000373808',
+          Rating: 8.0,
+          ProductSpecifications: [
+            { SpecificationAttributeName: 'Dil', ValueRaw: 'Türkçe' },
+            { SpecificationAttributeName: 'İlk Baskı Yılı', ValueRaw: '2016' },
+            { SpecificationAttributeName: 'Medya Cinsi', ValueRaw: 'Ciltsiz' },
+            { SpecificationAttributeName: 'Baskı Sayısı', ValueRaw: '10. Baskı' },
+            { SpecificationAttributeName: 'Ebat', ValueRaw: '13,5 x 21' },
+            { SpecificationAttributeName: 'Kağıt Cinsi', ValueRaw: '2. Hamur' },
+            { SpecificationAttributeName: 'Orijinal Adı', ValueRaw: 'I, Robot' },
+          ],
+          ProductPersons: [
+            { PersonGroupName: 'Yazar', GroupNameCode: '1', FullName: 'Isaac Asimov' },
+            { PersonGroupName: 'Çevirmen', GroupNameCode: '2', FullName: 'Ekin Odabaş' },
+            { PersonGroupName: 'Dizi Editörü', GroupNameCode: '68', FullName: 'Tuğçe Nida Sevin' },
+            { PersonGroupName: 'Yayın Koordinatörü', GroupNameCode: '1622', FullName: 'Saygı Ortanca' },
+            { PersonGroupName: 'Kapak Tasarımı', GroupNameCode: '66', FullName: 'Şükrü Karakoç' },
+            { PersonGroupName: 'Grafik Tasarım', GroupNameCode: '67', FullName: 'Emre Aygün' },
+          ],
+        },
+      };
+
+      const mockSearchResponse = {
+        Result: {
+          Products: [
+            {
+              StockCode: '0000000373808',
+              Barcode: '9786053756200',
+              Name: 'Ben Robot',
+              Manufacturer: 'İthaki Yayınları',
+              Price: 195.0,
+              Rating: 8.0,
+            },
+          ],
+        },
+      };
+
+      (requestUrl as any)
+        .mockResolvedValueOnce({
+          status: 200,
+          json: mockDetailsResponse,
+        })
+        .mockResolvedValueOnce({
+          status: 200,
+          json: mockSearchResponse,
+        });
+
+      const book = await provider.getBookDetails(
+        'https://www.dr.com.tr/Kitap/Ben-Robot/Edebiyat/Roman/Bilim-Kurgu/urunno=0000000373808'
+      );
+
+      expect(book.title).toBe('Ben Robot');
+      expect(book.author).toBe('Isaac Asimov');
+      expect(book.translator).toBe('Ekin Odabaş');
+      expect(book.publisher).toBe('İthaki Yayınları');
+      expect(book.isbn).toBe('9786053756200');
+      expect(book.language).toBe('Türkçe');
+      expect(book.publishDate).toBe('2016');
+      expect(book.format).toBe('Ciltsiz');
+      expect(book.originalTitle).toBe('I, Robot');
+      expect(book.genres).toEqual(['Edebiyat', 'Roman', 'Bilim Kurgu']);
+      expect(book.rating).toBe(4.0);
+      expect(book.provider).toBe('dr');
+
+      // Check note building: frontmatter should contain puan: 4 and NOT puan_kitapyurdu: 4
+      const noteContent = await buildBookNoteContent({
+        book,
+        settings: DEFAULT_SETTINGS,
+      });
+
+      expect(noteContent).toContain('puan: 4');
+      expect(noteContent).not.toContain('puan_kitapyurdu:');
+      expect(noteContent).toContain('dil: "Türkçe"');
+      expect(noteContent).toContain('yayin_tarihi: "2016"');
+      expect(noteContent).toContain('format: "Ciltsiz"');
+      expect(noteContent).toContain('orijinal_baslik: "I, Robot"');
+      expect(noteContent).toContain('yazar: "Isaac Asimov"');
+      expect(noteContent).toContain('cevirmen: "Ekin Odabaş"');
     });
   });
 });

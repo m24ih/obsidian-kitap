@@ -68,6 +68,10 @@ export interface IKitapyurduProvider {
 export interface DrPerson {
   Group?: string;
   GroupCode?: number | string;
+  PersonGroupName?: string;
+  GroupNameCode?: number | string;
+  Role?: string;
+  Duty?: string;
   Name?: string;
   FullName?: string;
   PersonName?: string;
@@ -83,9 +87,17 @@ export interface DrAttribute {
   Key?: string;
   Definition?: string;
   AttributeName?: string;
-  Value?: string;
-  AttributeValue?: string;
-  Val?: string;
+  Text?: string;
+  Value?: string | number;
+  AttributeValue?: string | number;
+  Val?: string | number;
+  ValueRaw?: string | number;
+  Option?: {
+    ValueText?: string;
+    Text?: string;
+    Value?: string;
+    Name?: string;
+  } | string;
 }
 
 /**
@@ -95,8 +107,16 @@ export interface DrSpecification {
   SpecificationAttributeName?: string;
   Name?: string;
   Key?: string;
-  Value?: string;
-  AttributeValue?: string;
+  Text?: string;
+  Value?: string | number;
+  AttributeValue?: string | number;
+  ValueRaw?: string | number;
+  Option?: {
+    ValueText?: string;
+    Text?: string;
+    Value?: string;
+    Name?: string;
+  } | string;
 }
 
 /**

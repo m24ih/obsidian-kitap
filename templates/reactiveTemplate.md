@@ -30,7 +30,7 @@ kisisel_puan:
 > **Yazar:** `$= dv.current()?.yazar || dv.current()?.author || "{{author}}"`  
 > **Yayınevi:** `$= dv.current()?.yayinevi || dv.current()?.publisher || "{{publisher}}"`  
 > **Format:** `$= dv.current()?.format || "{{format}}"` | **Fiyat:** `$= dv.current()?.fiyat || dv.current()?.price || "{{price}}"`  
-> **Kitapyurdu Puanı:** `$= dv.current()?.puan_kitapyurdu || dv.current()?.rating || "{{rating}}"` / 5  
+> **Puan:** `$= dv.current()?.puan || dv.current()?.puan_dr || dv.current()?.puan_kitapyurdu || dv.current()?.rating || "{{rating}}"` / 5  
 
 ## 📊 Okuma İlerlemesi
 ```dataviewjs

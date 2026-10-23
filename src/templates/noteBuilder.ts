@@ -103,6 +103,9 @@ export async function buildBookNoteContent(
   let finalFrontmatterBlock = '';
 
   if (settings.useDefaultFrontMatter) {
+    const isDr = book.provider === 'dr';
+    const ratingVal = book.rating !== undefined && book.rating !== null ? book.rating : '';
+
     // Varsayılan kitap alanlarını oluştur
     const baseBookMetadata: Record<string, unknown> = {
       tip: 'kitap',
@@ -120,7 +123,7 @@ export async function buildBookNoteContent(
       tur: book.genres && book.genres.length > 0 ? book.genres : '',
       orijinal_baslik: book.originalTitle || '',
       dil: book.language || '',
-      puan_kitapyurdu: book.rating !== undefined && book.rating !== null ? book.rating : '',
+      ...(isDr ? { puan: ratingVal } : { puan_kitapyurdu: ratingVal }),
       kapak: book.coverUrl || '',
       url: book.url || '',
       okuma_durumu: book.readingStatus || settings.defaultReadingStatus || 'Okunacak',
@@ -163,7 +166,9 @@ export async function buildBookNoteContent(
       'tur',
       'orijinal_baslik',
       'dil',
+      'puan',
       'puan_kitapyurdu',
+      'puan_dr',
       'kapak',
       'url',
       'okuma_durumu',
