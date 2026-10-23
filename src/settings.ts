@@ -9,6 +9,7 @@ import { FolderSuggest } from './settings/folderSuggest';
 import { PropertyMappingComponent } from './settings/propertyMappingComponent';
 import { PropertyMappingData } from './settings/propertyMapping';
 import { adaptTemplateToPropertyMappings } from './templates/templateAdapter';
+import { DEFAULT_PROVIDERS } from './providers/types';
 
 export class KitapSettingTab extends PluginSettingTab {
   plugin: KitapPlugin;
@@ -74,9 +75,8 @@ export class KitapSettingTab extends PluginSettingTab {
       .setName('Varsayılan Metaveri Sağlayıcı')
       .setDesc('Kitap arama ve bilgi çekme işlemlerinde varsayılan olarak kullanılacak veri sağlayıcı.')
       .addDropdown((dropdown) => {
-        const providers = this.plugin.aggregator?.getAvailableProviders?.() ?? [
-          { id: 'kitapyurdu', name: 'Kitapyurdu' },
-        ];
+        const providers =
+          this.plugin.aggregator?.getAvailableProviders?.() ?? DEFAULT_PROVIDERS;
         for (const provider of providers) {
           dropdown.addOption(provider.id, provider.name);
         }

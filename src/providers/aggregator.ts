@@ -4,6 +4,7 @@ import {
   SearchResultItem,
 } from '../types';
 import { KitapyurduProvider } from './kitapyurdu';
+import { DrProvider } from './dr';
 import { IKitapyurduProvider, IBookProvider, ProviderInfo } from './types';
 
 export interface IBookAggregator {
@@ -34,6 +35,7 @@ export class BookAggregator implements IBookAggregator {
       this.defaultProviderId = id;
     } else {
       this.registerProvider(new KitapyurduProvider());
+      this.registerProvider(new DrProvider());
     }
   }
 

@@ -24,6 +24,7 @@ export interface ProviderInfo {
  */
 export const DEFAULT_PROVIDERS: ProviderInfo[] = [
   { id: 'kitapyurdu', name: 'Kitapyurdu' },
+  { id: 'dr', name: 'D&R' },
 ];
 
 /**
@@ -59,4 +60,92 @@ export interface KitapyurduBookDetails extends BookMetadata {
 export interface IKitapyurduProvider {
   search(query: string): Promise<KitapyurduSearchResult[]>;
   getBookDetails(urlOrId: string): Promise<KitapyurduBookDetails>;
+}
+
+/**
+ * D&R kişi / katkıda bulunan veri modeli
+ */
+export interface DrPerson {
+  Group?: string;
+  GroupCode?: number | string;
+  Name?: string;
+  FullName?: string;
+  PersonName?: string;
+  AuthorName?: string;
+  Title?: string;
+}
+
+/**
+ * D&R ürün nitelik / attribute veri modeli
+ */
+export interface DrAttribute {
+  Name?: string;
+  Key?: string;
+  Definition?: string;
+  AttributeName?: string;
+  Value?: string;
+  AttributeValue?: string;
+  Val?: string;
+}
+
+/**
+ * D&R ürün teknik özellikleri veri modeli
+ */
+export interface DrSpecification {
+  SpecificationAttributeName?: string;
+  Name?: string;
+  Key?: string;
+  Value?: string;
+  AttributeValue?: string;
+}
+
+/**
+ * D&R arama sonucu ürün veri modeli
+ */
+export interface DrSearchProduct {
+  StockCode: string;
+  Barcode?: string;
+  Name: string;
+  Manufacturer?: string;
+  PublisherName?: string;
+  BrandName?: string;
+  Price?: number | string;
+  Rating?: number;
+  RatingCount?: number;
+  Persons?: { Person?: DrPerson | DrPerson[] } | DrPerson[];
+  Attributes?: DrAttribute[];
+  Url?: string;
+  SeoLink?: string;
+  DefaultPictureModel?: { ImageUrl?: string };
+  ImageUrl?: string;
+}
+
+/**
+ * D&R ürün detay yanıt veri modeli
+ */
+export interface DrProductDetailsData {
+  StockCode?: string;
+  Name?: string;
+  ProductName?: string;
+  Barcode?: string;
+  Manufacturer?: string;
+  PublisherName?: string;
+  Price?: number | string;
+  Rating?: number;
+  RatingCount?: number;
+  FullDescription?: string;
+  Description?: string;
+  ShortDescription?: string;
+  ProductSpecifications?: DrSpecification[];
+  ProductPersons?: { Person?: DrPerson | DrPerson[] } | DrPerson[];
+  DefaultPictureModel?: { ImageUrl?: string };
+  Url?: string;
+}
+
+/**
+ * D&R sağlayıcı arayüzü
+ */
+export interface IDrProvider extends IBookProvider {
+  search(query: string): Promise<SearchResultItem[]>;
+  getBookDetails(urlOrId: string): Promise<BookMetadata>;
 }
