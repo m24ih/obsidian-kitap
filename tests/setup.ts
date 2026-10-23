@@ -69,6 +69,12 @@ if (typeof HTMLElement !== "undefined") {
     };
   }
 
+  if (!proto.hasClass) {
+    proto.hasClass = function (cls: string) {
+      return this.classList.contains(cls);
+    };
+  }
+
   if (!proto.setText) {
     proto.setText = function (text: string) {
       this.textContent = text;

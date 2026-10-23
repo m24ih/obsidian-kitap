@@ -280,8 +280,31 @@ export class MetadataComparisonModal extends Modal {
     if (key === 'description') {
       const desc = toSafeString(value);
       if (desc) {
-        const preview = desc.length > 140 ? `${desc.slice(0, 140)}...` : desc;
-        contentDiv.createSpan({ cls: 'kitap-desc-preview', text: preview });
+        const descBox = contentDiv.createDiv({ cls: 'kitap-desc-box' });
+        const textEl = descBox.createDiv({
+          cls: 'kitap-desc-text kitap-desc-preview is-clamped',
+          text: desc,
+        });
+
+        if (desc.length > 140) {
+          const toggleBtn = descBox.createSpan({
+            cls: 'kitap-desc-toggle',
+            text: 'Daha fazla göster',
+          });
+          toggleBtn.addEventListener('click', (e: MouseEvent) => {
+            e.stopPropagation();
+            const isClamped = textEl.classList.contains('is-clamped');
+            if (isClamped) {
+              textEl.classList.remove('is-clamped');
+              textEl.classList.add('is-expanded');
+              toggleBtn.setText('Daha az göster');
+            } else {
+              textEl.classList.remove('is-expanded');
+              textEl.classList.add('is-clamped');
+              toggleBtn.setText('Daha fazla göster');
+            }
+          });
+        }
       } else {
         contentDiv.createSpan({ cls: 'kitap-val-empty', text: '—' });
       }

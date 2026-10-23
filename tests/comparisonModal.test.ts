@@ -312,4 +312,44 @@ describe('MetadataComparisonModal UI & Interaction Suite', () => {
     const built = modal.buildSelectedMetadata();
     expect(built.pages).toBe(240);
   });
+
+  it('renders "Daha fazla göster" toggle for long descriptions and expands on click', () => {
+    const longDesc = 'A'.repeat(250);
+    const modal = new MetadataComparisonModal(app as any, {
+      providers: [
+        { id: 'kitapyurdu', name: 'Kitapyurdu', data: { ...kyMetadata, description: longDesc } },
+        { id: 'dr', name: 'D&R', data: drMetadata },
+      ],
+      onConfirm: vi.fn(),
+    });
+
+    modal.open();
+
+    const descRow = Array.from(modal.contentEl.querySelectorAll('.kitap-comparison-row')).find(
+      (r) => (r as HTMLElement).dataset.field === 'description'
+    ) as HTMLElement;
+
+    expect(descRow).toBeDefined();
+
+    const kyCell = descRow.querySelector('[data-provider-id="kitapyurdu"]') as HTMLElement;
+    const textEl = kyCell.querySelector('.kitap-desc-text') as HTMLElement;
+    const toggleBtn = kyCell.querySelector('.kitap-desc-toggle') as HTMLElement;
+
+    expect(textEl).toBeDefined();
+    expect(textEl.classList.contains('is-clamped')).toBe(true);
+    expect(toggleBtn).toBeDefined();
+    expect(toggleBtn.textContent).toBe('Daha fazla göster');
+
+    // Click toggle to expand
+    toggleBtn.click();
+    expect(textEl.classList.contains('is-expanded')).toBe(true);
+    expect(textEl.classList.contains('is-clamped')).toBe(false);
+    expect(toggleBtn.textContent).toBe('Daha az göster');
+
+    // Click toggle again to collapse
+    toggleBtn.click();
+    expect(textEl.classList.contains('is-clamped')).toBe(true);
+    expect(textEl.classList.contains('is-expanded')).toBe(false);
+    expect(toggleBtn.textContent).toBe('Daha fazla göster');
+  });
 });
