@@ -655,16 +655,37 @@
 
 .kitap-badge-hybrid {
   color: var(--text-accent);
+  background-color: var(--background-modifier-accent-subtle, rgba(var(--interactive-accent-rgb), 0.12));
   border-color: var(--interactive-accent);
   font-weight: 600;
 }
 
+/* Kitapyurdu Marka Rozeti (Turuncu) */
 .kitap-badge-kitapyurdu {
-  color: var(--text-normal);
+  color: #ff9436;
+  background-color: rgba(255, 122, 24, 0.15);
+  border-color: rgba(255, 148, 54, 0.38);
+  font-weight: 600;
 }
 
+.theme-light .kitap-badge-kitapyurdu {
+  color: #c84800;
+  background-color: rgba(217, 88, 13, 0.12);
+  border-color: rgba(200, 72, 0, 0.35);
+}
+
+/* D&R Marka Rozeti (Mavi) */
 .kitap-badge-dr {
-  color: var(--text-accent);
+  color: #4da3ff;
+  background-color: rgba(45, 140, 240, 0.15);
+  border-color: rgba(77, 163, 255, 0.38);
+  font-weight: 600;
+}
+
+.theme-light .kitap-badge-dr {
+  color: #005bbb;
+  background-color: rgba(0, 91, 187, 0.12);
+  border-color: rgba(0, 91, 187, 0.35);
 }
 
 .setting-item.kitap-comparison-footer {
