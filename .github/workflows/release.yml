@@ -3,7 +3,14 @@ name: Release Obsidian plugin
 on:
   push:
     tags:
-      - "*"
+      - "v*"
+      - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Yayınlanacak tag adı (örn. 0.4.0 veya v0.4.0, boş bırakılırsa manifest.json versiyonu kullanılır)"
+        required: false
+        default: ""
 
 jobs:
   build:
@@ -20,10 +27,11 @@ jobs:
         with:
           node-version: "22.x"
 
-      - name: Build plugin
+      - name: Install dependencies & run checks
         run: |
-          npm install
+          npm ci || npm install
           npm run lint
+          npm run typecheck
           npm run build
           npm test
 
@@ -35,13 +43,30 @@ jobs:
             manifest.json
             styles.css
 
-      - name: Create release
+      - name: Resolve Release Tag
+        id: resolve_tag
+        run: |
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG=$(node -p "require('./manifest.json').version")
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create Official Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="${GITHUB_REF#refs/tags/}"
-
-          gh release create "$tag" \
-            --title="$tag" \
-            --draft \
-            main.js manifest.json styles.css
+          TAG="${{ steps.resolve_tag.outputs.tag }}"
+          
+          # Eğer bu tag için zaten release yoksa oluştur, varsa dosyaları güncelle
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" main.js manifest.json styles.css --clobber
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes \
+              main.js manifest.json styles.css
+          fi

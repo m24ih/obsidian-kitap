@@ -1,0 +1,72 @@
+name: Beta Release (BRAT)
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
+      - ".gitignore"
+  workflow_dispatch:
+
+concurrency:
+  group: beta-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  beta-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: TypeScript check
+        run: npm run typecheck
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Prepare Beta Manifest & Release Tag
+        id: prep
+        run: |
+          BASE_VERSION=$(node -p "require('./manifest.json').version")
+          BETA_TAG="${BASE_VERSION}-beta.${GITHUB_RUN_NUMBER}"
+          
+          # manifest.json içindeki versiyonu beta tag'i ile güncelle (BRAT versiyon tespiti için)
+          node -e "
+            const fs = require('fs');
+            const m = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+            m.version = '${BETA_TAG}';
+            fs.writeFileSync('manifest.json', JSON.stringify(m, null, 2) + '\n');
+          "
+          
+          echo "tag=${BETA_TAG}" >> "$GITHUB_OUTPUT"
+          echo "base_version=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create Beta Pre-Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BETA_TAG="${{ steps.prep.outputs.tag }}"
+          
+          gh release create "$BETA_TAG" \
+            --title "Beta $BETA_TAG" \
+            --notes "Otomatik BRAT beta sürümü. Commit: ${{ github.sha }}" \
+            --prerelease \
+            main.js manifest.json styles.css
