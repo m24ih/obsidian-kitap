@@ -150,6 +150,11 @@ describe('Aggregator Service Tests', () => {
       expect(result.title).toBe('Custom Provider Book');
     });
 
+    it('initializes with hybrid default provider when constructed without arguments', () => {
+      const defaultAggregator = new BookAggregator();
+      expect(defaultAggregator.getDefaultProviderId()).toBe('hybrid');
+    });
+
     it('updates and retrieves default provider correctly', () => {
       expect(aggregator.getDefaultProviderId()).toBe('kitapyurdu');
       aggregator.setDefaultProvider('new_provider');

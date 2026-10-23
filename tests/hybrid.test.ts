@@ -675,7 +675,7 @@ describe('Hybrid Metadata Provider & Deduplication Suite', () => {
       expect(baseProviders.map((p) => p.id)).toEqual(['kitapyurdu', 'dr']);
 
       const allProviders = aggregator.getAvailableProviders({ includeComposite: true });
-      expect(allProviders.map((p) => p.id)).toEqual(['kitapyurdu', 'dr', 'hybrid']);
+      expect(allProviders.map((p) => p.id)).toEqual(['hybrid', 'kitapyurdu', 'dr']);
     });
   });
 

@@ -205,5 +205,5 @@ export const DEFAULT_SETTINGS: KitapPluginSettings = {
   coverFolder: 'Kitaplar/Kapaklar',
   readingStatusOptions: ['Okunacak', 'Okunuyor', 'Okundu'],
   defaultReadingStatus: 'Okunacak',
-  defaultProvider: 'kitapyurdu',
+  defaultProvider: 'hybrid',
 };

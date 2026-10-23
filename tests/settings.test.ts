@@ -187,7 +187,7 @@ describe('Plugin Settings & Lifecycle', () => {
       }
 
       expect(providerDropdown).toBeDefined();
-      expect(providerDropdown?.value).toBe('kitapyurdu');
+      expect(providerDropdown?.value).toBe('hybrid');
 
       const component = (providerDropdown as any).component;
       if (component) {
@@ -212,7 +212,7 @@ describe('Plugin Settings & Lifecycle', () => {
       }
 
       expect(providerDropdown).toBeDefined();
-      expect(providerDropdown?.value).toBe('kitapyurdu');
+      expect(providerDropdown?.value).toBe('hybrid');
     });
 
     it('renders templateMode dropdown and updates settings when changed', async () => {
@@ -433,13 +433,13 @@ describe('Plugin Settings & Lifecycle', () => {
     it('sanitizes empty whitespace in defaultProvider to default', async () => {
       mockData = { defaultProvider: '   ' };
       await plugin.loadSettings();
-      expect(plugin.settings.defaultProvider).toBe('kitapyurdu');
+      expect(plugin.settings.defaultProvider).toBe('hybrid');
     });
 
     it('falls back to defaultProvider when non-string is provided', async () => {
       mockData = { defaultProvider: 12345 };
       await plugin.loadSettings();
-      expect(plugin.settings.defaultProvider).toBe('kitapyurdu');
+      expect(plugin.settings.defaultProvider).toBe('hybrid');
     });
   });
 });

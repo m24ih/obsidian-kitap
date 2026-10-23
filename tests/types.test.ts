@@ -15,7 +15,7 @@ describe('Core Types & Defaults', () => {
     expect(DEFAULT_SETTINGS.coverFolder).toBe('Kitaplar/Kapaklar');
     expect(DEFAULT_SETTINGS.readingStatusOptions).toEqual(['Okunacak', 'Okunuyor', 'Okundu']);
     expect(DEFAULT_SETTINGS.defaultReadingStatus).toBe('Okunacak');
-    expect(DEFAULT_SETTINGS.defaultProvider).toBe('kitapyurdu');
+    expect(DEFAULT_SETTINGS.defaultProvider).toBe('hybrid');
   });
 
   it('default template includes required template placeholders', () => {

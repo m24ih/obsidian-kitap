@@ -23,9 +23,9 @@ export interface ProviderInfo {
  * Varsayılan sağlayıcı tanımları
  */
 export const DEFAULT_PROVIDERS: ProviderInfo[] = [
+  { id: 'hybrid', name: 'Hibrit (Kitapyurdu + D&R)' },
   { id: 'kitapyurdu', name: 'Kitapyurdu' },
   { id: 'dr', name: 'D&R' },
-  { id: 'hybrid', name: 'Hibrit (Kitapyurdu + D&R)' },
 ];
 
 /**

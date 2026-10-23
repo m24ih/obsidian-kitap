@@ -27,7 +27,7 @@ export interface IBookAggregator {
  */
 export class BookAggregator implements IBookAggregator {
   private readonly providers: Map<string, IBookProvider> = new Map();
-  private defaultProviderId: string = 'kitapyurdu';
+  private defaultProviderId: string = 'hybrid';
   private readonly hybridProvider: HybridProvider;
 
   constructor(defaultProvider?: IKitapyurduProvider | IBookProvider) {
@@ -40,6 +40,7 @@ export class BookAggregator implements IBookAggregator {
     } else {
       this.registerProvider(new KitapyurduProvider());
       this.registerProvider(new DrProvider());
+      this.defaultProviderId = 'hybrid';
     }
   }
 
@@ -82,7 +83,7 @@ export class BookAggregator implements IBookAggregator {
    * 'kitapyurdu' çekirdek sağlayıcısının silinmesine izin verilmez.
    */
   unregisterProvider(providerId: string): boolean {
-    if (!providerId || providerId.trim() === 'kitapyurdu') {
+    if (!providerId || providerId.trim() === 'kitapyurdu' || providerId.trim() === 'hybrid') {
       return false;
     }
     return this.providers.delete(providerId.trim());
@@ -99,7 +100,9 @@ export class BookAggregator implements IBookAggregator {
     const provider = this.providers.get(id);
     if (!provider) {
       const fallback =
-        this.providers.get(this.defaultProviderId) ||
+        (this.defaultProviderId === 'hybrid'
+          ? this.hybridProvider
+          : this.providers.get(this.defaultProviderId)) ||
         this.providers.get('kitapyurdu') ||
         this.providers.values().next().value;
       if (!fallback) {
@@ -122,7 +125,7 @@ export class BookAggregator implements IBookAggregator {
 
     if (options?.includeComposite) {
       if (!list.some((p) => p.id === 'hybrid')) {
-        list.push({ id: 'hybrid', name: 'Hibrit (Kitapyurdu + D&R)' });
+        list.unshift({ id: 'hybrid', name: 'Hibrit (Kitapyurdu + D&R)' });
       }
     }
 

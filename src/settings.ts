@@ -80,9 +80,9 @@ export class KitapSettingTab extends PluginSettingTab {
         for (const provider of providers) {
           dropdown.addOption(provider.id, provider.name);
         }
-        const currentSetting = this.plugin.settings.defaultProvider || 'kitapyurdu';
+        const currentSetting = this.plugin.settings.defaultProvider || 'hybrid';
         const hasCurrent = providers.some((p) => p.id === currentSetting);
-        const resolvedValue = hasCurrent ? currentSetting : (providers[0]?.id ?? 'kitapyurdu');
+        const resolvedValue = hasCurrent ? currentSetting : (providers[0]?.id ?? 'hybrid');
         dropdown
           .setValue(resolvedValue)
           .onChange(async (value) => {
