@@ -112,6 +112,12 @@
   font-weight: 500;
 }
 
+.kitap-badge-provider {
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
 /* --------------------------------------------------------------------------
    Loading & Feedback States
    -------------------------------------------------------------------------- */

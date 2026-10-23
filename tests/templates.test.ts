@@ -76,6 +76,14 @@ URL: {{url}}`;
       expect(rendered).toBe('Price: 477.95 TL, Format: Karton Kapak, Genres: Edebiyat, Bilimkurgu-Fantazya, Orig: Dune, Lang: TÜRKÇE');
     });
 
+    it('renders provider and saglayici placeholders accurately', () => {
+      const bookWithProvider = { ...sampleBook, provider: 'kitapyurdu' };
+      const template = `Provider: {{provider}}, Saglayici: {{saglayici}}`;
+      const rendered = renderBookTemplate(template, bookWithProvider);
+
+      expect(rendered).toBe('Provider: kitapyurdu, Saglayici: kitapyurdu');
+    });
+
     it('renders DEFAULT_STATIC_TEMPLATE cleanly with all fields', () => {
       const rendered = renderBookTemplate(DEFAULT_STATIC_TEMPLATE, sampleBook);
 

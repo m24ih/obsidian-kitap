@@ -14,6 +14,7 @@ export interface IBookAggregator {
   ): Promise<BookMetadata>;
   getProvider(providerId?: string): IBookProvider;
   registerProvider(provider: IBookProvider | IKitapyurduProvider): void;
+  unregisterProvider?(providerId: string): boolean;
   getAvailableProviders(): ProviderInfo[];
   setDefaultProvider(providerId: string): void;
   getDefaultProviderId(): string;
@@ -28,17 +29,8 @@ export class BookAggregator implements IBookAggregator {
 
   constructor(defaultProvider?: IKitapyurduProvider | IBookProvider) {
     if (defaultProvider) {
+      this.registerProvider(defaultProvider);
       const id = (defaultProvider as IBookProvider).id || 'kitapyurdu';
-      const name =
-        (defaultProvider as IBookProvider).name ||
-        (id === 'kitapyurdu' ? 'Kitapyurdu' : id);
-
-      this.registerProvider({
-        id,
-        name,
-        search: (q: string) => defaultProvider.search(q),
-        getBookDetails: (u: string) => defaultProvider.getBookDetails(u),
-      });
       this.defaultProviderId = id;
     } else {
       this.registerProvider(new KitapyurduProvider());
@@ -49,7 +41,7 @@ export class BookAggregator implements IBookAggregator {
    * Varsayılan sağlayıcı ID'sini ayarlar.
    */
   setDefaultProvider(providerId: string): void {
-    if (providerId && providerId.trim()) {
+    if (providerId && typeof providerId === 'string' && providerId.trim()) {
       this.defaultProviderId = providerId.trim();
     }
   }
@@ -65,9 +57,10 @@ export class BookAggregator implements IBookAggregator {
    * Yeni bir metaveri sağlayıcısını sisteme kaydeder.
    */
   registerProvider(provider: IBookProvider | IKitapyurduProvider): void {
-    const id = (provider as IBookProvider).id || 'kitapyurdu';
+    if (!provider) return;
+    const id = (provider as IBookProvider).id?.trim?.() || 'kitapyurdu';
     const name =
-      (provider as IBookProvider).name || (id === 'kitapyurdu' ? 'Kitapyurdu' : id);
+      (provider as IBookProvider).name?.trim?.() || (id === 'kitapyurdu' ? 'Kitapyurdu' : id);
 
     const adapted: IBookProvider = {
       id,
@@ -79,10 +72,21 @@ export class BookAggregator implements IBookAggregator {
   }
 
   /**
+   * Kayıtlı bir metaveri sağlayıcısını sistemden kaldırır.
+   * 'kitapyurdu' çekirdek sağlayıcısının silinmesine izin verilmez.
+   */
+  unregisterProvider(providerId: string): boolean {
+    if (!providerId || providerId.trim() === 'kitapyurdu') {
+      return false;
+    }
+    return this.providers.delete(providerId.trim());
+  }
+
+  /**
    * Belirtilen ID'ye sahip sağlayıcıyı döndürür, yoksa varsayılan sağlayıcıya geri döner.
    */
   getProvider(providerId?: string): IBookProvider {
-    const id = providerId || this.defaultProviderId;
+    const id = (providerId && providerId.trim()) || this.defaultProviderId;
     const provider = this.providers.get(id);
     if (!provider) {
       const fallback =
@@ -109,14 +113,20 @@ export class BookAggregator implements IBookAggregator {
 
   /**
    * Kitap aramasını seçilen sağlayıcı (veya varsayılan sağlayıcı) üzerinden yürütür.
+   * Dönen arama sonuçlarına sağlayıcı kimliğinin (provider) iliştirilmesini garanti eder.
    */
   async search(query: string, providerId?: string): Promise<SearchResultItem[]> {
     const provider = this.getProvider(providerId);
-    return provider.search(query);
+    const results = await provider.search(query);
+    return results.map((item) => ({
+      ...item,
+      provider: item.provider || provider.id,
+    }));
   }
 
   /**
    * Seçilen arama öğesi için ilgili sağlayıcıdan kitap detaylarını çeker.
+   * Dönen kitap verisine sağlayıcı kimliğinin (provider) iliştirilmesini garanti eder.
    */
   async getFullBookData(
     searchItem: SearchResultItem,
@@ -126,6 +136,10 @@ export class BookAggregator implements IBookAggregator {
       searchItem.provider || settings?.defaultProvider || this.defaultProviderId;
     const provider = this.getProvider(providerId);
     const targetUrlOrId = searchItem.url || searchItem.id;
-    return provider.getBookDetails(targetUrlOrId);
+    const data = await provider.getBookDetails(targetUrlOrId);
+    return {
+      ...data,
+      provider: data.provider || provider.id,
+    };
   }
 }

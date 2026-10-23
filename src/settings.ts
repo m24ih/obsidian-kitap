@@ -80,8 +80,11 @@ export class KitapSettingTab extends PluginSettingTab {
         for (const provider of providers) {
           dropdown.addOption(provider.id, provider.name);
         }
+        const currentSetting = this.plugin.settings.defaultProvider || 'kitapyurdu';
+        const hasCurrent = providers.some((p) => p.id === currentSetting);
+        const resolvedValue = hasCurrent ? currentSetting : (providers[0]?.id ?? 'kitapyurdu');
         dropdown
-          .setValue(this.plugin.settings.defaultProvider || 'kitapyurdu')
+          .setValue(resolvedValue)
           .onChange(async (value) => {
             this.plugin.settings.defaultProvider = value;
             this.plugin.aggregator?.setDefaultProvider?.(value);

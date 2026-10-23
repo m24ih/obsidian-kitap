@@ -197,6 +197,24 @@ describe('Plugin Settings & Lifecycle', () => {
       expect(plugin.settings.defaultProvider).toBe('kitapyurdu');
     });
 
+    it('safely falls back to available provider in dropdown when settings contain unknown provider', () => {
+      plugin.settings.defaultProvider = 'deleted_provider';
+      settingTab.display();
+
+      const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');
+      let providerDropdown: HTMLSelectElement | undefined;
+      for (const item of Array.from(settingItems)) {
+        const el = item as HTMLElement;
+        const nameEl = el.querySelector('.setting-item-name');
+        if (nameEl?.textContent?.includes('Varsayılan Metaveri Sağlayıcı')) {
+          providerDropdown = el.querySelector('select') as HTMLSelectElement;
+        }
+      }
+
+      expect(providerDropdown).toBeDefined();
+      expect(providerDropdown?.value).toBe('kitapyurdu');
+    });
+
     it('renders templateMode dropdown and updates settings when changed', async () => {
       settingTab.display();
 

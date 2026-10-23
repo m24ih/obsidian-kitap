@@ -36,6 +36,9 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     super(app);
     this.plugin = plugin;
     this.aggregator = options?.aggregator ?? new BookAggregator();
+    if (this.plugin?.settings?.defaultProvider) {
+      this.aggregator.setDefaultProvider?.(this.plugin.settings.defaultProvider);
+    }
     this.insertIntoActive = options?.insertIntoActive ?? false;
     this.debounceMs = options?.debounceMs ?? 500;
 
@@ -192,12 +195,23 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
       meta.createSpan({ cls: 'kitap-meta-publisher', text: item.publisher });
     }
 
-    if (item.rating !== undefined) {
+    if (item.rating !== undefined || item.provider) {
       const badges = details.createDiv({ cls: 'kitap-badges' });
-      badges.createSpan({
-        cls: 'kitap-badge kitap-badge-rating',
-        text: `★ ${item.rating}/5`,
-      });
+      if (item.rating !== undefined) {
+        badges.createSpan({
+          cls: 'kitap-badge kitap-badge-rating',
+          text: `★ ${item.rating}/5`,
+        });
+      }
+      if (item.provider) {
+        const providerName =
+          this.aggregator.getAvailableProviders?.()?.find((p) => p.id === item.provider)?.name ??
+          (item.provider === 'kitapyurdu' ? 'Kitapyurdu' : item.provider);
+        badges.createSpan({
+          cls: 'kitap-badge kitap-badge-provider',
+          text: providerName,
+        });
+      }
     }
   }
 

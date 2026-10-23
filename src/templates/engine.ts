@@ -116,6 +116,10 @@ export function renderBookTemplate(
     language: strValue(data.language),
     dil: strValue(data.language),
 
+    // Sağlayıcı bilgisi
+    provider: strValue(data.provider),
+    saglayici: strValue(data.provider),
+
     // media-db ve şablon uyumluluk takma adları
     image: rawCover,
 
