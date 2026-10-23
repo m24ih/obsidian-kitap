@@ -43,6 +43,7 @@ export const DEFAULT_BOOK_PROPERTY_MAPPINGS: PropertyMappingData[] = [
   { property: 'orijinal_baslik', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'dil', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'puan_kitapyurdu', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
+  { property: 'puan', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'kapak', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'url', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
   { property: 'okuma_durumu', newProperty: '', mapping: PropertyMappingOption.Default, locked: false, wikilink: false },
@@ -169,7 +170,25 @@ export class PropertyMapper {
     const result: Record<string, unknown> = {};
 
     for (const [key, val] of Object.entries(obj)) {
-      const mapping = mappingByProp.get(key);
+      let mapping = mappingByProp.get(key);
+
+      // Fallback: If 'puan' has no custom mapping but 'puan_kitapyurdu' does (or vice-versa), inherit it
+      if (key === 'puan' && (!mapping || mapping.mapping === PropertyMappingOption.Default)) {
+        const alt = mappingByProp.get('puan_kitapyurdu');
+        if (alt && alt.mapping !== PropertyMappingOption.Default) {
+          mapping = { ...alt, property: 'puan' };
+        }
+      } else if (key === 'puan_kitapyurdu' && (!mapping || mapping.mapping === PropertyMappingOption.Default)) {
+        const alt = mappingByProp.get('puan');
+        if (alt && alt.mapping !== PropertyMappingOption.Default) {
+          mapping = { ...alt, property: 'puan_kitapyurdu' };
+        }
+      } else if (key === 'puan_dr' && (!mapping || mapping.mapping === PropertyMappingOption.Default)) {
+        const alt = mappingByProp.get('puan') || mappingByProp.get('puan_kitapyurdu');
+        if (alt && alt.mapping !== PropertyMappingOption.Default) {
+          mapping = { ...alt, property: 'puan_dr' };
+        }
+      }
 
       if (!mapping) {
         result[key] = val;

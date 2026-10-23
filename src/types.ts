@@ -21,6 +21,10 @@ export interface SearchResultItem {
   url: string;
   coverUrl: string;
   rating?: number;
+  provider?: string;
+  providers?: string[];
+  sources?: Record<string, SearchResultItem>;
+  isbn?: string;
 }
 
 export type SearchResult = SearchResultItem;
@@ -48,6 +52,7 @@ export interface BookMetadata {
   genres?: string[];
   originalTitle?: string;
   language?: string;
+  provider?: string;
 }
 
 export type TemplateMode = 'static' | 'reactive' | 'custom';
@@ -68,6 +73,7 @@ export interface KitapPluginSettings {
   coverFolder: string;
   readingStatusOptions: string[];
   defaultReadingStatus: string;
+  defaultProvider: string;
 }
 
 /**
@@ -151,7 +157,7 @@ kisisel_puan:
 > **Yazar:** \`$= dv.current()?.yazar || dv.current()?.author || "{{author}}"\`  
 > **Yayınevi:** \`$= dv.current()?.yayinevi || dv.current()?.publisher || "{{publisher}}"\`  
 > **Format:** \`$= dv.current()?.format || "{{format}}"\` | **Fiyat:** \`$= dv.current()?.fiyat || dv.current()?.price || "{{price}}"\`  
-> **Kitapyurdu Puanı:** \`$= dv.current()?.puan_kitapyurdu || dv.current()?.rating || "{{rating}}"\` / 5  
+> **Puan:** \`$= dv.current()?.puan || dv.current()?.puan_dr || dv.current()?.puan_kitapyurdu || dv.current()?.rating || "{{rating}}"\` / 5  
 
 ## 📊 Okuma İlerlemesi
 \`\`\`dataviewjs
@@ -199,4 +205,5 @@ export const DEFAULT_SETTINGS: KitapPluginSettings = {
   coverFolder: 'Kitaplar/Kapaklar',
   readingStatusOptions: ['Okunacak', 'Okunuyor', 'Okundu'],
   defaultReadingStatus: 'Okunacak',
+  defaultProvider: 'kitapyurdu',
 };

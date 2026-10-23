@@ -9,6 +9,7 @@ import { FolderSuggest } from './settings/folderSuggest';
 import { PropertyMappingComponent } from './settings/propertyMappingComponent';
 import { PropertyMappingData } from './settings/propertyMapping';
 import { adaptTemplateToPropertyMappings } from './templates/templateAdapter';
+import { DEFAULT_PROVIDERS } from './providers/types';
 
 export class KitapSettingTab extends PluginSettingTab {
   plugin: KitapPlugin;
@@ -64,6 +65,32 @@ export class KitapSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    // ----------------------------------------------------
+    // Bölüm: Metaveri Sağlayıcı Ayarları
+    // ----------------------------------------------------
+    new Setting(containerEl).setName('Metaveri sağlayıcı ayarları').setHeading();
+
+    new Setting(containerEl)
+      .setName('Varsayılan Metaveri Sağlayıcı')
+      .setDesc('Kitap arama ve bilgi çekme işlemlerinde varsayılan olarak kullanılacak veri sağlayıcı.')
+      .addDropdown((dropdown) => {
+        const providers =
+          this.plugin.aggregator?.getAvailableProviders?.({ includeComposite: true }) ?? DEFAULT_PROVIDERS;
+        for (const provider of providers) {
+          dropdown.addOption(provider.id, provider.name);
+        }
+        const currentSetting = this.plugin.settings.defaultProvider || 'kitapyurdu';
+        const hasCurrent = providers.some((p) => p.id === currentSetting);
+        const resolvedValue = hasCurrent ? currentSetting : (providers[0]?.id ?? 'kitapyurdu');
+        dropdown
+          .setValue(resolvedValue)
+          .onChange(async (value) => {
+            this.plugin.settings.defaultProvider = value;
+            this.plugin.aggregator?.setDefaultProvider?.(value);
+            await this.plugin.saveSettings();
+          });
+      });
 
     // ----------------------------------------------------
     // Bölüm: Kapak Görselleri

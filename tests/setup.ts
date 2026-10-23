@@ -69,6 +69,12 @@ if (typeof HTMLElement !== "undefined") {
     };
   }
 
+  if (!proto.hasClass) {
+    proto.hasClass = function (cls: string) {
+      return this.classList.contains(cls);
+    };
+  }
+
   if (!proto.setText) {
     proto.setText = function (text: string) {
       this.textContent = text;
@@ -328,6 +334,10 @@ export class MockButtonComponent {
     this.buttonEl.textContent = text;
     return this;
   }
+  setCta() {
+    this.buttonEl.classList.add("mod-cta");
+    return this;
+  }
   setWarning() {
     this.warning = true;
     this.buttonEl.classList.add("mod-warning");
@@ -493,6 +503,43 @@ export class Scope {
   }
 }
 
+export class Modal {
+  app: unknown;
+  contentEl: HTMLElement;
+  titleEl: HTMLElement;
+  containerEl: HTMLElement;
+  modalEl: HTMLElement;
+  scope: Scope;
+
+  constructor(app: unknown) {
+    this.app = app;
+    this.scope = new Scope();
+    this.containerEl = document.createElement("div");
+    this.modalEl = document.createElement("div");
+    this.modalEl.classList.add("modal");
+    this.titleEl = document.createElement("div");
+    this.contentEl = document.createElement("div");
+    this.modalEl.appendChild(this.titleEl);
+    this.modalEl.appendChild(this.contentEl);
+    this.containerEl.appendChild(this.modalEl);
+  }
+
+  open(): void {
+    if (typeof document !== "undefined" && document.body) {
+      document.body.appendChild(this.containerEl);
+    }
+    this.onOpen();
+  }
+  onOpen(): void {}
+  close(): void {
+    if (this.containerEl.parentNode) {
+      this.containerEl.remove();
+    }
+    this.onClose();
+  }
+  onClose(): void {}
+}
+
 export class SuggestModal {
   app: unknown;
   inputEl: HTMLInputElement;
@@ -636,6 +683,7 @@ if (typeof vi !== "undefined") {
     Plugin,
     PluginSettingTab,
     Setting,
+    Modal,
     SuggestModal,
     Notice,
     App,

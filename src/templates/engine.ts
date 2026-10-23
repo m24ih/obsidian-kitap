@@ -55,6 +55,11 @@ export function renderBookTemplate(
     );
   }
 
+  // D&R sağlayıcısı için şablonda doğrudan puan_kitapyurdu: yazılmışsa bunu sağlayıcı bağımsız puan: alanına çevir
+  if (data.provider === 'dr') {
+    processedTemplate = processedTemplate.replace(/\bpuan_kitapyurdu\s*:/g, 'puan:');
+  }
+
   const replacements: Record<string, string> = {
     // Türkçe temel alanlar
     tip: 'kitap',
@@ -71,6 +76,7 @@ export function renderBookTemplate(
     kapak: rawCover,
     puan: data.rating !== undefined && data.rating !== null ? String(data.rating) : '',
     puan_kitapyurdu: data.rating !== undefined && data.rating !== null ? String(data.rating) : '',
+    puan_dr: data.rating !== undefined && data.rating !== null ? String(data.rating) : '',
 
     // İngilizce uyumluluk takma adları
     title: strValue(data.title),
@@ -115,6 +121,10 @@ export function renderBookTemplate(
     orijinalBaslik: strValue(data.originalTitle),
     language: strValue(data.language),
     dil: strValue(data.language),
+
+    // Sağlayıcı bilgisi
+    provider: strValue(data.provider),
+    saglayici: strValue(data.provider),
 
     // media-db ve şablon uyumluluk takma adları
     image: rawCover,

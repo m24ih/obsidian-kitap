@@ -69,6 +69,13 @@ export async function fetchHtml(url: string, options?: HttpRequestOptions): Prom
     throw: false,
   };
 
+  if (options?.body !== undefined) {
+    param.body = options.body;
+  }
+  if (options?.contentType !== undefined) {
+    param.contentType = options.contentType;
+  }
+
   const reqPromise = requestUrl(param);
   const response: RequestUrlResponse = await requestWithTimeout(reqPromise, timeoutMs, url);
 
@@ -106,6 +113,13 @@ export async function fetchJson<T = unknown>(
     },
     throw: false,
   };
+
+  if (options?.body !== undefined) {
+    param.body = options.body;
+  }
+  if (options?.contentType !== undefined) {
+    param.contentType = options.contentType;
+  }
 
   const reqPromise = requestUrl(param);
   const response: RequestUrlResponse = await requestWithTimeout(reqPromise, timeoutMs, url);
