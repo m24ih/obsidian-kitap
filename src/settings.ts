@@ -66,6 +66,30 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     // ----------------------------------------------------
+    // Bölüm: Metaveri Sağlayıcı Ayarları
+    // ----------------------------------------------------
+    new Setting(containerEl).setName('Metaveri sağlayıcı ayarları').setHeading();
+
+    new Setting(containerEl)
+      .setName('Varsayılan Metaveri Sağlayıcı')
+      .setDesc('Kitap arama ve bilgi çekme işlemlerinde varsayılan olarak kullanılacak veri sağlayıcı.')
+      .addDropdown((dropdown) => {
+        const providers = this.plugin.aggregator?.getAvailableProviders?.() ?? [
+          { id: 'kitapyurdu', name: 'Kitapyurdu' },
+        ];
+        for (const provider of providers) {
+          dropdown.addOption(provider.id, provider.name);
+        }
+        dropdown
+          .setValue(this.plugin.settings.defaultProvider || 'kitapyurdu')
+          .onChange(async (value) => {
+            this.plugin.settings.defaultProvider = value;
+            this.plugin.aggregator?.setDefaultProvider?.(value);
+            await this.plugin.saveSettings();
+          });
+      });
+
+    // ----------------------------------------------------
     // Bölüm: Kapak Görselleri
     // ----------------------------------------------------
     new Setting(containerEl).setName('Kapak görselleri').setHeading();

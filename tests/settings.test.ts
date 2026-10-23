@@ -174,6 +174,29 @@ describe('Plugin Settings & Lifecycle', () => {
       expect(mockData?.fileNameTemplate).toBe('{{isbn}} - {{title}}');
     });
 
+    it('renders defaultProvider dropdown and updates settings when changed', async () => {
+      settingTab.display();
+
+      const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');
+      let providerDropdown: HTMLSelectElement | undefined;
+      for (const item of Array.from(settingItems)) {
+        const nameEl = item.querySelector('.setting-item-name');
+        if (nameEl?.textContent?.includes('Varsayılan Metaveri Sağlayıcı')) {
+          providerDropdown = item.querySelector('select') as HTMLSelectElement;
+        }
+      }
+
+      expect(providerDropdown).toBeDefined();
+      expect(providerDropdown?.value).toBe('kitapyurdu');
+
+      const component = (providerDropdown as any).component;
+      if (component) {
+        await component.simulateChange('kitapyurdu');
+      }
+
+      expect(plugin.settings.defaultProvider).toBe('kitapyurdu');
+    });
+
     it('renders templateMode dropdown and updates settings when changed', async () => {
       settingTab.display();
 
@@ -387,6 +410,18 @@ describe('Plugin Settings & Lifecycle', () => {
       mockData = { coverFolder: '   ' };
       await plugin.loadSettings();
       expect(plugin.settings.coverFolder).toBe('Kitaplar/Kapaklar');
+    });
+
+    it('sanitizes empty whitespace in defaultProvider to default', async () => {
+      mockData = { defaultProvider: '   ' };
+      await plugin.loadSettings();
+      expect(plugin.settings.defaultProvider).toBe('kitapyurdu');
+    });
+
+    it('falls back to defaultProvider when non-string is provided', async () => {
+      mockData = { defaultProvider: 12345 };
+      await plugin.loadSettings();
+      expect(plugin.settings.defaultProvider).toBe('kitapyurdu');
     });
   });
 });

@@ -1,6 +1,32 @@
 import { BookMetadata, SearchResultItem } from '../types';
 
 /**
+ * Genel kitap metaveri sağlayıcı arayüzü
+ */
+export interface IBookProvider {
+  readonly id: string;
+  readonly name: string;
+  search(query: string): Promise<SearchResultItem[]>;
+  getBookDetails(urlOrId: string): Promise<BookMetadata>;
+}
+
+/**
+ * Sağlayıcı temel bilgi modeli
+ */
+export interface ProviderInfo {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+/**
+ * Varsayılan sağlayıcı tanımları
+ */
+export const DEFAULT_PROVIDERS: ProviderInfo[] = [
+  { id: 'kitapyurdu', name: 'Kitapyurdu' },
+];
+
+/**
  * Kitapyurdu arama sonuç kartı veri modeli
  */
 export interface KitapyurduSearchResult extends SearchResultItem {

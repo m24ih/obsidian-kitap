@@ -69,4 +69,90 @@ describe('Aggregator Service Tests', () => {
       expect(mockKyProvider.getBookDetails).toHaveBeenCalledWith('375312');
     });
   });
+
+  describe('Multi-Provider Architecture & Resolution', () => {
+    it('returns default providers list with kitapyurdu', () => {
+      const providers = aggregator.getAvailableProviders();
+      expect(providers).toHaveLength(1);
+      expect(providers[0].id).toBe('kitapyurdu');
+      expect(providers[0].name).toBe('Kitapyurdu');
+    });
+
+    it('registers new provider and lists it in available providers', () => {
+      const mockCustomProvider = {
+        id: 'test_provider',
+        name: 'Test Kitap Sağlayıcı',
+        search: vi.fn().mockResolvedValue([]),
+        getBookDetails: vi.fn().mockResolvedValue(sampleBaseMetadata),
+      };
+
+      aggregator.registerProvider(mockCustomProvider);
+
+      const providers = aggregator.getAvailableProviders();
+      expect(providers).toHaveLength(2);
+      expect(providers.find((p) => p.id === 'test_provider')).toEqual({
+        id: 'test_provider',
+        name: 'Test Kitap Sağlayıcı',
+      });
+    });
+
+    it('searches using specified provider ID', async () => {
+      const customItem: SearchResultItem = {
+        ...sampleSearchItem,
+        id: 'custom-123',
+        provider: 'test_provider',
+      };
+      const mockCustomProvider = {
+        id: 'test_provider',
+        name: 'Test Kitap Sağlayıcı',
+        search: vi.fn().mockResolvedValue([customItem]),
+        getBookDetails: vi.fn().mockResolvedValue(sampleBaseMetadata),
+      };
+
+      aggregator.registerProvider(mockCustomProvider);
+
+      const results = await aggregator.search('bilimkurgu', 'test_provider');
+      expect(mockCustomProvider.search).toHaveBeenCalledWith('bilimkurgu');
+      expect(mockKyProvider.search).not.toHaveBeenCalled();
+      expect(results).toEqual([customItem]);
+    });
+
+    it('falls back to default provider when searching with unknown provider ID', async () => {
+      const results = await aggregator.search('dune', 'nonexistent_provider');
+      expect(mockKyProvider.search).toHaveBeenCalledWith('dune');
+      expect(results).toEqual([sampleSearchItem]);
+    });
+
+    it('routes getFullBookData based on searchItem.provider tag', async () => {
+      const customBook: BookMetadata = {
+        ...sampleBaseMetadata,
+        title: 'Custom Provider Book',
+        provider: 'test_provider',
+      };
+      const mockCustomProvider = {
+        id: 'test_provider',
+        name: 'Test Kitap Sağlayıcı',
+        search: vi.fn().mockResolvedValue([]),
+        getBookDetails: vi.fn().mockResolvedValue(customBook),
+      };
+
+      aggregator.registerProvider(mockCustomProvider);
+
+      const itemWithProvider: SearchResultItem = {
+        ...sampleSearchItem,
+        provider: 'test_provider',
+      };
+
+      const result = await aggregator.getFullBookData(itemWithProvider);
+      expect(mockCustomProvider.getBookDetails).toHaveBeenCalledWith(sampleSearchItem.url);
+      expect(mockKyProvider.getBookDetails).not.toHaveBeenCalled();
+      expect(result.title).toBe('Custom Provider Book');
+    });
+
+    it('updates and retrieves default provider correctly', () => {
+      expect(aggregator.getDefaultProviderId()).toBe('kitapyurdu');
+      aggregator.setDefaultProvider('new_provider');
+      expect(aggregator.getDefaultProviderId()).toBe('new_provider');
+    });
+  });
 });

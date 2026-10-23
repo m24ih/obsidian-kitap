@@ -118,7 +118,16 @@ export default class KitapPlugin extends Plugin {
     this.settings.defaultReadingStatus =
       rawDefaultStatus || DEFAULT_SETTINGS.defaultReadingStatus;
 
-    // 11. propertyMappings migrasyonu
+    // 11. defaultProvider doğrulaması
+    const rawDefaultProvider =
+      typeof rawRecord.defaultProvider === 'string'
+        ? rawRecord.defaultProvider.trim()
+        : '';
+    this.settings.defaultProvider =
+      rawDefaultProvider || DEFAULT_SETTINGS.defaultProvider;
+    this.aggregator?.setDefaultProvider?.(this.settings.defaultProvider);
+
+    // 12. propertyMappings migrasyonu
     const { migratePropertyMappings } = await import('./settings/propertyMapping');
     this.settings.propertyMappings = migratePropertyMappings(this.settings.propertyMappings);
   }

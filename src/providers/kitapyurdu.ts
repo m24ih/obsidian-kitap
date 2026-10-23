@@ -1,5 +1,10 @@
 import { fetchHtml } from '../utils/http';
-import { IKitapyurduProvider, KitapyurduSearchResult, KitapyurduBookDetails } from './types';
+import {
+  IBookProvider,
+  IKitapyurduProvider,
+  KitapyurduSearchResult,
+  KitapyurduBookDetails,
+} from './types';
 
 /**
  * Normalizes user search queries before sending them to Kitapyurdu.
@@ -87,7 +92,9 @@ interface JsonLdProduct {
   offers?: JsonLdOffer | JsonLdOffer[];
 }
 
-export class KitapyurduProvider implements IKitapyurduProvider {
+export class KitapyurduProvider implements IKitapyurduProvider, IBookProvider {
+  readonly id: string = 'kitapyurdu';
+  readonly name: string = 'Kitapyurdu';
   private readonly baseUrl = 'https://www.kitapyurdu.com';
 
   /**
@@ -212,6 +219,7 @@ export class KitapyurduProvider implements IKitapyurduProvider {
         publisher,
         url: canonicalUrl,
         coverUrl,
+        provider: 'kitapyurdu',
         ...(rating !== undefined ? { rating } : {}),
         ...(price ? { price } : {}),
       });
@@ -305,6 +313,7 @@ export class KitapyurduProvider implements IKitapyurduProvider {
       ...(genres && genres.length > 0 ? { genres } : {}),
       ...(originalTitle ? { originalTitle } : {}),
       ...(language ? { language } : {}),
+      provider: 'kitapyurdu',
     };
   }
 

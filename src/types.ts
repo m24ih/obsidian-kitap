@@ -21,6 +21,7 @@ export interface SearchResultItem {
   url: string;
   coverUrl: string;
   rating?: number;
+  provider?: string;
 }
 
 export type SearchResult = SearchResultItem;
@@ -48,6 +49,7 @@ export interface BookMetadata {
   genres?: string[];
   originalTitle?: string;
   language?: string;
+  provider?: string;
 }
 
 export type TemplateMode = 'static' | 'reactive' | 'custom';
@@ -68,6 +70,7 @@ export interface KitapPluginSettings {
   coverFolder: string;
   readingStatusOptions: string[];
   defaultReadingStatus: string;
+  defaultProvider: string;
 }
 
 /**
@@ -199,4 +202,5 @@ export const DEFAULT_SETTINGS: KitapPluginSettings = {
   coverFolder: 'Kitaplar/Kapaklar',
   readingStatusOptions: ['Okunacak', 'Okunuyor', 'Okundu'],
   defaultReadingStatus: 'Okunacak',
+  defaultProvider: 'kitapyurdu',
 };
