@@ -246,4 +246,70 @@ describe('MetadataComparisonModal UI & Interaction Suite', () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it('calls onCancel when modal is closed directly (Escape / X close button)', () => {
+    const onCancel = vi.fn();
+    const modal = new MetadataComparisonModal(app as any, {
+      providers: [
+        { id: 'kitapyurdu', name: 'Kitapyurdu', data: kyMetadata },
+        { id: 'dr', name: 'D&R', data: drMetadata },
+      ],
+      onConfirm: vi.fn(),
+      onCancel,
+    });
+
+    modal.open();
+    // Simulate user pressing Escape or clicking X close button
+    modal.close();
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('selects all fields for a provider when clicking that provider column header', () => {
+    const modal = new MetadataComparisonModal(app as any, {
+      providers: [
+        { id: 'kitapyurdu', name: 'Kitapyurdu', data: kyMetadata },
+        { id: 'dr', name: 'D&R', data: drMetadata },
+      ],
+      onConfirm: vi.fn(),
+    });
+
+    modal.open();
+
+    const headers = modal.contentEl.querySelectorAll('.col-provider-header.kitap-th-selectable');
+    expect(headers).toHaveLength(2);
+
+    const drHeader = headers[1] as HTMLElement;
+    expect(drHeader.textContent).toContain('D&R');
+
+    drHeader.click();
+
+    const built = modal.buildSelectedMetadata();
+    expect(built.title).toBe('Ben Robot');
+    expect(built.format).toBe('Ciltli');
+    expect(built.publishDate).toBe('2016');
+  });
+
+  it('handles inverted provider order gracefully (D&R first, Kitapyurdu second)', () => {
+    const modal = new MetadataComparisonModal(app as any, {
+      providers: [
+        { id: 'dr', name: 'D&R', data: drMetadata },
+        { id: 'kitapyurdu', name: 'Kitapyurdu', data: kyMetadata },
+      ],
+      onConfirm: vi.fn(),
+    });
+
+    modal.open();
+
+    // Pages should still default to Kitapyurdu (240) rather than D&R (0)
+    const pageRow = Array.from(modal.contentEl.querySelectorAll('.kitap-comparison-row')).find(
+      (r) => (r as HTMLElement).dataset.field === 'pages'
+    ) as HTMLElement;
+
+    const kyCell = pageRow.querySelector('[data-provider-id="kitapyurdu"]');
+    expect(kyCell?.classList.contains('is-selected')).toBe(true);
+
+    const built = modal.buildSelectedMetadata();
+    expect(built.pages).toBe(240);
+  });
 });

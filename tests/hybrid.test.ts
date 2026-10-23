@@ -5,6 +5,8 @@ import {
   normalizeTitle,
   getAuthorTokens,
   areAuthorsMatching,
+  arePublishersMatching,
+  areFormatsCompatible,
   areBooksMatching,
   mergeSearchResults,
   resolveBestValue,
@@ -90,6 +92,12 @@ describe('Hybrid Metadata Provider & Deduplication Suite', () => {
       expect(areAuthorsMatching('Franz Kafka', 'Albert Camus')).toBe(false);
       expect(areAuthorsMatching('', 'Isaac Asimov')).toBe(false);
     });
+
+    it('does NOT match different authors who merely share a common first name', () => {
+      expect(areAuthorsMatching('Ahmet Ümit', 'Ahmet Hamdi Tanpınar')).toBe(false);
+      expect(areAuthorsMatching('Ahmet Yılmaz', 'Ahmet Kaya')).toBe(false);
+      expect(areAuthorsMatching('Mehmet Ali', 'Mehmet Akif')).toBe(false);
+    });
   });
 
   describe('Book Deduplication & Matching (areBooksMatching)', () => {
@@ -170,6 +178,104 @@ describe('Hybrid Metadata Provider & Deduplication Suite', () => {
         coverUrl: '',
       };
       expect(areBooksMatching(bookA, bookB)).toBe(false);
+    });
+
+    it('does NOT match same title and author when published by different publishers (e.g. 1984)', () => {
+      const orwellCan: SearchResultItem = {
+        id: '1',
+        title: '1984',
+        author: 'George Orwell',
+        publisher: 'Can Yayınları',
+        url: '',
+        coverUrl: '',
+      };
+      const orwellIsBankasi: SearchResultItem = {
+        id: '2',
+        title: '1984',
+        author: 'George Orwell',
+        publisher: 'Türkiye İş Bankası Kültür Yayınları',
+        url: '',
+        coverUrl: '',
+      };
+      const orwellIthaki: SearchResultItem = {
+        id: '3',
+        title: '1984',
+        author: 'George Orwell',
+        publisher: 'İthaki Yayınları',
+        url: '',
+        coverUrl: '',
+      };
+
+      expect(areBooksMatching(orwellCan, orwellIsBankasi)).toBe(false);
+      expect(areBooksMatching(orwellCan, orwellIthaki)).toBe(false);
+      expect(areBooksMatching(orwellIsBankasi, orwellIthaki)).toBe(false);
+    });
+
+    it('matches same book when publishers correspond with slight name variations', () => {
+      const book1: SearchResultItem = {
+        id: '1',
+        title: 'Ben, Robot',
+        author: 'Isaac Asimov',
+        publisher: 'İthaki Yayınları',
+        url: '',
+        coverUrl: '',
+      };
+      const book2: SearchResultItem = {
+        id: '2',
+        title: 'Ben Robot',
+        author: 'Isaac Asimov',
+        publisher: 'İthaki',
+        url: '',
+        coverUrl: '',
+      };
+      expect(areBooksMatching(book1, book2)).toBe(true);
+      expect(arePublishersMatching('YKY', 'Yapı Kredi Yayınları')).toBe(true);
+    });
+
+    it('rejects merging incompatible physical formats (Ciltli vs Karton Kapak)', () => {
+      const ciltli: SearchResultItem = {
+        id: '1',
+        title: 'Ben, Robot (Ciltli)',
+        author: 'Isaac Asimov',
+        publisher: 'İthaki',
+        url: '',
+        coverUrl: '',
+      };
+      const karton: SearchResultItem = {
+        id: '2',
+        title: 'Ben Robot (Karton Kapak)',
+        author: 'Isaac Asimov',
+        publisher: 'İthaki',
+        url: '',
+        coverUrl: '',
+      };
+      expect(areBooksMatching(ciltli, karton)).toBe(false);
+      expect(areFormatsCompatible(ciltli.title, karton.title)).toBe(false);
+    });
+
+    it('strips hyphen-separated format suffixes and matches correctly', () => {
+      const hyphenCiltli: SearchResultItem = {
+        id: '1',
+        title: 'Ben, Robot - Ciltli',
+        author: 'Isaac Asimov',
+        publisher: 'İthaki',
+        url: '',
+        coverUrl: '',
+      };
+      const bracketCiltli: SearchResultItem = {
+        id: '2',
+        title: 'Ben Robot (Ciltli)',
+        author: 'Isaac Asimov',
+        publisher: 'İthaki',
+        url: '',
+        coverUrl: '',
+      };
+      expect(areBooksMatching(hyphenCiltli, bracketCiltli)).toBe(true);
+    });
+
+    it('cleans ISBN with trailing punctuation and matches', () => {
+      expect(cleanIsbn('978-975-21-1999-9.')).toBe('9789752119999');
+      expect(isbnsMatch('978-975-21-1999-9.', '9789752119999')).toBe(true);
     });
   });
 

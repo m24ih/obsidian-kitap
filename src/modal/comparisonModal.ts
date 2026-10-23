@@ -1,6 +1,6 @@
 import { App, Modal, Setting } from 'obsidian';
 import { BookMetadata } from '../types';
-import { mergeBookMetadata, resolveBestValue } from '../providers/matcher';
+import { resolveBestValue } from '../providers/matcher';
 
 export interface ProviderMetadataItem {
   id: string;
@@ -59,6 +59,7 @@ export class MetadataComparisonModal extends Modal {
   private readonly options: ComparisonModalOptions;
   private readonly selections: Record<string, string> = {};
   private tableBodyEl: HTMLTableSectionElement | null = null;
+  private isResolved: boolean = false;
 
   constructor(app: App, options: ComparisonModalOptions) {
     super(app);
@@ -77,8 +78,14 @@ export class MetadataComparisonModal extends Modal {
 
     if (!p1) return;
 
+    const kyItem = this.options.providers.find((p) => p.id === 'kitapyurdu');
+    const drItem = this.options.providers.find((p) => p.id === 'dr');
+
     for (const field of COMPARISON_FIELDS) {
-      if (p2) {
+      if (kyItem && drItem) {
+        const best = resolveBestValue(kyItem.data[field.key], drItem.data[field.key], field.key);
+        this.selections[field.key] = best.source;
+      } else if (p2) {
         const best = resolveBestValue(p1.data[field.key], p2.data[field.key], field.key);
         this.selections[field.key] = best.source === 'dr' ? p2.id : p1.id;
       } else {
@@ -89,6 +96,7 @@ export class MetadataComparisonModal extends Modal {
 
   onOpen(): void {
     const { contentEl, titleEl } = this;
+    (this as unknown as { modalEl?: HTMLElement }).modalEl?.addClass('kitap-comparison-modal');
     contentEl.empty();
     contentEl.addClass('kitap-comparison-modal');
 
@@ -166,8 +174,16 @@ export class MetadataComparisonModal extends Modal {
     headerRow.createEl('th', { text: 'Özellik', cls: 'col-field-name' });
 
     for (const p of this.options.providers) {
-      const th = headerRow.createEl('th', { cls: 'col-provider-header' });
+      const th = headerRow.createEl('th', { cls: 'col-provider-header kitap-th-selectable' });
+      th.title = `Tüm alanları ${p.name} olarak seç`;
       th.createSpan({ cls: `kitap-badge kitap-badge-${p.id}`, text: p.name });
+      th.createSpan({ cls: 'kitap-th-hint', text: ' (Tümünü Seç)' });
+      th.addEventListener('click', () => {
+        for (const f of COMPARISON_FIELDS) {
+          this.selections[f.key] = p.id;
+        }
+        this.updateTableSelectionClasses();
+      });
     }
 
     // Table Body
@@ -358,6 +374,7 @@ export class MetadataComparisonModal extends Modal {
 
     footerSetting.addButton((btn) => {
       btn.setButtonText('Vazgeç').onClick(() => {
+        this.isResolved = true;
         this.close();
         this.options.onCancel?.();
       });
@@ -369,6 +386,7 @@ export class MetadataComparisonModal extends Modal {
         .setButtonText(submitText)
         .setCta()
         .onClick(async () => {
+          this.isResolved = true;
           this.close();
           const finalMetadata = this.buildSelectedMetadata();
           await this.options.onConfirm(finalMetadata);
@@ -380,26 +398,69 @@ export class MetadataComparisonModal extends Modal {
    * Kullanıcının tablodan seçtiği değerlere göre nihai BookMetadata nesnesini derler.
    */
   buildSelectedMetadata(): BookMetadata {
+    const providersMap = new Map<string, BookMetadata>();
+    for (const p of this.options.providers) {
+      providersMap.set(p.id, p.data);
+    }
+
     const p1 = this.options.providers[0];
-    const p2 = this.options.providers[1];
+    const defaultData = p1?.data || ({} as BookMetadata);
 
-    if (!p2) {
-      return { ...p1.data };
-    }
+    const getFieldVal = <T>(key: keyof BookMetadata): T | undefined => {
+      const selectedId = this.selections[key];
+      const source = (selectedId && providersMap.get(selectedId)) || defaultData;
+      return source[key] as T | undefined;
+    };
 
-    // Typed selection map for mergeBookMetadata
-    const typedSelections: Record<string, 'kitapyurdu' | 'dr'> = {};
-    for (const [key, providerId] of Object.entries(this.selections)) {
-      typedSelections[key] = providerId === 'dr' ? 'dr' : 'kitapyurdu';
-    }
+    const titleProviderId = this.selections['title'] || p1?.id;
+    const primaryData = (titleProviderId && providersMap.get(titleProviderId)) || defaultData;
+    const secondaryData = this.options.providers.find((p) => p.id !== titleProviderId)?.data;
 
-    const kyData = p1.id === 'kitapyurdu' ? p1.data : p2.data;
-    const drData = p1.id === 'dr' ? p1.data : p2.data;
+    const id = primaryData.id || secondaryData?.id || defaultData.id || '';
+    const url = primaryData.url || secondaryData?.url || defaultData.url || '';
+    const title = (getFieldVal<string>('title') || defaultData.title || '').trim();
+    const author = (getFieldVal<string>('author') || defaultData.author || '').trim();
+    const publisher = (getFieldVal<string>('publisher') || defaultData.publisher || '').trim();
+    const translator = getFieldVal<string>('translator') || undefined;
+    const isbn = (getFieldVal<string>('isbn') || defaultData.isbn || '').trim();
+    const pages = getFieldVal<number>('pages');
+    const publishDate = getFieldVal<string>('publishDate') || undefined;
+    const format = getFieldVal<string>('format') || undefined;
+    const language = getFieldVal<string>('language') || undefined;
+    const genres = getFieldVal<string[]>('genres') || undefined;
+    const price = getFieldVal<string>('price') || undefined;
+    const rating = getFieldVal<number>('rating');
+    const ratingCount = primaryData.ratingCount ?? secondaryData?.ratingCount ?? undefined;
+    const coverUrl = getFieldVal<string>('coverUrl') || defaultData.coverUrl || '';
+    const description = getFieldVal<string>('description') || undefined;
 
-    return mergeBookMetadata(kyData, drData, typedSelections);
+    return {
+      id,
+      url,
+      title,
+      author,
+      publisher,
+      ...(translator ? { translator } : {}),
+      isbn,
+      ...(pages !== undefined ? { pages } : {}),
+      ...(publishDate ? { publishDate } : {}),
+      coverUrl,
+      ...(description ? { description } : {}),
+      ...(rating !== undefined ? { rating } : {}),
+      ...(ratingCount !== undefined ? { ratingCount } : {}),
+      ...(price ? { price } : {}),
+      ...(format ? { format } : {}),
+      ...(genres && genres.length > 0 ? { genres } : {}),
+      ...(language ? { language } : {}),
+      provider: 'hybrid',
+    };
   }
 
   onClose(): void {
+    if (!this.isResolved) {
+      this.isResolved = true;
+      this.options.onCancel?.();
+    }
     this.contentEl.empty();
   }
 }

@@ -419,7 +419,9 @@
 /* --------------------------------------------------------------------------
    Metadata Comparison & Selection Modal Styles (Hybrid Mode)
    -------------------------------------------------------------------------- */
-.modal.kitap-comparison-modal {
+.modal.kitap-comparison-modal,
+.modal:has(.kitap-comparison-modal),
+.kitap-comparison-modal {
   width: 860px;
   max-width: 95vw;
 }
@@ -499,6 +501,23 @@
   color: var(--text-muted);
 }
 
+.col-provider-header.kitap-th-selectable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.col-provider-header.kitap-th-selectable:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.kitap-th-hint {
+  font-size: 11px;
+  font-weight: normal;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
 .kitap-comparison-table td {
   padding: 8px 12px;
   border-bottom: 1px solid var(--background-modifier-border);
@@ -526,6 +545,10 @@
   background-color: var(--text-accent);
   margin-left: 6px;
   vertical-align: middle;
+}
+
+.kitap-comparison-row.kitap-row-diff {
+  background-color: rgba(var(--color-orange-rgb, 255, 165, 0), 0.05);
 }
 
 .kitap-comparison-row.kitap-row-diff td.kitap-td-label {
@@ -559,6 +582,7 @@
   color: var(--interactive-accent);
   opacity: 0;
   transition: opacity 0.15s ease;
+  pointer-events: none;
 }
 
 .kitap-cell-selectable.is-selected .kitap-cell-check {
@@ -570,6 +594,8 @@
   min-height: 22px;
   display: flex;
   align-items: center;
+  width: 100%;
+  word-break: break-word;
 }
 
 .kitap-cover-cell-box {

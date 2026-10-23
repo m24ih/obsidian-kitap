@@ -502,16 +502,20 @@ export class Modal {
   contentEl: HTMLElement;
   titleEl: HTMLElement;
   containerEl: HTMLElement;
+  modalEl: HTMLElement;
   scope: Scope;
 
   constructor(app: unknown) {
     this.app = app;
     this.scope = new Scope();
     this.containerEl = document.createElement("div");
+    this.modalEl = document.createElement("div");
+    this.modalEl.classList.add("modal");
     this.titleEl = document.createElement("div");
     this.contentEl = document.createElement("div");
-    this.containerEl.appendChild(this.titleEl);
-    this.containerEl.appendChild(this.contentEl);
+    this.modalEl.appendChild(this.titleEl);
+    this.modalEl.appendChild(this.contentEl);
+    this.containerEl.appendChild(this.modalEl);
   }
 
   open(): void {

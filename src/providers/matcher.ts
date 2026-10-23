@@ -1,14 +1,14 @@
 import { BookMetadata, SearchResultItem } from '../types';
 
 /**
- * Normalizes an ISBN string to uppercase digits/X without hyphens or spaces.
+ * Normalizes an ISBN string to uppercase digits/X without hyphens, spaces, or extraneous punctuation.
  */
 export function cleanIsbn(input?: string): string {
   if (!input || typeof input !== 'string') return '';
   return input
     .trim()
     .replace(/^isbn\s*:?\s*/i, '')
-    .replace(/[-\s]/g, '')
+    .replace(/[^0-9X]/gi, '')
     .toUpperCase();
 }
 
@@ -41,8 +41,10 @@ export function normalizeTitle(title?: string): string {
   if (!title || typeof title !== 'string') return '';
   return title
     .toLocaleLowerCase('tr-TR')
-    // Remove format suffixes like (Karton Kapak), (Ciltli), (Cep Boy), [Ciltli]
-    .replace(/\s*[([](?:karton kapak|ciltli|özel baskı|cep boy|kutulu set|seti|cilt \d+|baskı|e-kitap)[)\]]/gi, '')
+    // Remove format suffixes in brackets/parentheses
+    .replace(/\s*[([](?:karton kapak|ciltli|özel baskı|ozel baski|cep boy|kutulu set|seti|cilt \d+|baskı|baski|e-kitap)[)\]]/gi, '')
+    // Remove format suffixes after hyphen or colon, e.g. " - Ciltli", " - Karton Kapak"
+    .replace(/\s*[-–—:]\s*(?:karton kapak|ciltli|özel baskı|ozel baski|cep boy|kutulu set|e-kitap)\s*$/gi, '')
     // Remove punctuation
     .replace(/[.,/#!$%^&*;:{}=\-_`~()?"'’“”«»]/g, ' ')
     // Normalize Turkish characters
@@ -84,7 +86,7 @@ export function getAuthorTokens(author?: string): string[] {
  * Compares two author names for similarity.
  * Handles different name orders ("Isaac Asimov" vs "Asimov Isaac"),
  * middle names ("Fyodor Dostoyevski" vs "Fyodor Mihayloviç Dostoyevski"),
- * and multiple contributors.
+ * and prevents false positives between distinct authors sharing a common first name.
  */
 export function areAuthorsMatching(authorA?: string, authorB?: string): boolean {
   if (!authorA || !authorB) return false;
@@ -97,30 +99,138 @@ export function areAuthorsMatching(authorA?: string, authorB?: string): boolean 
   const setB = new Set(tokensB);
   const overlap = tokensA.filter((t) => setB.has(t));
 
-  // If all tokens of the shorter name are in the longer name (e.g. Dostoyevski)
   const minLen = Math.min(tokensA.length, tokensB.length);
+
+  // If all tokens of the shorter name are in the longer name (e.g. Dostoyevski in Fyodor Dostoyevski)
   if (overlap.length >= minLen && minLen > 0) {
     return true;
   }
 
-  // At least one distinctive token (>= 4 chars) and >= 50% overlap of shorter list
-  const hasDistinctiveToken = overlap.some((t) => t.length >= 4);
-  if (hasDistinctiveToken && overlap.length >= Math.ceil(minLen * 0.5)) {
+  // If names have 3+ tokens, allow match if at least 2 tokens match and >= 60% of shorter name
+  if (overlap.length >= 2 && overlap.length / minLen >= 0.6) {
     return true;
   }
 
   return false;
 }
 
+const PUBLISHER_NOISE_WORDS = new Set([
+  'yayinlari',
+  'yayinevi',
+  'yayincilik',
+  'yayin',
+  'yayinlar',
+  'kitap',
+  'kitapligi',
+  'kitaplari',
+  'basim',
+  'dagitim',
+  'medya',
+  'as',
+  'ltd',
+  'sti',
+  'ticaret',
+  'sanayi',
+  've',
+  'ile',
+]);
+
+/**
+ * Extracts distinctive tokens from a publisher name string.
+ */
+export function normalizePublisherTokens(pub?: string): string[] {
+  if (!pub || typeof pub !== 'string') return [];
+  const normalized = pub
+    .toLocaleLowerCase('tr-TR')
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()?"'’“”«»]/g, ' ')
+    .replace(/İ/g, 'i')
+    .replace(/I/g, 'i')
+    .replace(/ı/g, 'i')
+    .replace(/[ğ]/g, 'g')
+    .replace(/[ü]/g, 'u')
+    .replace(/[ş]/g, 's')
+    .replace(/[ö]/g, 'o')
+    .replace(/[ç]/g, 'c')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const words = normalized.split(' ').filter(Boolean);
+  const result: string[] = [];
+
+  for (const w of words) {
+    if (w === 'yky') {
+      result.push('yapi', 'kredi');
+      continue;
+    }
+    if (PUBLISHER_NOISE_WORDS.has(w)) {
+      continue;
+    }
+    if (w.length >= 2) {
+      result.push(w);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Determines whether two publisher names refer to the same publishing house.
+ * If one or both are missing, assumes compatibility.
+ * If both are present with distinctive words and have zero token overlap, returns false.
+ */
+export function arePublishersMatching(pubA?: string, pubB?: string): boolean {
+  if (!pubA || !pubB) return true;
+  const tokensA = normalizePublisherTokens(pubA);
+  const tokensB = normalizePublisherTokens(pubB);
+
+  if (tokensA.length === 0 || tokensB.length === 0) return true;
+
+  const setB = new Set(tokensB);
+  return tokensA.some((t) => setB.has(t));
+}
+
+/**
+ * Extracts binding/format tag from a title.
+ */
+export function extractFormatHint(title?: string): 'ciltli' | 'karton' | 'cep' | 'ekitap' | null {
+  if (!title) return null;
+  const s = title.toLocaleLowerCase('tr-TR');
+  if (s.includes('ciltli') || s.includes('özel baskı') || s.includes('ozel baski')) return 'ciltli';
+  if (s.includes('karton kapak') || s.includes('ciltsiz') || s.includes('ince kapak')) return 'karton';
+  if (s.includes('cep boy')) return 'cep';
+  if (s.includes('e-kitap') || s.includes('ekitap')) return 'ekitap';
+  return null;
+}
+
+/**
+ * Verifies whether formats from titles are compatible (e.g. rejects merging Ciltli with Karton Kapak).
+ */
+export function areFormatsCompatible(titleA?: string, titleB?: string): boolean {
+  const fA = extractFormatHint(titleA);
+  const fB = extractFormatHint(titleB);
+  if (!fA || !fB) return true;
+  return fA === fB;
+}
+
 /**
  * Checks if two search result items from different providers represent the same book.
  */
 export function areBooksMatching(itemA: SearchResultItem, itemB: SearchResultItem): boolean {
-  // 1. ISBN match takes highest priority
-  if (itemA.isbn && itemB.isbn) {
-    if (isbnsMatch(itemA.isbn, itemB.isbn)) {
-      return true;
-    }
+  // 1. ISBN match check if both items carry valid ISBNs
+  const c1 = cleanIsbn(itemA.isbn);
+  const c2 = cleanIsbn(itemB.isbn);
+  if (c1.length >= 10 && c2.length >= 10) {
+    return isbnsMatch(c1, c2);
+  }
+
+  // 2. Reject mismatched physical formats (e.g. Ciltli vs Karton Kapak)
+  if (!areFormatsCompatible(itemA.title, itemB.title)) {
+    return false;
+  }
+
+  // 3. Reject different publishers for the same title
+  if (!arePublishersMatching(itemA.publisher, itemB.publisher)) {
+    return false;
   }
 
   const titleA = normalizeTitle(itemA.title);
@@ -128,7 +238,6 @@ export function areBooksMatching(itemA: SearchResultItem, itemB: SearchResultIte
 
   if (!titleA || !titleB) return false;
 
-  // Title must match exactly or be highly similar
   const titlesExact = titleA === titleB;
 
   if (titlesExact) {

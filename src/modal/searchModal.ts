@@ -285,6 +285,9 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
         });
       } else if (settled.length === 1) {
         return await this.finalizeBookCreation(settled[0].data);
+      } else {
+        new Notice(`"${item.title}" için sağlayıcılardan metaveri alınamadı.`);
+        return null;
       }
     }
 
