@@ -25,6 +25,7 @@ export interface ProviderInfo {
 export const DEFAULT_PROVIDERS: ProviderInfo[] = [
   { id: 'kitapyurdu', name: 'Kitapyurdu' },
   { id: 'dr', name: 'D&R' },
+  { id: 'hybrid', name: 'Hibrit (Kitapyurdu + D&R)' },
 ];
 
 /**

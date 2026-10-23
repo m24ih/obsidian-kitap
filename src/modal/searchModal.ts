@@ -8,6 +8,7 @@ import { fuzzySortBooks } from '../utils/fuzzy';
 import { useTemplaterPluginInFile } from '../utils/templater';
 import { downloadBookCover } from '../utils/coverDownloader';
 import { ensureFolderExists } from '../utils/fileUtils';
+import { MetadataComparisonModal } from './comparisonModal';
 
 export interface SearchModalOptions {
   insertIntoActive?: boolean;
@@ -195,7 +196,14 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
       meta.createSpan({ cls: 'kitap-meta-publisher', text: item.publisher });
     }
 
-    if (item.rating !== undefined || item.provider) {
+    const providerIds =
+      item.providers && item.providers.length > 0
+        ? item.providers
+        : item.provider
+        ? [item.provider]
+        : [];
+
+    if (item.rating !== undefined || providerIds.length > 0) {
       const badges = details.createDiv({ cls: 'kitap-badges' });
       if (item.rating !== undefined) {
         badges.createSpan({
@@ -203,12 +211,16 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
           text: `★ ${item.rating}/5`,
         });
       }
-      if (item.provider) {
+      for (const pId of providerIds) {
         const providerName =
-          this.aggregator.getAvailableProviders?.()?.find((p) => p.id === item.provider)?.name ??
-          (item.provider === 'kitapyurdu' ? 'Kitapyurdu' : item.provider);
+          pId === 'kitapyurdu'
+            ? 'Kitapyurdu'
+            : pId === 'dr'
+            ? 'D&R'
+            : this.aggregator.getAvailableProviders?.({ includeComposite: true })?.find((p) => p.id === pId)?.name ?? pId;
+
         badges.createSpan({
-          cls: 'kitap-badge kitap-badge-provider',
+          cls: `kitap-badge kitap-badge-provider kitap-badge-${pId}`,
           text: providerName,
         });
       }
@@ -227,12 +239,72 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
 
   /**
    * Seçilen kitabın tüm detaylarını çekerek yeni not oluşturur veya aktif nota ekler.
+   * Eğer öğe birden fazla sağlayıcıdan (Hibrit) geliyorsa, detayları çekip karşılaştırma modalını açar.
    */
   async processBookSelection(item: SearchResultItem): Promise<TFile | null> {
+    const multiProviders =
+      item.sources && Object.keys(item.sources).length > 1
+        ? Object.entries(item.sources)
+        : null;
+
+    if (multiProviders && multiProviders.length > 1) {
+      new Notice(`"${item.title}" için metaveriler getiriliyor (Kitapyurdu & D&R)...`);
+
+      const promises = multiProviders.map(async ([pId, srcItem]) => {
+        try {
+          const provider = this.aggregator.getProvider(pId);
+          const data = await provider.getBookDetails(srcItem.url || srcItem.id);
+          const pName = pId === 'kitapyurdu' ? 'Kitapyurdu' : pId === 'dr' ? 'D&R' : provider.name;
+          return { id: pId, name: pName, data: { ...data, provider: pId } };
+        } catch (err) {
+          console.warn(`Sağlayıcı veri çekme hatası (${pId}):`, err);
+          return null;
+        }
+      });
+
+      const settled = (await Promise.all(promises)).filter(Boolean) as {
+        id: string;
+        name: string;
+        data: BookMetadata;
+      }[];
+
+      if (settled.length >= 2) {
+        return new Promise<TFile | null>((resolve) => {
+          const modal = new MetadataComparisonModal(this.app, {
+            providers: settled,
+            insertIntoActive: this.insertIntoActive,
+            onConfirm: async (selectedData) => {
+              const file = await this.finalizeBookCreation(selectedData);
+              resolve(file);
+            },
+            onCancel: () => {
+              resolve(null);
+            },
+          });
+          modal.open();
+        });
+      } else if (settled.length === 1) {
+        return await this.finalizeBookCreation(settled[0].data);
+      }
+    }
+
     new Notice(`"${item.title}" için kitap bilgileri getiriliyor...`);
 
     try {
       const bookData = await this.aggregator.getFullBookData(item, this.plugin.settings);
+      return await this.finalizeBookCreation(bookData);
+    } catch (error) {
+      console.error('Kitap notu oluşturma hatası:', error);
+      new Notice(`Kitap bilgileri alınırken bir hata oluştu: "${item.title}"`);
+      return null;
+    }
+  }
+
+  /**
+   * Kitap metaverisini işleyip notu oluşturur veya aktif nota ekler.
+   */
+  async finalizeBookCreation(bookData: BookMetadata): Promise<TFile | null> {
+    try {
       bookData.readingStatus = this.plugin.settings.defaultReadingStatus || 'Okunacak';
 
       // Kapak indirme ayarı etkinse görseli indir ve bookData'yı güncelle
@@ -256,8 +328,8 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
 
       return await this.createBookNote(renderedContent, bookData);
     } catch (error) {
-      console.error('Kitap notu oluşturma hatası:', error);
-      new Notice(`Kitap bilgileri alınırken bir hata oluştu: "${item.title}"`);
+      console.error('Kitap tamamlama hatası:', error);
+      new Notice(`Kitap notu oluşturulamadı: "${bookData.title}"`);
       return null;
     }
   }

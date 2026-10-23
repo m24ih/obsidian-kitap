@@ -5,6 +5,7 @@ import {
 } from '../types';
 import { KitapyurduProvider } from './kitapyurdu';
 import { DrProvider } from './dr';
+import { HybridProvider } from './hybrid';
 import { IKitapyurduProvider, IBookProvider, ProviderInfo } from './types';
 
 export interface IBookAggregator {
@@ -16,7 +17,7 @@ export interface IBookAggregator {
   getProvider(providerId?: string): IBookProvider;
   registerProvider(provider: IBookProvider | IKitapyurduProvider): void;
   unregisterProvider?(providerId: string): boolean;
-  getAvailableProviders(): ProviderInfo[];
+  getAvailableProviders(options?: { includeComposite?: boolean }): ProviderInfo[];
   setDefaultProvider(providerId: string): void;
   getDefaultProviderId(): string;
 }
@@ -27,8 +28,11 @@ export interface IBookAggregator {
 export class BookAggregator implements IBookAggregator {
   private readonly providers: Map<string, IBookProvider> = new Map();
   private defaultProviderId: string = 'kitapyurdu';
+  private readonly hybridProvider: HybridProvider;
 
   constructor(defaultProvider?: IKitapyurduProvider | IBookProvider) {
+    this.hybridProvider = new HybridProvider(this);
+
     if (defaultProvider) {
       this.registerProvider(defaultProvider);
       const id = (defaultProvider as IBookProvider).id || 'kitapyurdu';
@@ -89,6 +93,9 @@ export class BookAggregator implements IBookAggregator {
    */
   getProvider(providerId?: string): IBookProvider {
     const id = (providerId && providerId.trim()) || this.defaultProviderId;
+    if (id === 'hybrid') {
+      return this.hybridProvider;
+    }
     const provider = this.providers.get(id);
     if (!provider) {
       const fallback =
@@ -105,12 +112,21 @@ export class BookAggregator implements IBookAggregator {
 
   /**
    * Sisteme kayıtlı tüm metaveri sağlayıcılarının listesini döndürür.
+   * includeComposite true verilirse hibrit meta-sağlayıcı da eklenir.
    */
-  getAvailableProviders(): ProviderInfo[] {
-    return Array.from(this.providers.values()).map((p) => ({
+  getAvailableProviders(options?: { includeComposite?: boolean }): ProviderInfo[] {
+    const list = Array.from(this.providers.values()).map((p) => ({
       id: p.id,
       name: p.name,
     }));
+
+    if (options?.includeComposite) {
+      if (!list.some((p) => p.id === 'hybrid')) {
+        list.push({ id: 'hybrid', name: 'Hibrit (Kitapyurdu + D&R)' });
+      }
+    }
+
+    return list;
   }
 
   /**
@@ -118,7 +134,12 @@ export class BookAggregator implements IBookAggregator {
    * Dönen arama sonuçlarına sağlayıcı kimliğinin (provider) iliştirilmesini garanti eder.
    */
   async search(query: string, providerId?: string): Promise<SearchResultItem[]> {
-    const provider = this.getProvider(providerId);
+    const id = (providerId && providerId.trim()) || this.defaultProviderId;
+    if (id === 'hybrid') {
+      return this.hybridProvider.search(query);
+    }
+
+    const provider = this.getProvider(id);
     const results = await provider.search(query);
     return results.map((item) => ({
       ...item,
@@ -136,6 +157,14 @@ export class BookAggregator implements IBookAggregator {
   ): Promise<BookMetadata> {
     const providerId =
       searchItem.provider || settings?.defaultProvider || this.defaultProviderId;
+
+    if (
+      providerId === 'hybrid' ||
+      (searchItem.sources && Object.keys(searchItem.sources).length > 1)
+    ) {
+      return this.hybridProvider.getFullBookData(searchItem);
+    }
+
     const provider = this.getProvider(providerId);
     const targetUrlOrId = searchItem.url || searchItem.id;
     const data = await provider.getBookDetails(targetUrlOrId);

@@ -816,6 +816,7 @@ export class DrProvider implements IDrProvider, IBookProvider {
         coverUrl,
         rating,
         provider: this.id,
+        ...(barcode && isIsbn(barcode) ? { isbn: cleanIsbn(barcode) } : {}),
       });
     }
 

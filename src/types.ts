@@ -22,6 +22,9 @@ export interface SearchResultItem {
   coverUrl: string;
   rating?: number;
   provider?: string;
+  providers?: string[];
+  sources?: Record<string, SearchResultItem>;
+  isbn?: string;
 }
 
 export type SearchResult = SearchResultItem;

@@ -76,7 +76,7 @@ export class KitapSettingTab extends PluginSettingTab {
       .setDesc('Kitap arama ve bilgi çekme işlemlerinde varsayılan olarak kullanılacak veri sağlayıcı.')
       .addDropdown((dropdown) => {
         const providers =
-          this.plugin.aggregator?.getAvailableProviders?.() ?? DEFAULT_PROVIDERS;
+          this.plugin.aggregator?.getAvailableProviders?.({ includeComposite: true }) ?? DEFAULT_PROVIDERS;
         for (const provider of providers) {
           dropdown.addOption(provider.id, provider.name);
         }
