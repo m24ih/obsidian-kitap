@@ -13,7 +13,7 @@ An Obsidian plugin to search Turkish books and metadata from **Kitapyurdu** and 
 ## English Overview
 
 ### ✨ Features
-- **Multi-Provider Architecture**: Search Turkish book metadata seamlessly from **Kitapyurdu** and **D&R (`dr.com.tr`)**.
+- **Multi-Provider Architecture**: Search Turkish book metadata seamlessly from **Kitapyurdu** and **D&R**.
 - **Smart Hybrid Mode (Default)**:
   - Queries Kitapyurdu and D&R concurrently in parallel.
   - Intelligent cross-provider deduplication using 13-digit ISBN and robust fuzzy title/author normalization.
