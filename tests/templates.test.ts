@@ -94,6 +94,10 @@ URL: {{url}}`;
       expect(rendered).toContain('okuma_durumu: "Okunacak"');
       expect(rendered).toContain('- "Edebiyat"');
       expect(rendered).toContain('- "Bilimkurgu-Fantazya"');
+      expect(rendered).toContain('## 📝 Notlar & Alıntılar');
+      expect(rendered).toContain('## ⏳ Okuma Günlüğü');
+      expect(rendered).toContain('| **Alıntı / Not** | **Sayfa** | **Tarih** |');
+      expect(rendered).toContain('| **Tarih** | **Başlangıç** | **Bitiş** | **Okunan Sayfa** | **Notlar** |');
     });
 
     it('renders DEFAULT_REACTIVE_TEMPLATE cleanly with DataviewJS blocks', () => {

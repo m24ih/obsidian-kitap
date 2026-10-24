@@ -34,8 +34,18 @@ kisisel_puan:
 
 ![Kapak|200]({{coverUrl}})
 
+## 📝 Notlar & Alıntılar
+
+| **Alıntı / Not** | **Sayfa** | **Tarih** |
+| :--------------: | :-------: | :-------: |
+|                  |           |           |
+
+## ⏳ Okuma Günlüğü
+
+| **Tarih** | **Başlangıç** | **Bitiş** | **Okunan Sayfa** | **Notlar** |
+| :-------: | :-----------: | :-------: | :--------------: | :--------: |
+|           |               |           |                  |            |
+
 ## Açıklama
 {{description}}
 
-## Notlarım
-- 
