@@ -62,19 +62,8 @@ export class KitapSettingTab extends PluginSettingTab {
 
     const definitions: SettingDefinitionItem[] = [
       // ----------------------------------------------------
-      // Genel Bilgilendirme ve Dosya Ayarları
+      // Genel Dosya Ayarları
       // ----------------------------------------------------
-      {
-        name: '',
-        render: (setting) => {
-          setting.setClass('kitap-setting-full-width');
-          setting.settingEl.querySelector('.setting-item-info')?.remove();
-          setting.settingEl.createEl('p', {
-            text: 'Kitap arama, metaveri çekme, özellik eşleme ve şablon seçeneklerini buradan yapılandırabilirsiniz.',
-            cls: 'setting-item-description',
-          });
-        },
-      },
       {
         name: 'Hedef klasör',
         desc: 'Oluşturulan kitap notlarının kaydedileceği vault klasörü. Klasör mevcut değilse otomatik olarak oluşturulur.',
