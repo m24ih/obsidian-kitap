@@ -1,6 +1,6 @@
 {
   "name": "obsidian-kitap",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Obsidian plugin to search books from Kitapyurdu, D&R, Open Library, and Hardcover, enriching notes with ratings and bibliographic metadata.",
   "main": "main.js",
   "scripts": {
