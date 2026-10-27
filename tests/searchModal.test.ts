@@ -128,4 +128,99 @@ describe('BookSearchModal UI, Skeleton, Badges and Filtering Suite', () => {
     expect(filtered).toHaveLength(1);
     expect(filtered[0].id).toBe('ol-1');
   });
+
+  it('triggers on-demand lookup for missing active providers on selection and opens comparison modal', async () => {
+    const kyOnlyItem: SearchResultItem = {
+      id: 'ky-99',
+      title: 'Dünyalar Savaşı',
+      author: 'H. G. Wells',
+      publisher: 'İthaki Yayınları',
+      isbn: '9786053757412',
+      url: 'https://kitapyurdu.com/kitap/dunyalar-savasi/99',
+      coverUrl: 'https://img.kitapyurdu.com/cover.jpg',
+      provider: 'kitapyurdu',
+      providers: ['kitapyurdu'],
+      sources: {
+        kitapyurdu: {
+          id: 'ky-99',
+          title: 'Dünyalar Savaşı',
+          author: 'H. G. Wells',
+          publisher: 'İthaki Yayınları',
+          isbn: '9786053757412',
+          url: 'https://kitapyurdu.com/kitap/dunyalar-savasi/99',
+          coverUrl: 'https://img.kitapyurdu.com/cover.jpg',
+          provider: 'kitapyurdu',
+        },
+      },
+    };
+
+    const mockKyProvider = {
+      name: 'Kitapyurdu',
+      id: 'kitapyurdu',
+      getBookDetails: vi.fn().mockResolvedValue({
+        id: 'ky-99',
+        title: 'Dünyalar Savaşı (KY)',
+        author: 'H. G. Wells',
+        publisher: 'İthaki Yayınları',
+        isbn: '9786053757412',
+        provider: 'kitapyurdu',
+      }),
+    };
+
+    const mockOlProvider = {
+      name: 'OpenLibrary',
+      id: 'openlibrary',
+      getBookDetails: vi.fn().mockResolvedValue({
+        id: '/isbn/9786053757412',
+        title: 'Dünyalar Savasi (OL)',
+        author: 'H. G. Wells',
+        publisher: 'Ithaki Yayinlari',
+        isbn: '9786053757412',
+        provider: 'openlibrary',
+      }),
+    };
+
+    const mockDrProvider = {
+      name: 'D&R',
+      id: 'dr',
+      getBookDetails: vi.fn().mockResolvedValue({
+        id: 'dr-99',
+        title: 'Dünyalar Savaşı (DR)',
+        author: 'H. G. Wells',
+        publisher: 'İthaki',
+        isbn: '9786053757412',
+        provider: 'dr',
+      }),
+    };
+
+    mockAggregator.getAvailableProviders = vi.fn().mockReturnValue([
+      { id: 'kitapyurdu', name: 'Kitapyurdu' },
+      { id: 'dr', name: 'D&R' },
+      { id: 'openlibrary', name: 'OpenLibrary' },
+    ]);
+    mockAggregator.getDefaultProviderId = vi.fn().mockReturnValue('hybrid');
+    mockAggregator.getProvider = vi.fn().mockImplementation((id: string) => {
+      if (id === 'kitapyurdu') return mockKyProvider;
+      if (id === 'openlibrary') return mockOlProvider;
+      if (id === 'dr') return mockDrProvider;
+      throw new Error(`Unknown provider: ${id}`);
+    });
+
+    const modal = new BookSearchModal(mockApp, mockPlugin, {
+      aggregator: mockAggregator,
+    });
+
+    // Spy on finalizeBookCreation
+    const finalizeSpy = vi.spyOn(modal, 'finalizeBookCreation').mockResolvedValue(null);
+
+    // Call processBookSelection
+    const promise = modal.processBookSelection(kyOnlyItem);
+
+    // Wait a tick for async promises to resolve and modal to be instantiated
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(mockKyProvider.getBookDetails).toHaveBeenCalled();
+    expect(mockOlProvider.getBookDetails).toHaveBeenCalledWith('/isbn/9786053757412');
+    expect(mockDrProvider.getBookDetails).toHaveBeenCalledWith('9786053757412');
+  });
 });

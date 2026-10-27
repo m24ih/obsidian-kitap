@@ -217,6 +217,12 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
       const isbn13 = doc.isbn?.find((i) => cleanIsbn(i).length === 13);
       const isbn10 = doc.isbn?.find((i) => cleanIsbn(i).length === 10);
       const isbn = isbn13 || isbn10 || doc.isbn?.[0] || '';
+      const allIsbns = Array.isArray(doc.isbn)
+        ? doc.isbn.map(cleanIsbn).filter((i) => i.length >= 10)
+        : [];
+      const allPublishers = Array.isArray(doc.publisher)
+        ? doc.publisher.map((p) => p.trim()).filter(Boolean)
+        : [];
 
       const item: SearchResultItem = {
         id: key,
@@ -227,6 +233,8 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
         coverUrl,
         ...(rating !== undefined ? { rating } : {}),
         ...(isbn ? { isbn: cleanIsbn(isbn) } : {}),
+        ...(allIsbns.length > 0 ? { allIsbns } : {}),
+        ...(allPublishers.length > 0 ? { allPublishers } : {}),
         provider: 'openlibrary',
         providers: ['openlibrary'],
         sources: {
@@ -239,6 +247,8 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
             coverUrl,
             rating,
             isbn: cleanIsbn(isbn),
+            ...(allIsbns.length > 0 ? { allIsbns } : {}),
+            ...(allPublishers.length > 0 ? { allPublishers } : {}),
             provider: 'openlibrary',
           },
         },

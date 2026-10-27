@@ -1212,6 +1212,120 @@ describe('Hybrid Metadata Provider & Deduplication Suite', () => {
       expect(aggregator.getDefaultProviderId()).toBe('hybrid');
       expect(newSettings.defaultProvider).toBe('hybrid');
     });
+
+    it('matches books using allIsbns and allPublishers when primary isbn differs or is absent', () => {
+      const kyItem: SearchResultItem = {
+        id: 'ky-dunyalar-savasi',
+        title: 'Dünyalar Savaşı',
+        author: 'H. G. Wells',
+        publisher: 'İthaki Yayınları',
+        isbn: '9786053757412',
+        url: 'https://kitapyurdu.com/kitap/1',
+        coverUrl: 'https://img.kitapyurdu.com/1.jpg',
+      };
+
+      // OpenLibrary item representing a Work with multiple ISBNs and multiple publishers
+      const olWorkItem: SearchResultItem = {
+        id: '/works/OL26160451W',
+        title: 'Dünyalar Savasi',
+        author: 'H. G. Wells',
+        publisher: 'Dorlion Yayinevi',
+        isbn: '9786052499115', // Dorlion ISBN as primary
+        allIsbns: ['9786053757412', '9786052398739', '9786052499115'],
+        allPublishers: ['Dorlion Yayinevi', 'Ithaki Yayinlari', 'Ren Kitap'],
+        url: 'https://openlibrary.org/works/OL26160451W',
+        coverUrl: 'https://covers.openlibrary.org/1.jpg',
+        provider: 'openlibrary',
+      };
+
+      expect(areBooksMatching(kyItem, olWorkItem)).toBe(true);
+
+      const merged = mergeSearchResults([kyItem], [], [olWorkItem]);
+      expect(merged).toHaveLength(1);
+      expect(merged[0].providers).toContain('kitapyurdu');
+      expect(merged[0].providers).toContain('openlibrary');
+      expect(merged[0].sources?.openlibrary?.isbn).toBe('9786053757412');
+    });
+
+    it('merges metadata cleanly across 3 and 4 providers using allProviders map', () => {
+      const kyBook: BookMetadata = {
+        id: 'ky_1',
+        title: 'Dünyalar Savaşı (KY)',
+        author: 'H. G. Wells',
+        publisher: 'İthaki Yayınları',
+        isbn: '9786053757412',
+        pages: 256,
+        publishDate: '2024-11-13',
+        format: 'Karton Kapak',
+        price: '157.30 TRY',
+        rating: 5,
+        ratingCount: 120,
+        provider: 'kitapyurdu',
+        url: 'https://kitapyurdu.com/1',
+      };
+
+      const drBook: BookMetadata = {
+        id: 'dr_1',
+        title: 'Dünyalar Savaşı (DR)',
+        author: 'H. G. Wells',
+        publisher: 'İthaki',
+        isbn: '9786053757412',
+        genres: ['Bilimkurgu', 'Roman'],
+        price: '260.00 TL',
+        provider: 'dr',
+        url: 'https://dr.com.tr/1',
+      };
+
+      const olBook: BookMetadata = {
+        id: 'ol_1',
+        title: 'The War of the Worlds (OL)',
+        author: 'H. G. Wells',
+        publisher: 'Ithaki Yayinlari',
+        isbn: '9786053757412',
+        description: 'Comprehensive OpenLibrary summary...',
+        provider: 'openlibrary',
+        url: 'https://openlibrary.org/1',
+      };
+
+      const hcBook: BookMetadata = {
+        id: 'hc_1',
+        title: 'The War of the Worlds (HC)',
+        author: 'H. G. Wells',
+        publisher: 'Penguin',
+        isbn: '9786053757412',
+        rating: 4.8,
+        ratingCount: 15400,
+        provider: 'hardcover',
+        url: 'https://hardcover.app/1',
+      };
+
+      const allProviders = [
+        { id: 'kitapyurdu', data: kyBook },
+        { id: 'dr', data: drBook },
+        { id: 'openlibrary', data: olBook },
+        { id: 'hardcover', data: hcBook },
+      ];
+
+      const merged = mergeBookMetadata(
+        kyBook,
+        drBook,
+        {
+          title: 'kitapyurdu',
+          genres: 'dr',
+          description: 'openlibrary',
+          rating: 'hardcover',
+        },
+        allProviders
+      );
+
+      expect(merged.title).toBe('Dünyalar Savaşı (KY)');
+      expect(merged.genres).toEqual(['Bilimkurgu', 'Roman']);
+      expect(merged.description).toBe('Comprehensive OpenLibrary summary...');
+      expect(merged.rating).toBe(4.8);
+      expect(merged.ratingCount).toBe(15400);
+      expect(merged.pages).toBe(256);
+      expect(merged.price).toBe('157.30 TRY');
+    });
   });
 });
 

@@ -4,6 +4,7 @@ import { BookAggregator, IBookAggregator } from '../providers/aggregator';
 import { renderBookTemplate, sanitizeFileName } from '../templates/engine';
 import { buildBookNoteContent } from '../templates/noteBuilder';
 import { BookMetadata, ProviderSearchMetric, SearchResultItem } from '../types';
+import { cleanIsbn } from '../providers/matcher';
 import { fuzzySortBooks } from '../utils/fuzzy';
 import { useTemplaterPluginInFile } from '../utils/templater';
 import { downloadBookCover } from '../utils/coverDownloader';
@@ -535,12 +536,155 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
   /**
    * Seçilen kitabın tüm detaylarını çekerek yeni not oluşturur veya aktif nota ekler.
    * Eğer öğe birden fazla sağlayıcıdan (Hibrit) geliyorsa, detayları çekip karşılaştırma modalını açar.
+   * Eksik aktif sağlayıcılar varsa (örneğin OpenLibrary veya Hardcover), ISBN ile tamamlayarak karşılaştırmaya dahil eder.
    */
   async processBookSelection(item: SearchResultItem): Promise<TFile | null> {
+    const isHybridMode =
+      this.plugin.settings?.defaultProvider === 'hybrid' ||
+      this.aggregator.getDefaultProviderId?.() === 'hybrid';
+
+    const sources: Record<string, SearchResultItem> = item.sources
+      ? { ...item.sources }
+      : item.provider
+      ? { [item.provider]: item }
+      : {};
+
+    const availableProviders =
+      this.aggregator.getAvailableProviders?.({ includeComposite: false })?.filter(
+        (p) => p.id !== 'hybrid'
+      ) || [];
+
+    const cleanBookIsbn = cleanIsbn(item.isbn || item.allIsbns?.[0]);
+
+    const fetchWithTimeout = async <T>(promise: Promise<T>, ms = 3500): Promise<T | null> => {
+      let timer: number | null = null;
+      const timeoutPromise = new Promise<null>((resolve) => {
+        timer = window.setTimeout(() => resolve(null), ms);
+      });
+      try {
+        const result = await Promise.race([promise, timeoutPromise]);
+        return result;
+      } catch {
+        return null;
+      } finally {
+        if (timer) window.clearTimeout(timer);
+      }
+    };
+
+    // Eğer hibrit moddaysak veya çoklu sağlayıcı aktifse, eksik sağlayıcıları ISBN ile tamamlamayı dene
+    if ((isHybridMode || availableProviders.length >= 2) && cleanBookIsbn.length >= 10) {
+      const missingProviders = availableProviders.filter((p) => !sources[p.id]);
+
+      if (missingProviders.length > 0) {
+        new Notice(`"${item.title}" için metaveriler sorgulanıyor...`);
+
+        const enrichPromises = missingProviders.map(async (p) => {
+          try {
+            const provider = this.aggregator.getProvider(p.id);
+            if (p.id === 'openlibrary') {
+              const data = await fetchWithTimeout(
+                provider.getBookDetails(`/isbn/${cleanBookIsbn}`)
+              );
+              if (data && data.title) {
+                return { id: p.id, name: 'OpenLibrary', data: { ...data, provider: 'openlibrary' } };
+              }
+            } else if (p.id === 'hardcover') {
+              const data = await fetchWithTimeout(
+                provider.getBookDetails(cleanBookIsbn)
+              );
+              if (data && data.title) {
+                return { id: p.id, name: 'Hardcover', data: { ...data, provider: 'hardcover' } };
+              }
+            } else if (p.id === 'dr') {
+              const data = await fetchWithTimeout(
+                provider.getBookDetails(cleanBookIsbn)
+              );
+              if (data && data.title) {
+                return { id: p.id, name: 'D&R', data: { ...data, provider: 'dr' } };
+              }
+            } else if (p.id === 'kitapyurdu') {
+              const searchResults = await fetchWithTimeout(
+                provider.search(cleanBookIsbn)
+              );
+              if (Array.isArray(searchResults) && searchResults.length > 0) {
+                const targetKy = searchResults[0];
+                const data = await provider.getBookDetails(targetKy.url || targetKy.id);
+                if (data && data.title) {
+                  return { id: p.id, name: 'Kitapyurdu', data: { ...data, provider: 'kitapyurdu' } };
+                }
+              }
+            }
+          } catch {
+            // Sessizce yut
+          }
+          return null;
+        });
+
+        const knownPromises = Object.entries(sources).map(async ([pId, srcItem]) => {
+          try {
+            const provider = this.aggregator.getProvider(pId);
+            let targetLookup = srcItem.url || srcItem.id;
+            if (pId === 'openlibrary' && cleanBookIsbn.length >= 10 && targetLookup.includes('/works/')) {
+              targetLookup = `/isbn/${cleanBookIsbn}`;
+            }
+            const data = await provider.getBookDetails(targetLookup);
+            const pName =
+              pId === 'kitapyurdu'
+                ? 'Kitapyurdu'
+                : pId === 'dr'
+                ? 'D&R'
+                : pId === 'openlibrary'
+                ? 'OpenLibrary'
+                : pId === 'hardcover'
+                ? 'Hardcover'
+                : provider.name;
+            return { id: pId, name: pName, data: { ...data, provider: pId } };
+          } catch (err) {
+            console.warn(`Sağlayıcı veri çekme hatası (${pId}):`, err);
+            return null;
+          }
+        });
+
+        const [enrichedResults, knownSettled] = await Promise.all([
+          Promise.all(enrichPromises),
+          Promise.all(knownPromises),
+        ]);
+
+        const allSettledMap = new Map<string, { id: string; name: string; data: BookMetadata }>();
+        for (const res of knownSettled) {
+          if (res) allSettledMap.set(res.id, res);
+        }
+        for (const res of enrichedResults) {
+          if (res && !allSettledMap.has(res.id)) {
+            allSettledMap.set(res.id, res);
+          }
+        }
+
+        const settled = Array.from(allSettledMap.values());
+
+        if (settled.length >= 2) {
+          return new Promise<TFile | null>((resolve) => {
+            const modal = new MetadataComparisonModal(this.app, {
+              providers: settled,
+              insertIntoActive: this.insertIntoActive,
+              onConfirm: async (selectedData) => {
+                const file = await this.finalizeBookCreation(selectedData);
+                resolve(file);
+              },
+              onCancel: () => {
+                resolve(null);
+              },
+            });
+            modal.open();
+          });
+        } else if (settled.length === 1) {
+          return await this.finalizeBookCreation(settled[0].data);
+        }
+      }
+    }
+
     const multiProviders =
-      item.sources && Object.keys(item.sources).length > 1
-        ? Object.entries(item.sources)
-        : null;
+      Object.keys(sources).length > 1 ? Object.entries(sources) : null;
 
     if (multiProviders && multiProviders.length > 1) {
       const providerNames = multiProviders
@@ -561,7 +705,11 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
       const promises = multiProviders.map(async ([pId, srcItem]) => {
         try {
           const provider = this.aggregator.getProvider(pId);
-          const data = await provider.getBookDetails(srcItem.url || srcItem.id);
+          let targetLookup = srcItem.url || srcItem.id;
+          if (pId === 'openlibrary' && cleanBookIsbn.length >= 10 && targetLookup.includes('/works/')) {
+            targetLookup = `/isbn/${cleanBookIsbn}`;
+          }
+          const data = await provider.getBookDetails(targetLookup);
           const pName =
             pId === 'kitapyurdu'
               ? 'Kitapyurdu'

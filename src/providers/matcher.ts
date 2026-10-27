@@ -259,14 +259,76 @@ export function areFormatsCompatible(titleA?: string, titleB?: string): boolean 
 }
 
 /**
+ * Collects all candidate clean ISBNs from a SearchResultItem and its sources.
+ */
+export function getAllIsbns(item?: SearchResultItem): string[] {
+  if (!item) return [];
+  const set = new Set<string>();
+  const add = (raw?: string) => {
+    const c = cleanIsbn(raw);
+    if (c.length >= 10) set.add(c);
+  };
+
+  add(item.isbn);
+  if (Array.isArray(item.allIsbns)) {
+    for (const i of item.allIsbns) add(i);
+  }
+  if (item.sources) {
+    for (const src of Object.values(item.sources)) {
+      add(src.isbn);
+      if (Array.isArray(src.allIsbns)) {
+        for (const i of src.allIsbns) add(i);
+      }
+    }
+  }
+
+  return Array.from(set);
+}
+
+/**
+ * Collects all publisher candidates from a SearchResultItem and its sources.
+ */
+export function getAllPublishers(item?: SearchResultItem): string[] {
+  if (!item) return [];
+  const set = new Set<string>();
+  const add = (raw?: string) => {
+    if (raw && typeof raw === 'string' && raw.trim()) {
+      set.add(raw.trim());
+    }
+  };
+
+  add(item.publisher);
+  if (Array.isArray(item.allPublishers)) {
+    for (const p of item.allPublishers) add(p);
+  }
+  if (item.sources) {
+    for (const src of Object.values(item.sources)) {
+      add(src.publisher);
+      if (Array.isArray(src.allPublishers)) {
+        for (const p of src.allPublishers) add(p);
+      }
+    }
+  }
+
+  return Array.from(set);
+}
+
+/**
  * Checks if two search result items from different providers represent the same book.
  */
 export function areBooksMatching(itemA: SearchResultItem, itemB: SearchResultItem): boolean {
-  // 1. ISBN match check if both items carry valid ISBNs
-  const c1 = cleanIsbn(itemA.isbn);
-  const c2 = cleanIsbn(itemB.isbn);
-  if (c1.length >= 10 && c2.length >= 10) {
-    return isbnsMatch(c1, c2);
+  // 1. ISBN match check if any candidate ISBN matches across items
+  const isbnsA = getAllIsbns(itemA);
+  const isbnsB = getAllIsbns(itemB);
+
+  if (isbnsA.length > 0 && isbnsB.length > 0) {
+    for (const ia of isbnsA) {
+      for (const ib of isbnsB) {
+        if (isbnsMatch(ia, ib)) {
+          return true;
+        }
+      }
+    }
   }
 
   // 2. Reject mismatched physical formats (e.g. Ciltli vs Karton Kapak)
@@ -275,8 +337,15 @@ export function areBooksMatching(itemA: SearchResultItem, itemB: SearchResultIte
   }
 
   // 3. Reject different publishers for the same title
-  if (!arePublishersMatching(itemA.publisher, itemB.publisher)) {
-    return false;
+  const pubsA = getAllPublishers(itemA);
+  const pubsB = getAllPublishers(itemB);
+  if (pubsA.length > 0 && pubsB.length > 0) {
+    const anyPubMatches = pubsA.some((pa) =>
+      pubsB.some((pb) => arePublishersMatching(pa, pb))
+    );
+    if (!anyPubMatches) {
+      return false;
+    }
   }
 
   const titleA = normalizeTitle(itemA.title);
@@ -395,10 +464,27 @@ export function mergeSearchResults(
           ? existingProviders
           : [...existingProviders, extraProvider];
 
+        // Eşleşen kesin ISBN'i tespit et
+        let resolvedIsbn = extraItem.isbn;
+        const targetIsbns = getAllIsbns(target);
+        const extraIsbns = getAllIsbns(extraItem);
+        for (const ti of targetIsbns) {
+          const match = extraIsbns.find((ei) => isbnsMatch(ti, ei));
+          if (match) {
+            resolvedIsbn = match;
+            break;
+          }
+        }
+
+        const adaptedExtraItem: SearchResultItem = {
+          ...extraItem,
+          ...(resolvedIsbn ? { isbn: resolvedIsbn } : {}),
+        };
+
         const existingSources = target.sources || {};
         const newSources = {
           ...existingSources,
-          [extraProvider]: extraItem,
+          [extraProvider]: adaptedExtraItem,
         };
 
         target.id = `${target.id}__${extraProvider}_${extraItem.id}`;
@@ -409,7 +495,13 @@ export function mergeSearchResults(
         target.author = target.author || extraItem.author;
         target.publisher = target.publisher || extraItem.publisher;
         target.coverUrl = target.coverUrl || extraItem.coverUrl;
-        target.isbn = target.isbn || extraItem.isbn;
+        target.isbn = target.isbn || resolvedIsbn || extraItem.isbn;
+        if (extraItem.allIsbns) {
+          target.allIsbns = Array.from(new Set([...(target.allIsbns || []), ...extraItem.allIsbns]));
+        }
+        if (extraItem.allPublishers) {
+          target.allPublishers = Array.from(new Set([...(target.allPublishers || []), ...extraItem.allPublishers]));
+        }
         if (target.rating === undefined && extraItem.rating !== undefined) {
           target.rating = extraItem.rating;
         }
@@ -435,8 +527,10 @@ export function mergeSearchResults(
 export function resolveBestValue<T>(
   valA: T | undefined,
   valB: T | undefined,
-  field: keyof BookMetadata
-): { value: T | undefined; source: 'kitapyurdu' | 'dr' } {
+  field: keyof BookMetadata,
+  providerA: string = 'kitapyurdu',
+  providerB: string = 'dr'
+): { value: T | undefined; source: string } {
   const isPresent = (v: unknown): boolean => {
     if (v === undefined || v === null) return false;
     if (typeof v === 'string') return v.trim().length > 0;
@@ -448,43 +542,77 @@ export function resolveBestValue<T>(
   const aPresent = isPresent(valA);
   const bPresent = isPresent(valB);
 
-  if (aPresent && !bPresent) return { value: valA, source: 'kitapyurdu' };
-  if (!aPresent && bPresent) return { value: valB, source: 'dr' };
-  if (!aPresent && !bPresent) return { value: valA, source: 'kitapyurdu' };
+  if (aPresent && !bPresent) return { value: valA, source: providerA };
+  if (!aPresent && bPresent) return { value: valB, source: providerB };
+  if (!aPresent && !bPresent) return { value: valA, source: providerA };
 
   // Both are present — apply domain heuristics
   if (field === 'pages') {
     const numA = typeof valA === 'number' ? valA : parseInt(String(valA), 10);
     const numB = typeof valB === 'number' ? valB : parseInt(String(valB), 10);
-    if (numA > 0 && (!numB || numB <= 0)) return { value: valA, source: 'kitapyurdu' };
-    if (numB > 0 && (!numA || numA <= 0)) return { value: valB, source: 'dr' };
+    if (numA > 0 && (!numB || numB <= 0)) return { value: valA, source: providerA };
+    if (numB > 0 && (!numA || numA <= 0)) return { value: valB, source: providerB };
   }
 
   if (field === 'publishDate') {
     const strA = String(valA || '');
     const strB = String(valB || '');
     // Prefer full YYYY-MM-DD over just 4-digit YYYY
-    if (strA.length === 10 && strB.length === 4) return { value: valA, source: 'kitapyurdu' };
-    if (strB.length === 10 && strA.length === 4) return { value: valB, source: 'dr' };
+    if (strA.length === 10 && strB.length === 4) return { value: valA, source: providerA };
+    if (strB.length === 10 && strA.length === 4) return { value: valB, source: providerB };
   }
 
   if (field === 'description') {
     const strA = String(valA || '');
     const strB = String(valB || '');
     // Prefer longer, more comprehensive blurb
-    if (strA.length >= strB.length) return { value: valA, source: 'kitapyurdu' };
-    return { value: valB, source: 'dr' };
+    if (strA.length >= strB.length) return { value: valA, source: providerA };
+    return { value: valB, source: providerB };
   }
 
   if (field === 'genres') {
     const arrA = Array.isArray(valA) ? valA : [];
     const arrB = Array.isArray(valB) ? valB : [];
-    if (arrA.length >= arrB.length) return { value: valA, source: 'kitapyurdu' };
-    return { value: valB, source: 'dr' };
+    if (arrA.length >= arrB.length) return { value: valA, source: providerA };
+    return { value: valB, source: providerB };
   }
 
-  // Default to Kitapyurdu as primary
-  return { value: valA, source: 'kitapyurdu' };
+  if (field === 'isbn') {
+    const cleanA = cleanIsbn(String(valA || ''));
+    const cleanB = cleanIsbn(String(valB || ''));
+    if (cleanA.length === 13 && cleanB.length !== 13) return { value: valA, source: providerA };
+    if (cleanB.length === 13 && cleanA.length !== 13) return { value: valB, source: providerB };
+  }
+
+  // Default to providerA as primary
+  return { value: valA, source: providerA };
+}
+
+/**
+ * Resolves the optimal default provider among a list of providers for a given field.
+ */
+export function resolveBestProviderForField(
+  providers: { id: string; data: BookMetadata }[],
+  field: keyof BookMetadata
+): string {
+  if (!providers || providers.length === 0) return 'kitapyurdu';
+  if (providers.length === 1) return providers[0].id;
+
+  let best = providers[0];
+  for (let i = 1; i < providers.length; i++) {
+    const cand = providers[i];
+    const res = resolveBestValue(
+      best.data[field],
+      cand.data[field],
+      field,
+      best.id,
+      cand.id
+    );
+    if (res.source === cand.id) {
+      best = cand;
+    }
+  }
+  return best.id;
 }
 
 /**
@@ -513,54 +641,75 @@ export function resolveDefaultSelections(
 
   const selections: Record<string, 'kitapyurdu' | 'dr'> = {};
   for (const f of fields) {
-    const res = resolveBestValue(kyData[f], drData[f], f);
-    selections[f] = res.source;
+    const res = resolveBestValue(kyData[f], drData[f], f, 'kitapyurdu', 'dr');
+    selections[f] = res.source === 'dr' ? 'dr' : 'kitapyurdu';
   }
 
   return selections;
 }
 
 /**
- * Combines metadata from two providers based on chosen provider per field.
+ * Combines metadata from multiple providers based on chosen provider per field.
  */
 export function mergeBookMetadata(
   kyData: BookMetadata,
-  drData: BookMetadata,
-  selections?: Record<string, 'kitapyurdu' | 'dr'> | Record<string, string>
+  drData?: BookMetadata,
+  selections?: Record<string, 'kitapyurdu' | 'dr'> | Record<string, string>,
+  allProviders?: { id: string; data: BookMetadata }[]
 ): BookMetadata {
-  const effectiveSelections = (selections as Record<string, string>) || resolveDefaultSelections(kyData, drData);
+  const effectiveSelections =
+    (selections as Record<string, string>) ||
+    (drData ? resolveDefaultSelections(kyData, drData) : {});
+
+  const providersMap = new Map<string, BookMetadata>();
+  if (allProviders && allProviders.length > 0) {
+    for (const p of allProviders) {
+      if (p.id && p.data) providersMap.set(p.id, p.data);
+    }
+  }
+  if (drData?.provider) {
+    providersMap.set(drData.provider, drData);
+  }
+  if (kyData.provider) {
+    providersMap.set(kyData.provider, kyData);
+  }
+  if (kyData.provider === 'kitapyurdu' || !providersMap.has('kitapyurdu')) {
+    providersMap.set('kitapyurdu', kyData);
+  }
+  if (drData && (drData.provider === 'dr' || !providersMap.has('dr'))) {
+    providersMap.set('dr', drData);
+  }
 
   const getChosen = <T>(field: keyof BookMetadata): T | undefined => {
-    const source = effectiveSelections[field] || 'kitapyurdu';
-    let chosenVal: unknown;
-    if (source === drData.provider) {
-      chosenVal = drData[field];
-    } else if (source === kyData.provider) {
-      chosenVal = kyData[field];
-    } else if (source === 'dr' && drData.provider === 'dr') {
-      chosenVal = drData[field];
-    } else if (source === 'kitapyurdu' && kyData.provider === 'kitapyurdu') {
-      chosenVal = kyData[field];
-    } else if (source === 'dr') {
-      chosenVal = drData[field];
-    } else {
-      chosenVal = kyData[field];
-    }
+    const source = effectiveSelections[field] || kyData.provider || 'kitapyurdu';
+    const chosenProviderData = providersMap.get(source);
+    const chosenVal = chosenProviderData ? chosenProviderData[field] : undefined;
 
     if (chosenVal !== undefined && chosenVal !== null && chosenVal !== '') {
       return chosenVal as T | undefined;
     }
-    const fallback = kyData[field] ?? drData[field];
-    return fallback as T | undefined;
+
+    if (kyData[field] !== undefined && kyData[field] !== null && kyData[field] !== '') {
+      return kyData[field] as T | undefined;
+    }
+    if (drData && drData[field] !== undefined && drData[field] !== null && drData[field] !== '') {
+      return drData[field] as T | undefined;
+    }
+    for (const pData of providersMap.values()) {
+      if (pData[field] !== undefined && pData[field] !== null && pData[field] !== '') {
+        return pData[field] as T | undefined;
+      }
+    }
+    return undefined;
   };
 
-  const id = kyData.id || drData.id;
-  const url = kyData.url || drData.url;
-  const title = (getChosen<string>('title') || kyData.title || drData.title || '').trim();
-  const author = (getChosen<string>('author') || kyData.author || drData.author || '').trim();
-  const publisher = (getChosen<string>('publisher') || kyData.publisher || drData.publisher || '').trim();
+  const id = kyData.id || drData?.id || '';
+  const url = kyData.url || drData?.url || '';
+  const title = (getChosen<string>('title') || kyData.title || drData?.title || '').trim();
+  const author = (getChosen<string>('author') || kyData.author || drData?.author || '').trim();
+  const publisher = (getChosen<string>('publisher') || kyData.publisher || drData?.publisher || '').trim();
   const translator = getChosen<string>('translator') || undefined;
-  const isbn = (getChosen<string>('isbn') || kyData.isbn || drData.isbn || '').trim();
+  const isbn = (getChosen<string>('isbn') || kyData.isbn || drData?.isbn || '').trim();
   const pages = getChosen<number>('pages');
   const publishDate = getChosen<string>('publishDate') || undefined;
   const format = getChosen<string>('format') || undefined;
@@ -569,16 +718,13 @@ export function mergeBookMetadata(
   const price = getChosen<string>('price') || undefined;
   const rating = getChosen<number>('rating');
   const ratingSource = effectiveSelections['rating'];
+  const ratingData = ratingSource ? providersMap.get(ratingSource) : undefined;
   const ratingCount =
-    (ratingSource === drData.provider || (ratingSource === 'dr' && drData.provider === 'dr')
-      ? drData.ratingCount
-      : ratingSource === kyData.provider || (ratingSource === 'kitapyurdu' && kyData.provider === 'kitapyurdu')
-      ? kyData.ratingCount
-      : undefined) ??
+    ratingData?.ratingCount ??
     kyData.ratingCount ??
-    drData.ratingCount ??
-    undefined;
-  const coverUrl = getChosen<string>('coverUrl') || kyData.coverUrl || drData.coverUrl || '';
+    drData?.ratingCount ??
+    Array.from(providersMap.values()).find((p) => p.ratingCount !== undefined)?.ratingCount;
+  const coverUrl = getChosen<string>('coverUrl') || kyData.coverUrl || drData?.coverUrl || '';
   const description = getChosen<string>('description') || undefined;
 
   return {

@@ -505,6 +505,22 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
       '';
     const isbn = rawIsbn ? cleanIsbn(rawIsbn) : undefined;
 
+    const allIsbnsSet = new Set<string>();
+    if (isbn) allIsbnsSet.add(isbn);
+    const allPublishersSet = new Set<string>();
+    if (publisher) allPublishersSet.add(publisher);
+
+    if (Array.isArray(book.editions)) {
+      for (const ed of book.editions) {
+        if (ed.isbn_13) allIsbnsSet.add(cleanIsbn(ed.isbn_13));
+        if (ed.isbn_10) allIsbnsSet.add(cleanIsbn(ed.isbn_10));
+        if (ed.publisher?.name) allPublishersSet.add(ed.publisher.name.trim());
+      }
+    }
+
+    const allIsbns = Array.from(allIsbnsSet).filter((i) => i.length >= 10);
+    const allPublishers = Array.from(allPublishersSet).filter(Boolean);
+
     return {
       id,
       title,
@@ -514,6 +530,8 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
       coverUrl,
       ...(rating !== undefined ? { rating } : {}),
       ...(isbn ? { isbn } : {}),
+      ...(allIsbns.length > 0 ? { allIsbns } : {}),
+      ...(allPublishers.length > 0 ? { allPublishers } : {}),
       provider: 'hardcover',
       providers: ['hardcover'],
       sources: {
@@ -526,6 +544,8 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
           coverUrl,
           rating,
           isbn,
+          ...(allIsbns.length > 0 ? { allIsbns } : {}),
+          ...(allPublishers.length > 0 ? { allPublishers } : {}),
           provider: 'hardcover',
         },
       },

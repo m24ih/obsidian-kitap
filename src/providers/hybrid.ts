@@ -315,6 +315,10 @@ export class HybridProvider implements IBookProvider {
     }
 
     // Tüm başarılı metaverileri tekil bir nesnede birleştir
-    return fulfilled.reduce((acc, curr) => mergeBookMetadata(acc, curr));
+    const providerItems = fulfilled.map((data, idx) => ({
+      id: data.provider || (sourceEntries[idx] ? sourceEntries[idx][0] : `provider_${idx}`),
+      data,
+    }));
+    return mergeBookMetadata(fulfilled[0], fulfilled[1], undefined, providerItems);
   }
 }

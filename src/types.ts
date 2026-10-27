@@ -25,6 +25,8 @@ export interface SearchResultItem {
   providers?: string[];
   sources?: Record<string, SearchResultItem>;
   isbn?: string;
+  allIsbns?: string[];
+  allPublishers?: string[];
 }
 
 export type SearchResult = SearchResultItem;
