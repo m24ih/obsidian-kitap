@@ -352,4 +352,82 @@ describe('MetadataComparisonModal UI & Interaction Suite', () => {
     expect(textEl.classList.contains('is-expanded')).toBe(false);
     expect(toggleBtn.textContent).toBe('Daha fazla göster');
   });
+
+  it('handles 3 and 4 providers, calculating diffCount across all columns and highlighting differences', () => {
+    const olMetadata: BookMetadata = {
+      id: '/works/OL893414W',
+      url: 'https://openlibrary.org/works/OL893414W',
+      title: 'I, Robot',
+      author: 'Isaac Asimov',
+      publisher: 'Gnome Press',
+      isbn: '9780553294385',
+      pages: 253,
+      publishDate: '1950',
+      description: 'The three laws of robotics...',
+      coverUrl: 'https://covers.openlibrary.org/b/id/123-L.jpg',
+      genres: ['Science Fiction'],
+      provider: 'openlibrary',
+    };
+
+    const hcMetadata: BookMetadata = {
+      id: 'hc-999',
+      url: 'https://hardcover.app/books/i-robot',
+      title: 'I, Robot (Hardcover)',
+      author: 'Isaac Asimov',
+      publisher: 'Bantam',
+      isbn: '9780553294385',
+      pages: 253,
+      publishDate: '1950',
+      description: 'Nine stories about positronic robots.',
+      rating: 4.7,
+      ratingCount: 14200,
+      coverUrl: 'https://images.hardcover.app/covers/irobot.jpg',
+      genres: ['Sci-Fi', 'Classic'],
+      provider: 'hardcover',
+    };
+
+    const onConfirm = vi.fn();
+    const modal = new MetadataComparisonModal(app as any, {
+      providers: [
+        { id: 'kitapyurdu', name: 'Kitapyurdu', data: kyMetadata },
+        { id: 'dr', name: 'D&R', data: drMetadata },
+        { id: 'openlibrary', name: 'OpenLibrary', data: olMetadata },
+        { id: 'hardcover', name: 'Hardcover', data: hcMetadata },
+      ],
+      onConfirm,
+    });
+
+    modal.open();
+
+    // Verify 4 provider headers rendered
+    const headers = modal.contentEl.querySelectorAll('.col-provider-header');
+    expect(headers).toHaveLength(4);
+    expect(headers[2].textContent).toContain('OpenLibrary');
+    expect(headers[3].textContent).toContain('Hardcover');
+
+    // Verify 4 quick action buttons in toolbar
+    const quickButtons = modal.contentEl.querySelectorAll('.kitap-quick-actions button');
+    expect(quickButtons).toHaveLength(4);
+    expect(quickButtons[2].textContent).toContain('OpenLibrary');
+    expect(quickButtons[3].textContent).toContain('Hardcover');
+
+    // Verify diff badge is present and counted across all 4 providers
+    const diffBadge = modal.contentEl.querySelector('.kitap-diff-badge');
+    expect(diffBadge).not.toBeNull();
+    expect(diffBadge?.textContent).toContain('farklı alan tespit edildi');
+
+    // Click "Tümünü Hardcover Seç" pill button
+    const hcPillBtn = Array.from(quickButtons).find((b) =>
+      b.textContent?.includes('Hardcover')
+    ) as HTMLElement;
+    hcPillBtn.click();
+
+    // Build metadata and confirm Hardcover was selected across fields including ratingCount
+    const built = modal.buildSelectedMetadata();
+    expect(built.title).toBe('I, Robot (Hardcover)');
+    expect(built.publisher).toBe('Bantam');
+    expect(built.rating).toBe(4.7);
+    expect(built.ratingCount).toBe(14200);
+    expect(built.provider).toBe('hybrid');
+  });
 });

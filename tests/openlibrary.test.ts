@@ -24,6 +24,15 @@ describe('OpenLibrary Provider Suite (OpenLibraryProvider)', () => {
         cleanOpenLibraryKey('https://openlibrary.org/books/OL7353617M/')
       ).toBe('/books/OL7353617M');
       expect(
+        cleanOpenLibraryKey('https://openlibrary.org/works/OL893414W/Dune')
+      ).toBe('/works/OL893414W');
+      expect(
+        cleanOpenLibraryKey('https://openlibrary.org/books/OL7353617M/Fantastic_Mr_Fox')
+      ).toBe('/books/OL7353617M');
+      expect(
+        cleanOpenLibraryKey('http://openlibrary.org/authors/OL79034A/Frank_Herbert')
+      ).toBe('/authors/OL79034A');
+      expect(
         cleanOpenLibraryKey('http://openlibrary.org/authors/OL79034A')
       ).toBe('/authors/OL79034A');
     });
@@ -283,11 +292,63 @@ describe('OpenLibrary Provider Suite (OpenLibraryProvider)', () => {
 
       const metadata = await provider.getBookDetails('978-0140328721');
 
-      expect(metadata.id).toBe('/isbn/9780140328721');
+      expect(metadata.id).toBe('/books/OL7353617M');
       expect(metadata.title).toBe('Fantastic Mr. Fox');
       expect(metadata.publisher).toBe('Puffin Books');
       expect(metadata.pages).toBe(96);
       expect(metadata.isbn).toBe('9780140328721');
+    });
+
+    it('preserves ISBN from query path when edition JSON omits isbn fields', async () => {
+      const mockIsbnEditionWithoutIsbnArray = {
+        title: 'Book Without Explicit ISBN field in payload',
+        publishers: ['Sample House'],
+      };
+
+      (requestUrl as any).mockResolvedValueOnce({
+        status: 200,
+        json: mockIsbnEditionWithoutIsbnArray,
+      });
+
+      const metadata = await provider.getBookDetails('/isbn/9780140328721');
+
+      expect(metadata.id).toBe('/isbn/9780140328721');
+      expect(metadata.isbn).toBe('9780140328721');
+    });
+
+    it('enriches edition with description and author from work when missing on edition', async () => {
+      const mockEdition = {
+        key: '/books/OL999M',
+        title: 'Edition Without Description',
+        works: [{ key: '/works/OL888W' }],
+      };
+      const mockWork = {
+        description: 'Enriched synopsis from work object.',
+        authors: [{ author: { key: '/authors/OL777A' } }],
+      };
+      const mockAuthor = {
+        name: 'Work Author',
+      };
+
+      (requestUrl as any)
+        .mockResolvedValueOnce({
+          status: 200,
+          json: mockEdition,
+        })
+        .mockResolvedValueOnce({
+          status: 200,
+          json: mockWork,
+        })
+        .mockResolvedValueOnce({
+          status: 200,
+          json: mockAuthor,
+        });
+
+      const metadata = await provider.getBookDetails('/books/OL999M');
+
+      expect(metadata.title).toBe('Edition Without Description');
+      expect(metadata.description).toBe('Enriched synopsis from work object.');
+      expect(metadata.author).toBe('Work Author');
     });
   });
 });

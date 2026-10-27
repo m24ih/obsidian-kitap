@@ -55,6 +55,16 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
   setSettings(settings: KitapPluginSettings): void {
     this.settings = settings;
 
+    // Eğer varsayılan olarak seçilen sağlayıcı kapatıldıysa hibrit moda geri dön
+    if (!settings.enableOpenLibrary && this.defaultProviderId === 'openlibrary') {
+      this.defaultProviderId = 'hybrid';
+      settings.defaultProvider = 'hybrid';
+    }
+    if (!settings.enableHardcover && this.defaultProviderId === 'hardcover') {
+      this.defaultProviderId = 'hybrid';
+      settings.defaultProvider = 'hybrid';
+    }
+
     // OpenLibrary dinamik kayıt yönetimi
     if (settings.enableOpenLibrary) {
       if (!this.providers.has('openlibrary')) {

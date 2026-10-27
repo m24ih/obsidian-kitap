@@ -125,7 +125,6 @@ export default class KitapPlugin extends Plugin {
         : '';
     this.settings.defaultProvider =
       rawDefaultProvider || DEFAULT_SETTINGS.defaultProvider;
-    this.aggregator?.setDefaultProvider?.(this.settings.defaultProvider);
 
     // 12. propertyMappings migrasyonu
     const { migratePropertyMappings } = await import('./settings/propertyMapping');
@@ -150,6 +149,15 @@ export default class KitapPlugin extends Plugin {
         ? rawApiKey.trim()
         : DEFAULT_SETTINGS.hardcoverApiKey;
 
+    // Eğer varsayılan olarak seçilen sağlayıcı kapalıysa hibrit moda geri dön
+    if (!this.settings.enableOpenLibrary && this.settings.defaultProvider === 'openlibrary') {
+      this.settings.defaultProvider = 'hybrid';
+    }
+    if (!this.settings.enableHardcover && this.settings.defaultProvider === 'hardcover') {
+      this.settings.defaultProvider = 'hybrid';
+    }
+
+    this.aggregator?.setDefaultProvider?.(this.settings.defaultProvider);
     this.aggregator?.setSettings?.(this.settings);
   }
 

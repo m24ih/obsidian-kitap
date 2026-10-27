@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   cleanIsbn,
+  getAlternateIsbn,
   isbnsMatch,
   normalizeTitle,
   getAuthorTokens,
@@ -40,6 +41,14 @@ describe('Hybrid Metadata Provider & Deduplication Suite', () => {
       expect(isbnsMatch('9789750807145', '9789750809999')).toBe(false);
       expect(isbnsMatch(undefined, '9789750807145')).toBe(false);
       expect(isbnsMatch('', '')).toBe(false);
+    });
+
+    it('computes alternate ISBN-10 and ISBN-13 accurately', () => {
+      expect(getAlternateIsbn('978-0441172719')).toBe('0441172717');
+      expect(getAlternateIsbn('0441172717')).toBe('9780441172719');
+      // ISBN with check digit X
+      expect(getAlternateIsbn('975-08-0714-X')).toBe('9789750807145');
+      expect(getAlternateIsbn('invalid')).toBeUndefined();
     });
   });
 
@@ -1115,6 +1124,93 @@ describe('Hybrid Metadata Provider & Deduplication Suite', () => {
         'kitapyurdu',
         'dr',
       ]);
+    });
+
+    it('mergeBookMetadata correctly selects fields when dr is first argument or when combining global providers', () => {
+      const drBook: BookMetadata = {
+        id: 'dr_1',
+        title: 'Dune (D&R Title)',
+        author: 'Frank Herbert',
+        publisher: 'İthaki',
+        isbn: '9780441172719',
+        description: 'D&R Turkish blurb',
+        rating: 4.8,
+        ratingCount: 150,
+        url: 'https://dr.test/dune',
+        provider: 'dr',
+      };
+
+      const olBook: BookMetadata = {
+        id: '/works/OL893414W',
+        title: 'Dune (OpenLibrary Title)',
+        author: 'Frank Herbert',
+        publisher: 'Chilton',
+        isbn: '9780441172719',
+        description: 'OpenLibrary English synopsis',
+        url: 'https://openlibrary.org/works/OL893414W',
+        provider: 'openlibrary',
+      };
+
+      // Select D&R description specifically
+      const merged = mergeBookMetadata(drBook, olBook, {
+        description: 'dr',
+        title: 'openlibrary',
+      });
+
+      expect(merged.description).toBe('D&R Turkish blurb');
+      expect(merged.title).toBe('Dune (OpenLibrary Title)');
+
+      // Combine OpenLibrary and Hardcover
+      const hcBook: BookMetadata = {
+        id: 'hc_10',
+        title: 'Dune (Hardcover Title)',
+        author: 'Frank Herbert',
+        publisher: 'Ace',
+        isbn: '9780441172719',
+        description: 'Hardcover community synopsis',
+        rating: 4.6,
+        ratingCount: 9500,
+        url: 'https://hardcover.app/books/dune',
+        provider: 'hardcover',
+      };
+
+      const globalMerged = mergeBookMetadata(olBook, hcBook, {
+        description: 'hardcover',
+        title: 'openlibrary',
+        rating: 'hardcover',
+      });
+
+      expect(globalMerged.description).toBe('Hardcover community synopsis');
+      expect(globalMerged.title).toBe('Dune (OpenLibrary Title)');
+      expect(globalMerged.rating).toBe(4.6);
+      expect(globalMerged.ratingCount).toBe(9500);
+    });
+
+    it('BookAggregator resets defaultProvider to hybrid if selected global provider is disabled', () => {
+      const aggregator = new BookAggregator();
+
+      aggregator.setSettings({
+        enableOpenLibrary: true,
+        enableHardcover: false,
+        hardcoverApiKey: '',
+        defaultProvider: 'openlibrary',
+      } as any);
+
+      aggregator.setDefaultProvider('openlibrary');
+      expect(aggregator.getDefaultProviderId()).toBe('openlibrary');
+
+      // Now disable OpenLibrary
+      const newSettings = {
+        enableOpenLibrary: false,
+        enableHardcover: false,
+        hardcoverApiKey: '',
+        defaultProvider: 'openlibrary',
+      } as any;
+
+      aggregator.setSettings(newSettings);
+
+      expect(aggregator.getDefaultProviderId()).toBe('hybrid');
+      expect(newSettings.defaultProvider).toBe('hybrid');
     });
   });
 });

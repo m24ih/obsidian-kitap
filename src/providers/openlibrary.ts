@@ -80,6 +80,26 @@ export function cleanOpenLibraryKey(input: string): string {
   // Strip trailing slashes
   path = path.replace(/\/+$/, '');
 
+  const workMatch = path.match(/\/(works)\/(OL\d+W)(?:\/.*)?$/i);
+  if (workMatch) {
+    return `/works/${workMatch[2].toUpperCase()}`;
+  }
+
+  const bookMatch = path.match(/\/(books)\/(OL\d+M)(?:\/.*)?$/i);
+  if (bookMatch) {
+    return `/books/${bookMatch[2].toUpperCase()}`;
+  }
+
+  const authorMatch = path.match(/\/(authors)\/(OL\d+A)(?:\/.*)?$/i);
+  if (authorMatch) {
+    return `/authors/${authorMatch[2].toUpperCase()}`;
+  }
+
+  const isbnMatch = path.match(/\/(isbn)\/([0-9X-]+)(?:\/.*)?$/i);
+  if (isbnMatch) {
+    return `/isbn/${cleanIsbn(isbnMatch[2])}`;
+  }
+
   if (path.startsWith('/works/') || path.startsWith('/books/') || path.startsWith('/authors/') || path.startsWith('/isbn/')) {
     return path;
   }
@@ -378,7 +398,7 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
     key: string
   ): Promise<BookMetadata> {
     const title = (bookData.title || '').trim();
-    const description = pickOpenLibraryDescription(bookData.description);
+    let description = pickOpenLibraryDescription(bookData.description);
     const publisher =
       Array.isArray(bookData.publishers) && bookData.publishers.length > 0
         ? bookData.publishers[0].trim()
@@ -397,7 +417,10 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
 
     const isbn13 = bookData.isbn_13?.[0];
     const isbn10 = bookData.isbn_10?.[0];
-    const rawIsbn = isbn13 || isbn10 || '';
+    const rawIsbn =
+      isbn13 ||
+      isbn10 ||
+      (key.startsWith('/isbn/') ? key.replace(/^\/isbn\//, '') : '');
 
     const coverUrl =
       Array.isArray(bookData.covers) && bookData.covers.length > 0
@@ -423,6 +446,40 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
       author = names.join(', ');
     }
 
+    // Eğer açıklama veya yazar bilgisi edition'da yoksa ve works referansı varsa Work kaydından tamamla
+    if ((!description || !author) && Array.isArray(bookData.works) && bookData.works.length > 0) {
+      const workKeyRef = bookData.works[0]?.key;
+      if (workKeyRef) {
+        try {
+          const workPath = cleanOpenLibraryKey(workKeyRef);
+          const workData = await fetchJson<OpenLibraryWorkResponse>(
+            `${this.baseUrl}${workPath}.json`
+          );
+          if (!description) {
+            description = pickOpenLibraryDescription(workData.description);
+          }
+          if (!author && Array.isArray(workData.authors) && workData.authors.length > 0) {
+            const authorPromises = workData.authors.slice(0, 3).map(async (a) => {
+              const aKey = a.author?.key || a.key;
+              if (!aKey) return '';
+              try {
+                const aData = await fetchJson<OpenLibraryAuthorResponse>(
+                  `${this.baseUrl}${aKey.startsWith('/') ? aKey : '/' + aKey}.json`
+                );
+                return aData.name || aData.personal_name || '';
+              } catch {
+                return '';
+              }
+            });
+            const names = (await Promise.all(authorPromises)).filter(Boolean);
+            author = names.join(', ');
+          }
+        } catch {
+          // Work zenginleştirmesi başarısız olursa mevcut verilerle devam et
+        }
+      }
+    }
+
     const genres = Array.isArray(bookData.subjects)
       ? bookData.subjects.slice(0, 10).map((s) => s.trim()).filter(Boolean)
       : undefined;
@@ -432,9 +489,11 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
         ? bookData.languages[0].key?.replace(/^\/languages\//, '').toUpperCase()
         : undefined;
 
+    const canonicalKey = bookData.key ? cleanOpenLibraryKey(bookData.key) : key;
+
     return {
-      id: key,
-      url: `${this.baseUrl}${key}`,
+      id: canonicalKey,
+      url: `${this.baseUrl}${canonicalKey}`,
       title,
       author,
       publisher,

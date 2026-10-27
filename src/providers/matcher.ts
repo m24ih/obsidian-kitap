@@ -45,6 +45,40 @@ export function isbnsMatch(isbn1?: string, isbn2?: string): boolean {
 }
 
 /**
+ * Calculates the complementary ISBN representation:
+ * - If given an ISBN-13 starting with 978, returns the corresponding ISBN-10 with valid check digit.
+ * - If given an ISBN-10, returns the corresponding 978-prefixed ISBN-13 with valid check digit.
+ */
+export function getAlternateIsbn(isbn?: string): string | undefined {
+  const clean = cleanIsbn(isbn);
+  if (!clean) return undefined;
+
+  if (clean.length === 13 && clean.startsWith('978')) {
+    const nine = clean.slice(3, 12);
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      sum += parseInt(nine[i], 10) * (10 - i);
+    }
+    const rem = (11 - (sum % 11)) % 11;
+    const check = rem === 10 ? 'X' : String(rem);
+    return `${nine}${check}`;
+  }
+
+  if (clean.length === 10) {
+    const nine = clean.slice(0, 9);
+    let sum = 9 * 1 + 7 * 3 + 8 * 1;
+    for (let i = 0; i < 9; i++) {
+      const weight = i % 2 === 0 ? 3 : 1;
+      sum += parseInt(nine[i], 10) * weight;
+    }
+    const rem = (10 - (sum % 10)) % 10;
+    return `978${nine}${rem}`;
+  }
+
+  return undefined;
+}
+
+/**
  * Normalizes book title for robust cross-provider deduplication.
  * Strips subtitle/format tags (e.g. "(Karton Kapak)", "(Ciltli)"), punctuation,
  * extra whitespaces, and normalizes Turkish diacritics.
@@ -498,7 +532,21 @@ export function mergeBookMetadata(
 
   const getChosen = <T>(field: keyof BookMetadata): T | undefined => {
     const source = effectiveSelections[field] || 'kitapyurdu';
-    const chosenVal = (source === drData.provider || source === 'dr') ? drData[field] : kyData[field];
+    let chosenVal: unknown;
+    if (source === drData.provider) {
+      chosenVal = drData[field];
+    } else if (source === kyData.provider) {
+      chosenVal = kyData[field];
+    } else if (source === 'dr' && drData.provider === 'dr') {
+      chosenVal = drData[field];
+    } else if (source === 'kitapyurdu' && kyData.provider === 'kitapyurdu') {
+      chosenVal = kyData[field];
+    } else if (source === 'dr') {
+      chosenVal = drData[field];
+    } else {
+      chosenVal = kyData[field];
+    }
+
     if (chosenVal !== undefined && chosenVal !== null && chosenVal !== '') {
       return chosenVal as T | undefined;
     }
@@ -520,7 +568,16 @@ export function mergeBookMetadata(
   const genres = getChosen<string[]>('genres') || undefined;
   const price = getChosen<string>('price') || undefined;
   const rating = getChosen<number>('rating');
-  const ratingCount = kyData.ratingCount ?? drData.ratingCount ?? undefined;
+  const ratingSource = effectiveSelections['rating'];
+  const ratingCount =
+    (ratingSource === drData.provider || (ratingSource === 'dr' && drData.provider === 'dr')
+      ? drData.ratingCount
+      : ratingSource === kyData.provider || (ratingSource === 'kitapyurdu' && kyData.provider === 'kitapyurdu')
+      ? kyData.ratingCount
+      : undefined) ??
+    kyData.ratingCount ??
+    drData.ratingCount ??
+    undefined;
   const coverUrl = getChosen<string>('coverUrl') || kyData.coverUrl || drData.coverUrl || '';
   const description = getChosen<string>('description') || undefined;
 

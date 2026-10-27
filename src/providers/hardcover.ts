@@ -1,7 +1,7 @@
 import { BookMetadata, SearchResultItem } from '../types';
 import { fetchJson } from '../utils/http';
 import { IBookProvider, IHardcoverProvider } from './types';
-import { cleanIsbn, isIsbn } from './matcher';
+import { cleanIsbn, getAlternateIsbn, isIsbn } from './matcher';
 
 export interface HardcoverAuthor {
   id?: number;
@@ -131,6 +131,11 @@ export function extractHardcoverSlugOrId(urlOrId: string): {
       return { id: parseInt(segment, 10) };
     }
     return { slug: segment };
+  }
+
+  // If it's a URL but didn't match the book pattern, do not treat raw URL as slug
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return {};
   }
 
   // Default slug fallback
@@ -280,13 +285,16 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
     isbn: string,
     headers: Record<string, string>
   ): Promise<SearchResultItem[]> {
+    const altIsbn = getAlternateIsbn(isbn);
     const graphqlQuery = `
-      query SearchByISBN($isbn: String!) {
+      query SearchByISBN($isbn: String!, $altIsbn: String) {
         editions(
           where: {
             _or: [
               { isbn_13: { _eq: $isbn } },
-              { isbn_10: { _eq: $isbn } }
+              { isbn_10: { _eq: $isbn } },
+              { isbn_13: { _eq: $altIsbn } },
+              { isbn_10: { _eq: $altIsbn } }
             ]
           }
           limit: 10
@@ -322,7 +330,7 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
 
     const body = JSON.stringify({
       query: graphqlQuery,
-      variables: { isbn },
+      variables: { isbn, altIsbn: altIsbn || isbn },
     });
 
     const response = await fetchJson<

@@ -27,6 +27,15 @@ describe('Hardcover Provider Suite (HardcoverProvider)', () => {
       expect(extractHardcoverSlugOrId('978-0593135203')).toEqual({
         isbn: '9780593135203',
       });
+      expect(
+        extractHardcoverSlugOrId('https://hardcover.app/books/project-hail-mary?ref=home')
+      ).toEqual({ slug: 'project-hail-mary' });
+      expect(
+        extractHardcoverSlugOrId('https://hardcover.app/books/project-hail-mary/')
+      ).toEqual({ slug: 'project-hail-mary' });
+      expect(
+        extractHardcoverSlugOrId('https://not-hardcover.com/unknown/path')
+      ).toEqual({});
       expect(extractHardcoverSlugOrId('dune')).toEqual({ slug: 'dune' });
       expect(extractHardcoverSlugOrId('')).toEqual({});
       expect(extractHardcoverSlugOrId('   ')).toEqual({});
@@ -177,6 +186,7 @@ describe('Hardcover Provider Suite (HardcoverProvider)', () => {
       const parsedBody = JSON.parse(reqParam.body);
       expect(parsedBody.query).toContain('SearchByISBN');
       expect(parsedBody.variables.isbn).toBe('9780593135203');
+      expect(parsedBody.variables.altIsbn).toBe('0593135202');
 
       expect(results).toHaveLength(1);
       expect(results[0].title).toBe('Project Hail Mary');

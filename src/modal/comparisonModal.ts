@@ -156,10 +156,12 @@ export class MetadataComparisonModal extends Modal {
     // Farklı alan sayısını hesapla
     let diffCount = 0;
     if (this.options.providers.length >= 2) {
-      const d1 = this.options.providers[0].data;
-      const d2 = this.options.providers[1].data;
       for (const f of COMPARISON_FIELDS) {
-        if (this.formatFieldValue(d1[f.key], f.key) !== this.formatFieldValue(d2[f.key], f.key)) {
+        const firstVal = this.formatFieldValue(this.options.providers[0].data[f.key], f.key);
+        const hasDiff = this.options.providers.some(
+          (p) => this.formatFieldValue(p.data[f.key], f.key) !== firstVal
+        );
+        if (hasDiff) {
           diffCount++;
         }
       }
@@ -212,10 +214,12 @@ export class MetadataComparisonModal extends Modal {
       const row = this.tableBodyEl.createEl('tr', { cls: 'kitap-comparison-row' });
       row.dataset.field = field.key;
 
+      const firstVal = this.formatFieldValue(this.options.providers[0]?.data[field.key], field.key);
       const isDiff =
         this.options.providers.length >= 2 &&
-        this.formatFieldValue(this.options.providers[0].data[field.key], field.key) !==
-          this.formatFieldValue(this.options.providers[1].data[field.key], field.key);
+        this.options.providers.some(
+          (p) => this.formatFieldValue(p.data[field.key], field.key) !== firstVal
+        );
 
       if (isDiff) {
         row.addClass('kitap-row-diff');
@@ -465,7 +469,11 @@ export class MetadataComparisonModal extends Modal {
     const genres = getFieldVal<string[]>('genres') || undefined;
     const price = getFieldVal<string>('price') || undefined;
     const rating = getFieldVal<number>('rating');
-    const ratingCount = primaryData.ratingCount ?? secondaryData?.ratingCount ?? undefined;
+    const ratingProviderId = this.selections['rating'];
+    const ratingData = (ratingProviderId && providersMap.get(ratingProviderId)) || primaryData;
+    const ratingCount =
+      ratingData.ratingCount ??
+      this.options.providers.find((p) => p.data.ratingCount !== undefined)?.data.ratingCount;
     const coverUrl = getFieldVal<string>('coverUrl') || defaultData.coverUrl || '';
     const description = getFieldVal<string>('description') || undefined;
 

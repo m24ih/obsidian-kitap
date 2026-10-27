@@ -483,6 +483,24 @@ describe('Plugin Settings & Lifecycle', () => {
       await hcToggle.simulateToggle(true);
       expect(plugin.settings.enableHardcover).toBe(true);
     });
+
+    it('resets defaultProvider to hybrid if selected global provider is disabled', async () => {
+      mockData = {
+        defaultProvider: 'openlibrary',
+        enableOpenLibrary: false,
+      };
+      await plugin.loadSettings();
+      expect(plugin.settings.defaultProvider).toBe('hybrid');
+      expect(plugin.aggregator.getDefaultProviderId()).toBe('hybrid');
+
+      mockData = {
+        defaultProvider: 'hardcover',
+        enableHardcover: false,
+      };
+      await plugin.loadSettings();
+      expect(plugin.settings.defaultProvider).toBe('hybrid');
+      expect(plugin.aggregator.getDefaultProviderId()).toBe('hybrid');
+    });
   });
 });
 

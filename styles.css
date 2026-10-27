@@ -520,10 +520,12 @@
 
 .kitap-comparison-table th.col-field-name {
   width: 130px;
+  min-width: 110px;
 }
 
 .kitap-comparison-table th.col-provider-header {
-  width: calc((100% - 130px) / 2);
+  min-width: 160px;
+  width: auto;
 }
 
 .col-provider-header.kitap-th-selectable {
