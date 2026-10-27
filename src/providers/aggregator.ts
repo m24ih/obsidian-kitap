@@ -24,6 +24,7 @@ export interface IBookAggregator {
   getDefaultProviderId(): string;
   setSettings?(settings: KitapPluginSettings): void;
   getSettings?(): KitapPluginSettings | undefined;
+  setApp?(app: unknown): void;
 }
 
 /**
@@ -34,6 +35,7 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
   private defaultProviderId: string = 'hybrid';
   private readonly hybridProvider: HybridProvider;
   private settings?: KitapPluginSettings;
+  private app?: unknown;
 
   constructor(defaultProvider?: IKitapyurduProvider | IBookProvider) {
     this.hybridProvider = new HybridProvider(this);
@@ -50,19 +52,56 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
   }
 
   /**
+   * Obsidian App örneğini bağlar (Secret Storage erişimi için).
+   */
+  setApp(app: unknown): void {
+    this.app = app;
+  }
+
+  /**
+   * Hardcover API anahtarını çözer.
+   * Öncelikle Obsidian Secret Storage (hardcoverApiKeyId) sorgulanır,
+   * ardından geriye dönük uyumluluk için düz metin hardcoverApiKey kullanılır.
+   */
+  private resolveHardcoverApiKey(): string {
+    if (this.settings?.hardcoverApiKeyId && this.app) {
+      try {
+        const secretStorage = (this.app as { secretStorage?: { getSecret?: (id: string) => string | null } }).secretStorage;
+        if (secretStorage && typeof secretStorage.getSecret === 'function') {
+          const secret = secretStorage.getSecret(this.settings.hardcoverApiKeyId);
+          if (typeof secret === 'string' && secret.trim()) {
+            return secret.trim();
+          }
+        }
+      } catch (err) {
+        console.warn('Secret storage üzerinden Hardcover anahtarı alınamadı:', err);
+      }
+    }
+    return this.settings?.hardcoverApiKey || '';
+  }
+
+  /**
    * Eklenti ayarlarını toplayıcıya aktarır ve sağlayıcı kayıtlarını günceller.
    */
   setSettings(settings: KitapPluginSettings): void {
     this.settings = settings;
 
-    // Eğer varsayılan olarak seçilen sağlayıcı kapatıldıysa hibrit moda geri dön
-    if (!settings.enableOpenLibrary && this.defaultProviderId === 'openlibrary') {
-      this.defaultProviderId = 'hybrid';
-      settings.defaultProvider = 'hybrid';
+    // Kitapyurdu dinamik kayıt yönetimi
+    if (settings.enableKitapyurdu !== false) {
+      if (!this.providers.has('kitapyurdu')) {
+        this.registerProvider(new KitapyurduProvider());
+      }
+    } else {
+      this.providers.delete('kitapyurdu');
     }
-    if (!settings.enableHardcover && this.defaultProviderId === 'hardcover') {
-      this.defaultProviderId = 'hybrid';
-      settings.defaultProvider = 'hybrid';
+
+    // D&R dinamik kayıt yönetimi
+    if (settings.enableDr !== false) {
+      if (!this.providers.has('dr')) {
+        this.registerProvider(new DrProvider());
+      }
+    } else {
+      this.providers.delete('dr');
     }
 
     // OpenLibrary dinamik kayıt yönetimi
@@ -71,7 +110,7 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
         this.registerProvider(new OpenLibraryProvider());
       }
     } else {
-      this.unregisterProvider('openlibrary');
+      this.providers.delete('openlibrary');
     }
 
     // Hardcover dinamik kayıt yönetimi
@@ -79,14 +118,43 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
       const existingHc = this.providers.get('hardcover') as HardcoverProvider | undefined;
       if (!existingHc) {
         this.registerProvider(
-          new HardcoverProvider(() => this.settings?.hardcoverApiKey || '')
+          new HardcoverProvider(() => this.resolveHardcoverApiKey())
         );
       } else if (typeof existingHc.setApiKey === 'function') {
-        existingHc.setApiKey(settings.hardcoverApiKey || '');
+        existingHc.setApiKey(() => this.resolveHardcoverApiKey());
       }
     } else {
-      this.unregisterProvider('hardcover');
+      this.providers.delete('hardcover');
     }
+
+    // Aktif sağlayıcı durumuna göre varsayılan sağlayıcıyı denetle
+    const activeIds = this.getActiveProviderIds();
+    const isCurrentValid =
+      this.defaultProviderId === 'hybrid'
+        ? activeIds.length >= 2
+        : this.isProviderEnabled(this.defaultProviderId);
+
+    if (!isCurrentValid) {
+      if (activeIds.length >= 2) {
+        this.defaultProviderId = 'hybrid';
+        settings.defaultProvider = 'hybrid';
+      } else if (activeIds.length === 1) {
+        this.defaultProviderId = activeIds[0];
+        settings.defaultProvider = activeIds[0];
+      }
+    }
+  }
+
+  /**
+   * Aktif sağlayıcı ID'lerinin listesini döndürür.
+   */
+  private getActiveProviderIds(): string[] {
+    const ids: string[] = [];
+    if (this.isProviderEnabled('kitapyurdu')) ids.push('kitapyurdu');
+    if (this.isProviderEnabled('dr')) ids.push('dr');
+    if (this.isProviderEnabled('openlibrary')) ids.push('openlibrary');
+    if (this.isProviderEnabled('hardcover')) ids.push('hardcover');
+    return ids;
   }
 
   /**
@@ -100,8 +168,9 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
    * Bir sağlayıcının aktif olup olmadığını belirler.
    */
   isProviderEnabled(id: string): boolean {
-    if (id === 'kitapyurdu' || id === 'dr') return true;
     if (this.settings) {
+      if (id === 'kitapyurdu') return this.settings.enableKitapyurdu !== false;
+      if (id === 'dr') return this.settings.enableDr !== false;
       if (id === 'openlibrary') return Boolean(this.settings.enableOpenLibrary);
       if (id === 'hardcover') return Boolean(this.settings.enableHardcover);
     }
@@ -144,7 +213,7 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
 
   /**
    * Kayıtlı bir metaveri sağlayıcısını sistemden kaldırır.
-   * 'kitapyurdu' çekirdek sağlayıcısının silinmesine izin verilmez.
+   * 'kitapyurdu' ve 'hybrid' çekirdek sağlayıcılarının silinmesine izin verilmez.
    */
   unregisterProvider(providerId: string): boolean {
     if (!providerId || providerId.trim() === 'kitapyurdu' || providerId.trim() === 'hybrid') {
@@ -179,7 +248,7 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
 
   /**
    * Sisteme kayıtlı tüm metaveri sağlayıcılarının listesini döndürür.
-   * includeComposite true verilirse hibrit meta-sağlayıcı da eklenir.
+   * includeComposite true verilirse ve 2+ sağlayıcı varsa hibrit meta-sağlayıcı dinamik etiketle eklenir.
    */
   getAvailableProviders(options?: { includeComposite?: boolean }): ProviderInfo[] {
     const list = Array.from(this.providers.values()).map((p) => ({
@@ -189,7 +258,14 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
 
     if (options?.includeComposite) {
       if (!list.some((p) => p.id === 'hybrid')) {
-        list.unshift({ id: 'hybrid', name: 'Hibrit (Kitapyurdu + D&R)' });
+        const activeNames = list.map((p) => p.name);
+        const hybridLabel =
+          activeNames.length >= 2
+            ? `Hibrit (${activeNames.join(' + ')})`
+            : 'Hibrit';
+        if (list.length >= 2) {
+          list.unshift({ id: 'hybrid', name: hybridLabel });
+        }
       }
     }
 

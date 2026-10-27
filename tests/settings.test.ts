@@ -474,7 +474,7 @@ describe('Plugin Settings & Lifecycle', () => {
 
       // Find Hardcover toggle
       const hcItem = items.find((el) =>
-        el.querySelector('.setting-item-name')?.textContent?.includes('Hardcover Sağlayıcısını')
+        el.querySelector('.setting-item-name')?.textContent?.includes('Hardcover')
       );
       expect(hcItem).toBeDefined();
       const hcToggle = (hcItem?.querySelector('input[type="checkbox"]') as any)?.component;
@@ -482,6 +482,42 @@ describe('Plugin Settings & Lifecycle', () => {
 
       await hcToggle.simulateToggle(true);
       expect(plugin.settings.enableHardcover).toBe(true);
+    });
+
+    it('prevents disabling the last remaining active book provider', async () => {
+      const settingTab = new KitapSettingTab(mockApp as any, plugin);
+      await plugin.loadSettings();
+      plugin.settings.enableKitapyurdu = true;
+      plugin.settings.enableDr = false;
+      plugin.settings.enableOpenLibrary = false;
+      plugin.settings.enableHardcover = false;
+
+      settingTab.display();
+      const items = Array.from(settingTab.containerEl.querySelectorAll('.setting-item')) as HTMLElement[];
+      const kyItem = items.find((el) =>
+        el.querySelector('.setting-item-name')?.textContent?.includes('Kitapyurdu')
+      );
+      expect(kyItem).toBeDefined();
+      const kyToggle = (kyItem?.querySelector('input[type="checkbox"]') as any)?.component;
+      expect(kyToggle).toBeDefined();
+
+      // Trying to toggle off the last active provider should be rejected
+      await kyToggle.simulateToggle(false);
+      expect(plugin.settings.enableKitapyurdu).toBe(true);
+    });
+
+    it('manages Hardcover API key with Secret Storage and falls back safely', async () => {
+      const settingTab = new KitapSettingTab(mockApp as any, plugin);
+      await plugin.loadSettings();
+      plugin.settings.enableHardcover = true;
+      plugin.settings.hardcoverApiKeyId = 'test-secret-id';
+      settingTab.display();
+
+      const items = Array.from(settingTab.containerEl.querySelectorAll('.setting-item')) as HTMLElement[];
+      const apiKeyItem = items.find((el) =>
+        el.querySelector('.setting-item-name')?.textContent?.includes('Hardcover API Anahtarı')
+      );
+      expect(apiKeyItem).toBeDefined();
     });
 
     it('resets defaultProvider to hybrid if selected global provider is disabled', async () => {

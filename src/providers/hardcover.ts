@@ -151,7 +151,7 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
   readonly name: string = 'Hardcover';
   private readonly endpoint = 'https://api.hardcover.app/v1/graphql';
   private apiKey: string = '';
-  private readonly apiKeyGetter?: () => string | undefined;
+  private apiKeyGetter?: () => string | undefined;
 
   constructor(apiKeyOrGetter?: string | (() => string | undefined)) {
     if (typeof apiKeyOrGetter === 'function') {
@@ -164,8 +164,12 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
   /**
    * API anahtarını günceller.
    */
-  setApiKey(key: string): void {
-    this.apiKey = (key || '').trim();
+  setApiKey(keyOrGetter: string | (() => string | undefined)): void {
+    if (typeof keyOrGetter === 'function') {
+      this.apiKeyGetter = keyOrGetter;
+    } else {
+      this.apiKey = (keyOrGetter || '').trim();
+    }
   }
 
   /**

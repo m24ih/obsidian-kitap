@@ -40,19 +40,21 @@ export class HybridProvider implements IBookProvider {
    * Belirtilen sağlayıcının hibrit aramada aktif olup olmadığını denetler.
    */
   private isProviderActive(providerId: string): boolean {
-    if (providerId === 'kitapyurdu' || providerId === 'dr') {
-      return true;
-    }
     if (this.deps.isProviderEnabled) {
       return this.deps.isProviderEnabled(providerId);
     }
     const settings = this.deps.getSettings?.();
     if (settings) {
+      if (providerId === 'kitapyurdu') return settings.enableKitapyurdu !== false;
+      if (providerId === 'dr') return settings.enableDr !== false;
       if (providerId === 'openlibrary') return Boolean(settings.enableOpenLibrary);
       if (providerId === 'hardcover') return Boolean(settings.enableHardcover);
     }
     if (providerId === 'openlibrary' && this.config?.enableOpenLibrary) return true;
     if (providerId === 'hardcover' && this.config?.enableHardcover) return true;
+    if (providerId === 'kitapyurdu' || providerId === 'dr') {
+      return true;
+    }
     return false;
   }
 

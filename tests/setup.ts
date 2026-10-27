@@ -494,6 +494,12 @@ export class MockSetting {
     cb(this.dropdownComponent);
     return this;
   }
+
+  addComponent(cb: (el: HTMLElement) => unknown) {
+    const el = this.settingEl.createDiv({ cls: "setting-item-control" });
+    cb(el);
+    return this;
+  }
 }
 
 export const lastNotices: string[] = [];
@@ -631,12 +637,62 @@ export class Notice {
   }
 }
 
+export class SecretStorage {
+  private secrets = new Map<string, string>();
+  setSecret(id: string, secret: string): void {
+    this.secrets.set(id, secret);
+  }
+  getSecret(id: string): string | null {
+    return this.secrets.get(id) ?? null;
+  }
+  listSecrets(): string[] {
+    return Array.from(this.secrets.keys());
+  }
+}
+
+export class SecretComponent {
+  app: any;
+  containerEl: HTMLElement;
+  inputEl: HTMLInputElement;
+  value = '';
+  changeCallback?: (val: string | null) => unknown;
+
+  constructor(app: any, containerEl: HTMLElement) {
+    this.app = app;
+    this.containerEl = containerEl;
+    this.inputEl = containerEl.createEl('input', { attr: { type: 'password' } });
+  }
+
+  setValue(val: string): this {
+    this.value = val || '';
+    this.inputEl.value = this.value;
+    return this;
+  }
+
+  getValue(): string {
+    return this.value;
+  }
+
+  onChange(callback: (val: string | null) => unknown): this {
+    this.changeCallback = callback;
+    return this;
+  }
+
+  simulateChange(val: string): void {
+    this.setValue(val);
+    if (this.changeCallback) {
+      this.changeCallback(val);
+    }
+  }
+}
+
 export class App {
   workspace: any = {
     getActiveFile: () => null,
     getLeaf: () => ({ openFile: () => {} }),
   };
   vault: unknown;
+  secretStorage: SecretStorage = new SecretStorage();
 }
 
 export const requestUrl = vi.fn();
@@ -758,6 +814,8 @@ if (typeof vi !== "undefined") {
     lastNotices,
     MockSetting,
     DropdownComponent: MockDropdownComponent,
+    SecretComponent,
+    SecretStorage,
   }));
 }
 

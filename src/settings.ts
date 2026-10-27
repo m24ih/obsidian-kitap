@@ -1,4 +1,4 @@
-import { App, DropdownComponent, Notice, PluginSettingTab, Setting } from 'obsidian';
+import { App, DropdownComponent, Notice, PluginSettingTab, SecretComponent, Setting } from 'obsidian';
 import type KitapPlugin from './main';
 import {
   DEFAULT_STATIC_TEMPLATE,
@@ -71,6 +71,122 @@ export class KitapSettingTab extends PluginSettingTab {
     // ----------------------------------------------------
     new Setting(containerEl).setName('Metaveri sağlayıcı ayarları').setHeading();
 
+    const getActiveProviderCount = (): number => {
+      let count = 0;
+      if (this.plugin.settings.enableKitapyurdu !== false) count++;
+      if (this.plugin.settings.enableDr !== false) count++;
+      if (this.plugin.settings.enableOpenLibrary) count++;
+      if (this.plugin.settings.enableHardcover) count++;
+      return count;
+    };
+
+    new Setting(containerEl)
+      .setName('Kitapyurdu Sağlayıcısı')
+      .setDesc('Kitapyurdu.com üzerinden Türkçe kitap arama ve metaveri çekme.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.enableKitapyurdu !== false)
+          .onChange(async (value) => {
+            if (!value && getActiveProviderCount() <= 1) {
+              new Notice('En az bir kitap sağlayıcısı aktif olmalıdır.');
+              toggle.setValue(true);
+              return;
+            }
+            this.plugin.settings.enableKitapyurdu = value;
+            this.plugin.aggregator?.setSettings?.(this.plugin.settings);
+            await this.plugin.saveSettings();
+            this.refresh();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('D&R Sağlayıcısı')
+      .setDesc('D&R (dr.com.tr) üzerinden Türkçe kitap arama ve metaveri çekme.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.enableDr !== false)
+          .onChange(async (value) => {
+            if (!value && getActiveProviderCount() <= 1) {
+              new Notice('En az bir kitap sağlayıcısı aktif olmalıdır.');
+              toggle.setValue(true);
+              return;
+            }
+            this.plugin.settings.enableDr = value;
+            this.plugin.aggregator?.setSettings?.(this.plugin.settings);
+            await this.plugin.saveSettings();
+            this.refresh();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('OpenLibrary Sağlayıcısı')
+      .setDesc('OpenLibrary.org REST API üzerinden yabancı ve küresel kitap arama.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.enableOpenLibrary)
+          .onChange(async (value) => {
+            if (!value && getActiveProviderCount() <= 1) {
+              new Notice('En az bir kitap sağlayıcısı aktif olmalıdır.');
+              toggle.setValue(true);
+              return;
+            }
+            this.plugin.settings.enableOpenLibrary = value;
+            this.plugin.aggregator?.setSettings?.(this.plugin.settings);
+            await this.plugin.saveSettings();
+            this.refresh();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Hardcover Sağlayıcısı')
+      .setDesc('Hardcover.app GraphQL API üzerinden yabancı ve küresel kitap arama.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.enableHardcover)
+          .onChange(async (value) => {
+            if (!value && getActiveProviderCount() <= 1) {
+              new Notice('En az bir kitap sağlayıcısı aktif olmalıdır.');
+              toggle.setValue(true);
+              return;
+            }
+            this.plugin.settings.enableHardcover = value;
+            this.plugin.aggregator?.setSettings?.(this.plugin.settings);
+            await this.plugin.saveSettings();
+            this.refresh();
+          })
+      );
+
+    if (this.plugin.settings.enableHardcover) {
+      const apiKeySetting = new Setting(containerEl)
+        .setName('Hardcover API Anahtarı')
+        .setDesc(
+          'Obsidian Secret Storage ile korunan Hardcover API anahtarı (hardcover.app/account/api). Boş bırakılırsa Hardcover araması çalıştırılmaz.'
+        );
+
+      if (typeof SecretComponent !== 'undefined') {
+        apiKeySetting.addComponent((el) => {
+          const component = new SecretComponent(this.app, el);
+          component.setValue(this.plugin.settings.hardcoverApiKeyId).onChange(async (data: string | null) => {
+            this.plugin.settings.hardcoverApiKeyId = (data || '').trim();
+            this.plugin.aggregator?.setSettings?.(this.plugin.settings);
+            await this.plugin.saveSettings();
+          });
+          return component;
+        });
+      } else {
+        apiKeySetting.addText((text) =>
+          text
+            .setPlaceholder('Hardcover API anahtarınızı girin...')
+            .setValue(this.plugin.settings.hardcoverApiKey)
+            .onChange(async (value) => {
+              this.plugin.settings.hardcoverApiKey = value.trim();
+              this.plugin.aggregator?.setSettings?.(this.plugin.settings);
+              await this.plugin.saveSettings();
+            })
+        );
+      }
+    }
+
     new Setting(containerEl)
       .setName('Varsayılan Metaveri Sağlayıcı')
       .setDesc('Kitap arama ve bilgi çekme işlemlerinde varsayılan olarak kullanılacak veri sağlayıcı.')
@@ -91,55 +207,6 @@ export class KitapSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
-
-    // ----------------------------------------------------
-    // Bölüm: Global Sağlayıcılar (OpenLibrary & Hardcover)
-    // ----------------------------------------------------
-    new Setting(containerEl).setName('Global sağlayıcılar').setHeading();
-
-    new Setting(containerEl)
-      .setName('OpenLibrary Sağlayıcısını Etkinleştir')
-      .setDesc('OpenLibrary.org REST API üzerinden yabancı ve global kitap araması yapılmasını sağlar. Hibrit aramaya dahil edilir.')
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.enableOpenLibrary)
-          .onChange(async (value) => {
-            this.plugin.settings.enableOpenLibrary = value;
-            this.plugin.aggregator?.setSettings?.(this.plugin.settings);
-            await this.plugin.saveSettings();
-            this.refresh();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName('Hardcover Sağlayıcısını Etkinleştir')
-      .setDesc('Hardcover.app GraphQL API üzerinden yabancı ve global kitap araması yapılmasını sağlar. Hibrit aramaya dahil edilir.')
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.enableHardcover)
-          .onChange(async (value) => {
-            this.plugin.settings.enableHardcover = value;
-            this.plugin.aggregator?.setSettings?.(this.plugin.settings);
-            await this.plugin.saveSettings();
-            this.refresh();
-          })
-      );
-
-    if (this.plugin.settings.enableHardcover) {
-      new Setting(containerEl)
-        .setName('Hardcover API Anahtarı')
-        .setDesc('Hardcover hesabınızdan aldığınız API anahtarı (hardcover.app/account/api). Boş bırakılırsa Hardcover araması çalıştırılmaz.')
-        .addText((text) =>
-          text
-            .setPlaceholder('Hardcover API anahtarınızı girin...')
-            .setValue(this.plugin.settings.hardcoverApiKey)
-            .onChange(async (value) => {
-              this.plugin.settings.hardcoverApiKey = value.trim();
-              this.plugin.aggregator?.setSettings?.(this.plugin.settings);
-              await this.plugin.saveSettings();
-            })
-        );
-    }
 
     // ----------------------------------------------------
     // Bölüm: Kapak Görselleri

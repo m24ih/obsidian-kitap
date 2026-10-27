@@ -74,9 +74,12 @@ export interface KitapPluginSettings {
   readingStatusOptions: string[];
   defaultReadingStatus: string;
   defaultProvider: string;
+  enableKitapyurdu: boolean;
+  enableDr: boolean;
   enableOpenLibrary: boolean;
   enableHardcover: boolean;
   hardcoverApiKey: string;
+  hardcoverApiKeyId: string;
 }
 
 /**
@@ -162,6 +165,9 @@ okunma_tarihi:
 kisisel_puan:
 ---
 
+\`\`\`kitap-kart
+\`\`\`
+
 # 📖 \`$= dv.current()?.baslik || dv.current()?.title || "{{title}}"\`
 
 \`$= (() => { const k = dv.current()?.kapak || dv.current()?.cover || dv.current()?.coverUrl || dv.current()?.image || '{{coverUrl}}'; const p = (typeof k === 'object' && k?.path) ? k.path : String(k).replace(/^\\[\\[/, '').replace(/\\]\\]$/, ''); return p.startsWith('http') ? '![Kapak|250](' + p + ')' : '![[' + p + '|250]]'; })()\`
@@ -218,7 +224,10 @@ export const DEFAULT_SETTINGS: KitapPluginSettings = {
   readingStatusOptions: ['Okunacak', 'Okunuyor', 'Okundu'],
   defaultReadingStatus: 'Okunacak',
   defaultProvider: 'hybrid',
+  enableKitapyurdu: true,
+  enableDr: true,
   enableOpenLibrary: false,
   enableHardcover: false,
   hardcoverApiKey: '',
+  hardcoverApiKeyId: '',
 };
