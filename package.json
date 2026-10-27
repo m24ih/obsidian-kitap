@@ -36,6 +36,13 @@
     "vitest": "^4.1.12"
   },
   "overrides": {
-    "moment": "^2.31.0"
+    "moment": "^2.31.0",
+    "obsidian": {
+      "moment": "^2.31.0"
+    }
+  },
+  "resolutions": {
+    "moment": "^2.31.0",
+    "eslint-plugin-obsidianmd/**/moment": "^2.31.0"
   }
 }
