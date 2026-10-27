@@ -175,6 +175,24 @@
   display: flex;
 }
 
+/* Full-width block setting layout (for property mappings & guide lists) */
+.setting-item.kitap-setting-full-width {
+  display: block;
+  width: 100%;
+  border-top: none;
+  padding-top: 4px;
+}
+
+.setting-item.kitap-setting-full-width .setting-item-info {
+  display: none;
+}
+
+.setting-item.kitap-setting-full-width .setting-item-control {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+}
+
 .setting-item.kitap-setting-stacked .setting-item-control textarea {
   width: 100%;
   max-width: 100%;

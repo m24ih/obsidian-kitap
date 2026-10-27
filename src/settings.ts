@@ -66,7 +66,14 @@ export class KitapSettingTab extends PluginSettingTab {
       // ----------------------------------------------------
       {
         name: '',
-        desc: 'Kitap arama, metaveri çekme, özellik eşleme ve şablon seçeneklerini buradan yapılandırabilirsiniz.',
+        render: (setting) => {
+          setting.setClass('kitap-setting-full-width');
+          setting.settingEl.querySelector('.setting-item-info')?.remove();
+          setting.settingEl.createEl('p', {
+            text: 'Kitap arama, metaveri çekme, özellik eşleme ve şablon seçeneklerini buradan yapılandırabilirsiniz.',
+            cls: 'setting-item-description',
+          });
+        },
       },
       {
         name: 'Hedef klasör',
@@ -532,9 +539,11 @@ export class KitapSettingTab extends PluginSettingTab {
             },
           },
           {
-            name: 'Özellik listesi',
+            name: '',
             visible: () => Boolean(this.plugin.settings.useDefaultFrontMatter),
             render: (setting) => {
+              setting.setClass('kitap-setting-full-width');
+              setting.settingEl.querySelector('.setting-item-info')?.remove();
               const mappingContainer = setting.settingEl.createDiv('kitap-property-mappings-section');
               const comp = new PropertyMappingComponent(mappingContainer, {
                 mappings: this.plugin.settings.propertyMappings,
@@ -564,8 +573,10 @@ export class KitapSettingTab extends PluginSettingTab {
         heading: 'Kullanılabilir şablon değişkenleri',
         items: [
           {
-            name: 'Şablon değişkenleri',
+            name: '',
             render: (setting) => {
+              setting.setClass('kitap-setting-full-width');
+              setting.settingEl.querySelector('.setting-item-info')?.remove();
               const list = setting.settingEl.createEl('ul', { cls: 'kitap-vars-list' });
               for (const v of variables) {
                 const item = list.createEl('li');
