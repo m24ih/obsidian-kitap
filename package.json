@@ -1,7 +1,7 @@
 {
   "name": "obsidian-kitap",
-  "version": "0.4.0",
-  "description": "Obsidian plugin to search Turkish books from Kitapyurdu and D&R, enriching notes with ratings and bibliographic metadata.",
+  "version": "0.5.0",
+  "description": "Obsidian plugin to search books from Kitapyurdu, D&R, Open Library, and Hardcover, enriching notes with ratings and bibliographic metadata.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
