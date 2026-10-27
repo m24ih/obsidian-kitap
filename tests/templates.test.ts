@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderBookTemplate, sanitizeFileName } from '../src/templates/engine';
+import { getTemplateContentFromVault } from '../src/templates/noteBuilder';
+import { TFile } from './setup';
 import {
   BookMetadata,
   DEFAULT_NOTE_TEMPLATE,
@@ -172,6 +174,43 @@ code: <%* const x = 1; %>`;
     it('preserves Turkish characters in file names', () => {
       const sanitized = sanitizeFileName('Kürk Mantolu Madonna - Sabahattin Ali');
       expect(sanitized).toBe('Kürk Mantolu Madonna - Sabahattin Ali');
+    });
+  });
+
+  describe('Vault Template Loading (O(1) Resolution without getFiles enumeration)', () => {
+    it('returns null when path or vault is missing', async () => {
+      expect(await getTemplateContentFromVault('', undefined)).toBeNull();
+      expect(await getTemplateContentFromVault('Template.md', {} as any)).toBeNull();
+    });
+
+    it('reads template directly using getFileByPath', async () => {
+      const mockFile = Object.assign(new TFile(), { path: 'Templates/Book.md', name: 'Book.md' });
+      const mockApp = {
+        vault: {
+          getFileByPath: (p: string) => (p === 'Templates/Book.md' ? mockFile : null),
+          read: async (f: TFile) => '# {{title}}\nContent from getFileByPath',
+        },
+      };
+
+      const content = await getTemplateContentFromVault('Templates/Book.md', mockApp as any);
+      expect(content).toBe('# {{title}}\nContent from getFileByPath');
+    });
+
+    it('resolves relative template path via metadataCache.getFirstLinkpathDest without full vault scan', async () => {
+      const mockFile = Object.assign(new TFile(), { path: 'Deep/Nested/BookTemplate.md', name: 'BookTemplate.md' });
+      const mockApp = {
+        vault: {
+          getFileByPath: () => null,
+          getAbstractFileByPath: () => null,
+          read: async () => 'Content from metadataCache dest',
+        },
+        metadataCache: {
+          getFirstLinkpathDest: (path: string) => (path === 'BookTemplate' ? mockFile : null),
+        },
+      };
+
+      const content = await getTemplateContentFromVault('BookTemplate', mockApp as any);
+      expect(content).toBe('Content from metadataCache dest');
     });
   });
 });

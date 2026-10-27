@@ -555,8 +555,58 @@ export class PluginSettingTab {
     this.plugin = plugin;
     this.containerEl = document.createElement("div");
   }
-  display(): void {}
+  getSettingDefinitions(): any[] {
+    return [];
+  }
+  getControlValue(key: string): unknown {
+    return (this.plugin as any)?.settings?.[key];
+  }
+  async setControlValue(key: string, value: unknown): Promise<void> {
+    if ((this.plugin as any)?.settings) {
+      (this.plugin as any).settings[key] = value;
+    }
+    await (this.plugin as any)?.saveSettings?.();
+  }
+  update(): void {
+    this.renderDeclarative();
+  }
+  display(): void {
+    this.renderDeclarative();
+  }
   hide(): void {}
+
+  private renderDeclarative(): void {
+    this.containerEl.empty();
+    const defs = this.getSettingDefinitions();
+    this.renderGroupItems(defs, this.containerEl);
+  }
+
+  private renderGroupItems(items: any[], container: HTMLElement): void {
+    if (!items || !Array.isArray(items)) return;
+    for (const item of items) {
+      if (item.visible !== undefined) {
+        const isVisible = typeof item.visible === 'function' ? item.visible() : Boolean(item.visible);
+        if (!isVisible) continue;
+      }
+      if (item.type === 'group') {
+        if (item.heading) {
+          new MockSetting(container).setName(item.heading).setHeading();
+        }
+        if (item.items) {
+          this.renderGroupItems(item.items, container);
+        }
+        continue;
+      }
+
+      const s = new MockSetting(container);
+      if (item.name) s.setName(item.name);
+      if (item.desc) s.setDesc(item.desc);
+
+      if (item.render && typeof item.render === 'function') {
+        item.render(s, null);
+      }
+    }
+  }
 }
 
 export const Setting = MockSetting;

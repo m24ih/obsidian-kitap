@@ -24,12 +24,13 @@ export async function getTemplateContentFromVault(
   if (!templatePath || !app?.vault) return null;
 
   const vault = app.vault;
-  let file = vault.getAbstractFileByPath?.(templatePath);
+  let file = typeof vault.getFileByPath === 'function'
+    ? vault.getFileByPath(templatePath)
+    : vault.getAbstractFileByPath?.(templatePath);
 
-  // Doğrudan tam yol ile bulunamazsa dosya adına göre ara (fallback)
-  if (!file && typeof vault.getFiles === 'function') {
-    const allFiles = vault.getFiles();
-    file = allFiles.find((f) => f.path === templatePath || f.name === templatePath) ?? null;
+  // Doğrudan tam yol ile bulunamazsa metadataCache üzerinden linkpath araması yap (O(1))
+  if (!file && typeof app.metadataCache?.getFirstLinkpathDest === 'function') {
+    file = app.metadataCache.getFirstLinkpathDest(templatePath, '');
   }
 
   if (file instanceof TFile && typeof vault.read === 'function') {

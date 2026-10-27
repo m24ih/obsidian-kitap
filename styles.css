@@ -451,19 +451,17 @@
 /* --------------------------------------------------------------------------
    Metadata Comparison & Selection Modal Styles (Hybrid Mode)
    -------------------------------------------------------------------------- */
-.modal.kitap-comparison-modal,
-.modal:has(.kitap-comparison-content),
-.modal:has(.kitap-comparison-modal) {
-  width: 900px !important;
-  max-width: 94vw !important;
-  box-sizing: border-box !important;
+.modal-container .modal.kitap-comparison-modal {
+  width: 900px;
+  max-width: 94vw;
+  box-sizing: border-box;
 }
 
-.modal-content.kitap-comparison-modal,
+.modal.kitap-comparison-modal .modal-content,
 .kitap-comparison-content {
-  box-sizing: border-box !important;
-  width: 100% !important;
-  max-width: 100% !important;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
 }
 
 .kitap-comparison-desc {
@@ -899,11 +897,22 @@
   top: 0;
   right: 24px;
   width: 14px;
-  height: 56px;
+  height: 48px;
   background: linear-gradient(to bottom, var(--interactive-accent), #9333ea);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.45);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%);
   z-index: 3;
+}
+
+.kitap-kart-wrapper .book-ribbon::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-left: 7px solid #9333ea;
+  border-right: 7px solid #9333ea;
+  border-bottom: 8px solid transparent;
 }
 
 /* Typographic Cover Elements */
