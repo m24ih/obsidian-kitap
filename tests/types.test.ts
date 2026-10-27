@@ -47,7 +47,7 @@ describe('Core Types & Defaults', () => {
       'isbn:',
       'sayfa:',
       'yayin_tarihi:',
-      'puan_kitapyurdu:',
+      'puan:',
       'kapak:',
       'url:',
       'okuma_durumu:',

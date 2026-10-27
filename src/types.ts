@@ -106,7 +106,6 @@ cevirmen: "{{translator}}"
 isbn: "{{isbn}}"
 sayfa: {{pages}}
 okunan_sayfa: 0
-toplam_sayfa: {{pages}}
 yayin_tarihi: "{{publishDate}}"
 fiyat: "{{price}}"
 format: "{{format}}"
@@ -114,7 +113,7 @@ tur:
 {{genresList}}
 orijinal_baslik: "{{originalTitle}}"
 dil: "{{language}}"
-puan_kitapyurdu: {{rating}}
+puan: {{rating}}
 kapak: "{{coverUrl}}"
 url: "{{url}}"
 okuma_durumu: "{{readingStatus}}"
@@ -161,7 +160,6 @@ cevirmen: "{{translator}}"
 isbn: "{{isbn}}"
 sayfa: {{pages}}
 okunan_sayfa: 0
-toplam_sayfa: {{pages}}
 yayin_tarihi: "{{publishDate}}"
 fiyat: "{{price}}"
 format: "{{format}}"
@@ -169,7 +167,7 @@ tur:
 {{genresList}}
 orijinal_baslik: "{{originalTitle}}"
 dil: "{{language}}"
-puan_kitapyurdu: {{rating}}
+puan: {{rating}}
 kapak: "{{coverUrl}}"
 url: "{{url}}"
 okuma_durumu: "{{readingStatus}}"
@@ -193,7 +191,7 @@ kisisel_puan:
 \`\`\`dataviewjs
 const p = dv.current();
 const current = Number(p?.okunan_sayfa ?? p?.current_page ?? 0);
-const total = Number(p?.toplam_sayfa ?? p?.sayfa ?? p?.total_pages ?? 1);
+const total = Number(p?.sayfa ?? p?.toplam_sayfa ?? p?.total_pages ?? 1);
 const percent = Math.min(100, Math.round((current / total) * 100));
 const status = p?.okuma_durumu ?? p?.durum ?? 'Okunacak';
 

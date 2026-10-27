@@ -55,10 +55,8 @@ export function renderBookTemplate(
     );
   }
 
-  // D&R sağlayıcısı için şablonda doğrudan puan_kitapyurdu: yazılmışsa bunu sağlayıcı bağımsız puan: alanına çevir
-  if (data.provider === 'dr') {
-    processedTemplate = processedTemplate.replace(/\bpuan_kitapyurdu\s*:/g, 'puan:');
-  }
+  // Eski şablonlarda puan_kitapyurdu: yazılmışsa bunu sağlayıcı bağımsız puan: alanına çevir
+  processedTemplate = processedTemplate.replace(/\bpuan_kitapyurdu\s*:/g, 'puan:');
 
   const replacements: Record<string, string> = {
     // Türkçe temel alanlar

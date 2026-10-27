@@ -89,12 +89,12 @@ const status = p?.okuma_durumu || 'Okunacak';
     it('produces synced YAML frontmatter and template body when user customizes property mappings', async () => {
       const customMappings: PropertyMappingData[] = [
         ...DEFAULT_SETTINGS.propertyMappings.filter(
-          (m) => !['kapak', 'okunan_sayfa', 'toplam_sayfa', 'okuma_durumu', 'baslik'].includes(m.property)
+          (m) => !['kapak', 'okunan_sayfa', 'sayfa', 'okuma_durumu', 'baslik'].includes(m.property)
         ),
         { property: 'baslik', newProperty: 'title', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
         { property: 'kapak', newProperty: 'cover', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
         { property: 'okunan_sayfa', newProperty: 'current_page', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
-        { property: 'toplam_sayfa', newProperty: 'total_pages', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
+        { property: 'sayfa', newProperty: 'total_pages', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
         { property: 'okuma_durumu', newProperty: 'status', mapping: PropertyMappingOption.Map, locked: false, wikilink: false },
       ];
 

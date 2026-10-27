@@ -103,7 +103,6 @@ export async function buildBookNoteContent(
   let finalFrontmatterBlock = '';
 
   if (settings.useDefaultFrontMatter) {
-    const isDr = book.provider === 'dr';
     const ratingVal = book.rating !== undefined && book.rating !== null ? book.rating : '';
 
     // Varsayılan kitap alanlarını oluştur
@@ -116,14 +115,13 @@ export async function buildBookNoteContent(
       isbn: book.isbn,
       sayfa: book.pages !== undefined && book.pages !== null ? book.pages : '',
       okunan_sayfa: 0,
-      toplam_sayfa: book.pages !== undefined && book.pages !== null ? book.pages : '',
       yayin_tarihi: book.publishDate || '',
       fiyat: book.price || '',
       format: book.format || '',
       tur: book.genres && book.genres.length > 0 ? book.genres : '',
       orijinal_baslik: book.originalTitle || '',
       dil: book.language || '',
-      ...(isDr ? { puan: ratingVal } : { puan_kitapyurdu: ratingVal }),
+      puan: ratingVal,
       kapak: book.coverUrl || '',
       url: book.url || '',
       okuma_durumu: book.readingStatus || settings.defaultReadingStatus || 'Okunacak',

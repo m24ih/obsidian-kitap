@@ -319,7 +319,7 @@ export function parseCardData(
   const isbn13 = normalizeToIsbn13(isbn);
 
   // 7. Pages & Progress
-  const rawTotal = getField('toplam_sayfa', 'sayfa', 'total_pages', 'pages', 'sayfa_sayisi') ?? 0;
+  const rawTotal = getField('sayfa', 'toplam_sayfa', 'total_pages', 'pages', 'sayfa_sayisi') ?? 0;
   const totalPages = typeof rawTotal === 'number'
     ? Math.max(0, Math.floor(rawTotal))
     : Math.max(0, parseInt(toSafeString(rawTotal), 10) || 0);

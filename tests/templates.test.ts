@@ -66,7 +66,7 @@ URL: {{url}}`;
       expect(rendered).toContain('yazar: "Frank Herbert"');
       expect(rendered).toContain('okuma_durumu: "Okunacak"');
       expect(rendered).toContain('# Dune');
-      expect(rendered).toContain('puan_kitapyurdu: 5');
+      expect(rendered).toContain('puan: 5');
     });
 
     it('renders new bibliographic fields: price, format, genres, originalTitle, language', () => {
@@ -105,7 +105,8 @@ URL: {{url}}`;
 
       expect(rendered).toContain('tip: kitap');
       expect(rendered).toContain('okunan_sayfa: 0');
-      expect(rendered).toContain('toplam_sayfa: 712');
+      expect(rendered).toContain('sayfa: 712');
+      expect(rendered).not.toContain('toplam_sayfa:');
       expect(rendered).toContain('```dataviewjs');
       expect(rendered).toContain('const p = dv.current();');
       expect(rendered).toContain('<progress value=');
