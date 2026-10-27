@@ -441,5 +441,66 @@ describe('Plugin Settings & Lifecycle', () => {
       await plugin.loadSettings();
       expect(plugin.settings.defaultProvider).toBe('hybrid');
     });
+
+    it('sanitizes and defaults global provider settings', async () => {
+      mockData = {
+        enableOpenLibrary: 'not_a_boolean',
+        enableHardcover: 123,
+        hardcoverApiKey: '   secret_token_123   ',
+      };
+      await plugin.loadSettings();
+      expect(plugin.settings.enableOpenLibrary).toBe(false);
+      expect(plugin.settings.enableHardcover).toBe(false);
+      expect(plugin.settings.hardcoverApiKey).toBe('secret_token_123');
+    });
+
+    it('handles global provider UI toggles and input correctly', async () => {
+      const settingTab = new KitapSettingTab(mockApp as any, plugin);
+      await plugin.loadSettings();
+      settingTab.display();
+
+      const items = Array.from(settingTab.containerEl.querySelectorAll('.setting-item'));
+
+      // Find OpenLibrary toggle
+      const olItem = items.find((el) =>
+        el.querySelector('.setting-item-name')?.textContent?.includes('OpenLibrary')
+      );
+      expect(olItem).toBeDefined();
+      const olToggle = (olItem?.querySelector('input[type="checkbox"]') as any)?.component;
+      expect(olToggle).toBeDefined();
+
+      await olToggle.simulateToggle(true);
+      expect(plugin.settings.enableOpenLibrary).toBe(true);
+
+      // Find Hardcover toggle
+      const hcItem = items.find((el) =>
+        el.querySelector('.setting-item-name')?.textContent?.includes('Hardcover Sağlayıcısını')
+      );
+      expect(hcItem).toBeDefined();
+      const hcToggle = (hcItem?.querySelector('input[type="checkbox"]') as any)?.component;
+      expect(hcToggle).toBeDefined();
+
+      await hcToggle.simulateToggle(true);
+      expect(plugin.settings.enableHardcover).toBe(true);
+    });
+
+    it('resets defaultProvider to hybrid if selected global provider is disabled', async () => {
+      mockData = {
+        defaultProvider: 'openlibrary',
+        enableOpenLibrary: false,
+      };
+      await plugin.loadSettings();
+      expect(plugin.settings.defaultProvider).toBe('hybrid');
+      expect(plugin.aggregator.getDefaultProviderId()).toBe('hybrid');
+
+      mockData = {
+        defaultProvider: 'hardcover',
+        enableHardcover: false,
+      };
+      await plugin.loadSettings();
+      expect(plugin.settings.defaultProvider).toBe('hybrid');
+      expect(plugin.aggregator.getDefaultProviderId()).toBe('hybrid');
+    });
   });
 });
+

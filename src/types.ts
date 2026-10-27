@@ -74,6 +74,9 @@ export interface KitapPluginSettings {
   readingStatusOptions: string[];
   defaultReadingStatus: string;
   defaultProvider: string;
+  enableOpenLibrary: boolean;
+  enableHardcover: boolean;
+  hardcoverApiKey: string;
 }
 
 /**
@@ -215,4 +218,7 @@ export const DEFAULT_SETTINGS: KitapPluginSettings = {
   readingStatusOptions: ['Okunacak', 'Okunuyor', 'Okundu'],
   defaultReadingStatus: 'Okunacak',
   defaultProvider: 'hybrid',
+  enableOpenLibrary: false,
+  enableHardcover: false,
+  hardcoverApiKey: '',
 };

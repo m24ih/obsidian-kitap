@@ -82,14 +82,25 @@ export class MetadataComparisonModal extends Modal {
     const drItem = this.options.providers.find((p) => p.id === 'dr');
 
     for (const field of COMPARISON_FIELDS) {
-      if (kyItem && drItem) {
+      if (this.options.providers.length === 2 && kyItem && drItem) {
         const best = resolveBestValue(kyItem.data[field.key], drItem.data[field.key], field.key);
         this.selections[field.key] = best.source;
-      } else if (p2) {
+      } else if (this.options.providers.length === 2 && p2) {
         const best = resolveBestValue(p1.data[field.key], p2.data[field.key], field.key);
         this.selections[field.key] = best.source === 'dr' ? p2.id : p1.id;
       } else {
-        this.selections[field.key] = p1.id;
+        let chosenProvider = p1.id;
+        let chosenVal = p1.data[field.key];
+        for (let i = 1; i < this.options.providers.length; i++) {
+          const cand = this.options.providers[i];
+          const candVal = cand.data[field.key];
+          const comp = resolveBestValue(chosenVal, candVal, field.key);
+          if (comp.source === 'dr') {
+            chosenProvider = cand.id;
+            chosenVal = candVal;
+          }
+        }
+        this.selections[field.key] = chosenProvider;
       }
     }
   }
@@ -145,10 +156,12 @@ export class MetadataComparisonModal extends Modal {
     // Farklı alan sayısını hesapla
     let diffCount = 0;
     if (this.options.providers.length >= 2) {
-      const d1 = this.options.providers[0].data;
-      const d2 = this.options.providers[1].data;
       for (const f of COMPARISON_FIELDS) {
-        if (this.formatFieldValue(d1[f.key], f.key) !== this.formatFieldValue(d2[f.key], f.key)) {
+        const firstVal = this.formatFieldValue(this.options.providers[0].data[f.key], f.key);
+        const hasDiff = this.options.providers.some(
+          (p) => this.formatFieldValue(p.data[f.key], f.key) !== firstVal
+        );
+        if (hasDiff) {
           diffCount++;
         }
       }
@@ -201,10 +214,12 @@ export class MetadataComparisonModal extends Modal {
       const row = this.tableBodyEl.createEl('tr', { cls: 'kitap-comparison-row' });
       row.dataset.field = field.key;
 
+      const firstVal = this.formatFieldValue(this.options.providers[0]?.data[field.key], field.key);
       const isDiff =
         this.options.providers.length >= 2 &&
-        this.formatFieldValue(this.options.providers[0].data[field.key], field.key) !==
-          this.formatFieldValue(this.options.providers[1].data[field.key], field.key);
+        this.options.providers.some(
+          (p) => this.formatFieldValue(p.data[field.key], field.key) !== firstVal
+        );
 
       if (isDiff) {
         row.addClass('kitap-row-diff');
@@ -454,7 +469,11 @@ export class MetadataComparisonModal extends Modal {
     const genres = getFieldVal<string[]>('genres') || undefined;
     const price = getFieldVal<string>('price') || undefined;
     const rating = getFieldVal<number>('rating');
-    const ratingCount = primaryData.ratingCount ?? secondaryData?.ratingCount ?? undefined;
+    const ratingProviderId = this.selections['rating'];
+    const ratingData = (ratingProviderId && providersMap.get(ratingProviderId)) || primaryData;
+    const ratingCount =
+      ratingData.ratingCount ??
+      this.options.providers.find((p) => p.data.ratingCount !== undefined)?.data.ratingCount;
     const coverUrl = getFieldVal<string>('coverUrl') || defaultData.coverUrl || '';
     const description = getFieldVal<string>('description') || undefined;
 

@@ -170,3 +170,20 @@ export interface IDrProvider extends IBookProvider {
   search(query: string): Promise<SearchResultItem[]>;
   getBookDetails(urlOrId: string): Promise<BookMetadata>;
 }
+
+/**
+ * OpenLibrary sağlayıcı arayüzü
+ */
+export interface IOpenLibraryProvider extends IBookProvider {
+  search(query: string): Promise<SearchResultItem[]>;
+  getBookDetails(urlOrId: string): Promise<BookMetadata>;
+}
+
+/**
+ * Hardcover sağlayıcı arayüzü
+ */
+export interface IHardcoverProvider extends IBookProvider {
+  search(query: string): Promise<SearchResultItem[]>;
+  getBookDetails(urlOrId: string): Promise<BookMetadata>;
+}
+

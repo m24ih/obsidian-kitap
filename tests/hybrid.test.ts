@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   cleanIsbn,
+  getAlternateIsbn,
   isbnsMatch,
   normalizeTitle,
   getAuthorTokens,
@@ -40,6 +41,14 @@ describe('Hybrid Metadata Provider & Deduplication Suite', () => {
       expect(isbnsMatch('9789750807145', '9789750809999')).toBe(false);
       expect(isbnsMatch(undefined, '9789750807145')).toBe(false);
       expect(isbnsMatch('', '')).toBe(false);
+    });
+
+    it('computes alternate ISBN-10 and ISBN-13 accurately', () => {
+      expect(getAlternateIsbn('978-0441172719')).toBe('0441172717');
+      expect(getAlternateIsbn('0441172717')).toBe('9780441172719');
+      // ISBN with check digit X
+      expect(getAlternateIsbn('975-08-0714-X')).toBe('9789750807145');
+      expect(getAlternateIsbn('invalid')).toBeUndefined();
     });
   });
 
@@ -822,5 +831,388 @@ describe('Hybrid Metadata Provider & Deduplication Suite', () => {
       expect(createdFiles[createdPath]).toContain('Sayfa: 240');
     });
   });
+
+  describe('Global Book Providers Integration (OpenLibrary & Hardcover)', () => {
+    let mockKy: any;
+    let mockDr: any;
+    let mockOl: any;
+    let mockHc: any;
+
+    beforeEach(() => {
+      mockKy = {
+        id: 'kitapyurdu',
+        name: 'Kitapyurdu',
+        search: vi.fn().mockResolvedValue([
+          {
+            id: 'ky1',
+            title: 'Dune',
+            author: 'Frank Herbert',
+            publisher: 'İthaki Yayınları',
+            isbn: '9786053754794',
+            url: 'https://ky.test/dune',
+            coverUrl: '',
+            provider: 'kitapyurdu',
+          },
+        ]),
+        getBookDetails: vi.fn().mockResolvedValue({
+          id: 'ky1',
+          title: 'Dune',
+          author: 'Frank Herbert',
+          publisher: 'İthaki Yayınları',
+          isbn: '9786053754794',
+          pages: 712,
+          provider: 'kitapyurdu',
+        }),
+      };
+
+      mockDr = {
+        id: 'dr',
+        name: 'D&R',
+        search: vi.fn().mockResolvedValue([]),
+        getBookDetails: vi.fn().mockResolvedValue({
+          id: 'dr1',
+          title: 'Dune',
+          author: 'Frank Herbert',
+          publisher: 'İthaki',
+          isbn: '9786053754794',
+          provider: 'dr',
+        }),
+      };
+
+      mockOl = {
+        id: 'openlibrary',
+        name: 'OpenLibrary',
+        search: vi.fn().mockResolvedValue([
+          {
+            id: '/works/OL893414W',
+            title: 'Dune',
+            author: 'Frank Herbert',
+            publisher: 'Chilton',
+            isbn: '9786053754794',
+            url: 'https://openlibrary.org/works/OL893414W',
+            coverUrl: 'https://covers.openlibrary.org/b/id/980253-L.jpg',
+            provider: 'openlibrary',
+          },
+        ]),
+        getBookDetails: vi.fn().mockResolvedValue({
+          id: '/works/OL893414W',
+          title: 'Dune',
+          author: 'Frank Herbert',
+          publisher: 'Chilton',
+          isbn: '9786053754794',
+          description: 'A masterpiece of science fiction.',
+          provider: 'openlibrary',
+        }),
+      };
+
+      mockHc = {
+        id: 'hardcover',
+        name: 'Hardcover',
+        search: vi.fn().mockResolvedValue([
+          {
+            id: '4242',
+            title: 'Project Hail Mary',
+            author: 'Andy Weir',
+            publisher: 'Ballantine Books',
+            isbn: '9780593135203',
+            url: 'https://hardcover.app/books/project-hail-mary',
+            coverUrl: '',
+            provider: 'hardcover',
+          },
+        ]),
+        getBookDetails: vi.fn().mockResolvedValue({
+          id: '4242',
+          title: 'Project Hail Mary',
+          author: 'Andy Weir',
+          publisher: 'Ballantine Books',
+          isbn: '9780593135203',
+          pages: 496,
+          provider: 'hardcover',
+        }),
+      };
+    });
+
+    it('ignores OpenLibrary and Hardcover by default when toggles are disabled', async () => {
+      const deps = {
+        getProvider: (id: string) => {
+          if (id === 'kitapyurdu') return mockKy;
+          if (id === 'dr') return mockDr;
+          if (id === 'openlibrary') return mockOl;
+          if (id === 'hardcover') return mockHc;
+          throw new Error(`Unknown provider: ${id}`);
+        },
+        getSettings: () => ({
+          enableOpenLibrary: false,
+          enableHardcover: false,
+        } as any),
+      };
+
+      const hybrid = new HybridProvider(deps);
+      const results = await hybrid.search('Dune');
+
+      expect(mockKy.search).toHaveBeenCalledWith('Dune');
+      expect(mockDr.search).toHaveBeenCalledWith('Dune');
+      expect(mockOl.search).not.toHaveBeenCalled();
+      expect(mockHc.search).not.toHaveBeenCalled();
+      expect(results).toHaveLength(1);
+      expect(results[0].providers).toEqual(['kitapyurdu']);
+    });
+
+    it('queries OpenLibrary when enableOpenLibrary is true and deduplicates by ISBN', async () => {
+      const deps = {
+        getProvider: (id: string) => {
+          if (id === 'kitapyurdu') return mockKy;
+          if (id === 'dr') return mockDr;
+          if (id === 'openlibrary') return mockOl;
+          throw new Error(`Unknown provider: ${id}`);
+        },
+        getSettings: () => ({
+          enableOpenLibrary: true,
+          enableHardcover: false,
+        } as any),
+      };
+
+      const hybrid = new HybridProvider(deps);
+      const results = await hybrid.search('Dune');
+
+      expect(mockKy.search).toHaveBeenCalledWith('Dune');
+      expect(mockOl.search).toHaveBeenCalledWith('Dune');
+
+      // Matching ISBN (9786053754794) unifies into a single merged result!
+      expect(results).toHaveLength(1);
+      expect(results[0].provider).toBe('hybrid');
+      expect(results[0].providers).toEqual(['kitapyurdu', 'openlibrary']);
+      expect(results[0].sources?.kitapyurdu).toBeDefined();
+      expect(results[0].sources?.openlibrary).toBeDefined();
+      expect(results[0].coverUrl).toBe(
+        'https://covers.openlibrary.org/b/id/980253-L.jpg'
+      );
+    });
+
+    it('queries Hardcover when enableHardcover is true and includes foreign books in results', async () => {
+      const deps = {
+        getProvider: (id: string) => {
+          if (id === 'kitapyurdu') return mockKy;
+          if (id === 'dr') return mockDr;
+          if (id === 'hardcover') return mockHc;
+          throw new Error(`Unknown provider: ${id}`);
+        },
+        getSettings: () => ({
+          enableOpenLibrary: false,
+          enableHardcover: true,
+        } as any),
+      };
+
+      const hybrid = new HybridProvider(deps);
+      const results = await hybrid.search('Hail Mary');
+
+      expect(mockHc.search).toHaveBeenCalledWith('Hail Mary');
+      const hcItem = results.find((r) => r.title === 'Project Hail Mary');
+      expect(hcItem).toBeDefined();
+      expect(hcItem?.provider).toBe('hardcover');
+      expect(hcItem?.providers).toEqual(['hardcover']);
+    });
+
+    it('getFullBookData combines details across 3 providers (Kitapyurdu, D&R, OpenLibrary)', async () => {
+      const deps = {
+        getProvider: (id: string) => {
+          if (id === 'kitapyurdu') return mockKy;
+          if (id === 'dr') return mockDr;
+          if (id === 'openlibrary') return mockOl;
+          throw new Error(`Unknown provider: ${id}`);
+        },
+      };
+
+      const hybrid = new HybridProvider(deps);
+
+      const multiItem: SearchResultItem = {
+        id: 'multi_dune',
+        title: 'Dune',
+        author: 'Frank Herbert',
+        publisher: 'İthaki',
+        url: 'https://ky.test/dune',
+        coverUrl: '',
+        provider: 'hybrid',
+        providers: ['kitapyurdu', 'dr', 'openlibrary'],
+        sources: {
+          kitapyurdu: {
+            id: 'ky1',
+            title: 'Dune',
+            author: 'Frank Herbert',
+            publisher: 'İthaki Yayınları',
+            url: 'https://ky.test/dune',
+            coverUrl: '',
+          },
+          dr: {
+            id: 'dr1',
+            title: 'Dune',
+            author: 'Frank Herbert',
+            publisher: 'İthaki',
+            url: 'https://dr.test/dune',
+            coverUrl: '',
+          },
+          openlibrary: {
+            id: '/works/OL893414W',
+            title: 'Dune',
+            author: 'Frank Herbert',
+            publisher: 'Chilton',
+            url: 'https://openlibrary.org/works/OL893414W',
+            coverUrl: '',
+          },
+        },
+      };
+
+      const book = await hybrid.getFullBookData(multiItem);
+
+      expect(mockKy.getBookDetails).toHaveBeenCalled();
+      expect(mockDr.getBookDetails).toHaveBeenCalled();
+      expect(mockOl.getBookDetails).toHaveBeenCalled();
+
+      expect(book.title).toBe('Dune');
+      expect(book.pages).toBe(712); // from Kitapyurdu
+      expect(book.description).toBe('A masterpiece of science fiction.'); // from OpenLibrary
+      expect(book.provider).toBe('hybrid');
+    });
+
+    it('BookAggregator dynamically registers and unregisters global providers via setSettings', () => {
+      const aggregator = new BookAggregator();
+
+      // Default: kitapyurdu, dr
+      expect(aggregator.getAvailableProviders().map((p) => p.id)).toEqual([
+        'kitapyurdu',
+        'dr',
+      ]);
+
+      // Enable OpenLibrary
+      aggregator.setSettings({
+        enableOpenLibrary: true,
+        enableHardcover: false,
+        hardcoverApiKey: '',
+      } as any);
+
+      expect(aggregator.getAvailableProviders().map((p) => p.id)).toEqual([
+        'kitapyurdu',
+        'dr',
+        'openlibrary',
+      ]);
+      expect(aggregator.isProviderEnabled('openlibrary')).toBe(true);
+      expect(aggregator.isProviderEnabled('hardcover')).toBe(false);
+
+      // Enable Hardcover too
+      aggregator.setSettings({
+        enableOpenLibrary: true,
+        enableHardcover: true,
+        hardcoverApiKey: 'hc_token_xyz',
+      } as any);
+
+      expect(aggregator.getAvailableProviders().map((p) => p.id)).toEqual([
+        'kitapyurdu',
+        'dr',
+        'openlibrary',
+        'hardcover',
+      ]);
+      expect(aggregator.isProviderEnabled('hardcover')).toBe(true);
+
+      // Disable both
+      aggregator.setSettings({
+        enableOpenLibrary: false,
+        enableHardcover: false,
+        hardcoverApiKey: '',
+      } as any);
+
+      expect(aggregator.getAvailableProviders().map((p) => p.id)).toEqual([
+        'kitapyurdu',
+        'dr',
+      ]);
+    });
+
+    it('mergeBookMetadata correctly selects fields when dr is first argument or when combining global providers', () => {
+      const drBook: BookMetadata = {
+        id: 'dr_1',
+        title: 'Dune (D&R Title)',
+        author: 'Frank Herbert',
+        publisher: 'İthaki',
+        isbn: '9780441172719',
+        description: 'D&R Turkish blurb',
+        rating: 4.8,
+        ratingCount: 150,
+        url: 'https://dr.test/dune',
+        provider: 'dr',
+      };
+
+      const olBook: BookMetadata = {
+        id: '/works/OL893414W',
+        title: 'Dune (OpenLibrary Title)',
+        author: 'Frank Herbert',
+        publisher: 'Chilton',
+        isbn: '9780441172719',
+        description: 'OpenLibrary English synopsis',
+        url: 'https://openlibrary.org/works/OL893414W',
+        provider: 'openlibrary',
+      };
+
+      // Select D&R description specifically
+      const merged = mergeBookMetadata(drBook, olBook, {
+        description: 'dr',
+        title: 'openlibrary',
+      });
+
+      expect(merged.description).toBe('D&R Turkish blurb');
+      expect(merged.title).toBe('Dune (OpenLibrary Title)');
+
+      // Combine OpenLibrary and Hardcover
+      const hcBook: BookMetadata = {
+        id: 'hc_10',
+        title: 'Dune (Hardcover Title)',
+        author: 'Frank Herbert',
+        publisher: 'Ace',
+        isbn: '9780441172719',
+        description: 'Hardcover community synopsis',
+        rating: 4.6,
+        ratingCount: 9500,
+        url: 'https://hardcover.app/books/dune',
+        provider: 'hardcover',
+      };
+
+      const globalMerged = mergeBookMetadata(olBook, hcBook, {
+        description: 'hardcover',
+        title: 'openlibrary',
+        rating: 'hardcover',
+      });
+
+      expect(globalMerged.description).toBe('Hardcover community synopsis');
+      expect(globalMerged.title).toBe('Dune (OpenLibrary Title)');
+      expect(globalMerged.rating).toBe(4.6);
+      expect(globalMerged.ratingCount).toBe(9500);
+    });
+
+    it('BookAggregator resets defaultProvider to hybrid if selected global provider is disabled', () => {
+      const aggregator = new BookAggregator();
+
+      aggregator.setSettings({
+        enableOpenLibrary: true,
+        enableHardcover: false,
+        hardcoverApiKey: '',
+        defaultProvider: 'openlibrary',
+      } as any);
+
+      aggregator.setDefaultProvider('openlibrary');
+      expect(aggregator.getDefaultProviderId()).toBe('openlibrary');
+
+      // Now disable OpenLibrary
+      const newSettings = {
+        enableOpenLibrary: false,
+        enableHardcover: false,
+        hardcoverApiKey: '',
+        defaultProvider: 'openlibrary',
+      } as any;
+
+      aggregator.setSettings(newSettings);
+
+      expect(aggregator.getDefaultProviderId()).toBe('hybrid');
+      expect(newSettings.defaultProvider).toBe('hybrid');
+    });
+  });
 });
+
 

@@ -13,6 +13,18 @@ export function cleanIsbn(input?: string): string {
 }
 
 /**
+ * Checks whether an input string looks like an ISBN-10 or ISBN-13 (with optional hyphens/spaces/prefix).
+ */
+export function isIsbn(input: string): boolean {
+  if (!input || typeof input !== 'string') return false;
+  const stripped = input.trim().replace(/^isbn\s*:?\s*/i, '').replace(/[-\s]/g, '');
+  return (
+    (stripped.length === 13 && /^97[89]\d{10}$/.test(stripped)) ||
+    (stripped.length === 10 && /^\d{9}[\dX]$/i.test(stripped))
+  );
+}
+
+/**
  * Compares two ISBNs, accounting for ISBN-10 to ISBN-13 (978 prefix) conversion.
  */
 export function isbnsMatch(isbn1?: string, isbn2?: string): boolean {
@@ -30,6 +42,40 @@ export function isbnsMatch(isbn1?: string, isbn2?: string): boolean {
   }
 
   return false;
+}
+
+/**
+ * Calculates the complementary ISBN representation:
+ * - If given an ISBN-13 starting with 978, returns the corresponding ISBN-10 with valid check digit.
+ * - If given an ISBN-10, returns the corresponding 978-prefixed ISBN-13 with valid check digit.
+ */
+export function getAlternateIsbn(isbn?: string): string | undefined {
+  const clean = cleanIsbn(isbn);
+  if (!clean) return undefined;
+
+  if (clean.length === 13 && clean.startsWith('978')) {
+    const nine = clean.slice(3, 12);
+    let sum = 0;
+    for (let i = 0; i < 9; i++) {
+      sum += parseInt(nine[i], 10) * (10 - i);
+    }
+    const rem = (11 - (sum % 11)) % 11;
+    const check = rem === 10 ? 'X' : String(rem);
+    return `${nine}${check}`;
+  }
+
+  if (clean.length === 10) {
+    const nine = clean.slice(0, 9);
+    let sum = 9 * 1 + 7 * 3 + 8 * 1;
+    for (let i = 0; i < 9; i++) {
+      const weight = i % 2 === 0 ? 3 : 1;
+      sum += parseInt(nine[i], 10) * weight;
+    }
+    const rem = (10 - (sum % 10)) % 10;
+    return `978${nine}${rem}`;
+  }
+
+  return undefined;
 }
 
 /**
@@ -260,7 +306,8 @@ export function areBooksMatching(itemA: SearchResultItem, itemB: SearchResultIte
  */
 export function mergeSearchResults(
   kyResults: SearchResultItem[],
-  drResults: SearchResultItem[]
+  drResults: SearchResultItem[],
+  ...additionalResults: SearchResultItem[][]
 ): SearchResultItem[] {
   const merged: SearchResultItem[] = [];
   const matchedDrIndices = new Set<number>();
@@ -322,6 +369,60 @@ export function mergeSearchResults(
           dr: drItem,
         },
       });
+    }
+  }
+
+  // Merge additional provider results (e.g. OpenLibrary, Hardcover)
+  for (const extraList of additionalResults) {
+    if (!Array.isArray(extraList) || extraList.length === 0) continue;
+
+    for (const extraItem of extraList) {
+      if (!extraItem) continue;
+      const extraProvider = extraItem.provider || 'unknown';
+
+      let matchedIndex = -1;
+      for (let i = 0; i < merged.length; i++) {
+        if (areBooksMatching(merged[i], extraItem)) {
+          matchedIndex = i;
+          break;
+        }
+      }
+
+      if (matchedIndex !== -1) {
+        const target = merged[matchedIndex];
+        const existingProviders = target.providers || (target.provider ? [target.provider] : []);
+        const newProviders = existingProviders.includes(extraProvider)
+          ? existingProviders
+          : [...existingProviders, extraProvider];
+
+        const existingSources = target.sources || {};
+        const newSources = {
+          ...existingSources,
+          [extraProvider]: extraItem,
+        };
+
+        target.id = `${target.id}__${extraProvider}_${extraItem.id}`;
+        target.provider = 'hybrid';
+        target.providers = newProviders;
+        target.sources = newSources;
+        target.title = target.title || extraItem.title;
+        target.author = target.author || extraItem.author;
+        target.publisher = target.publisher || extraItem.publisher;
+        target.coverUrl = target.coverUrl || extraItem.coverUrl;
+        target.isbn = target.isbn || extraItem.isbn;
+        if (target.rating === undefined && extraItem.rating !== undefined) {
+          target.rating = extraItem.rating;
+        }
+      } else {
+        merged.push({
+          ...extraItem,
+          provider: extraProvider,
+          providers: [extraProvider],
+          sources: {
+            [extraProvider]: extraItem,
+          },
+        });
+      }
     }
   }
 
@@ -420,19 +521,37 @@ export function resolveDefaultSelections(
 }
 
 /**
- * Combines metadata from Kitapyurdu and D&R based on chosen provider per field.
+ * Combines metadata from two providers based on chosen provider per field.
  */
 export function mergeBookMetadata(
   kyData: BookMetadata,
   drData: BookMetadata,
-  selections?: Record<string, 'kitapyurdu' | 'dr'>
+  selections?: Record<string, 'kitapyurdu' | 'dr'> | Record<string, string>
 ): BookMetadata {
-  const effectiveSelections = selections || resolveDefaultSelections(kyData, drData);
+  const effectiveSelections = (selections as Record<string, string>) || resolveDefaultSelections(kyData, drData);
 
   const getChosen = <T>(field: keyof BookMetadata): T | undefined => {
     const source = effectiveSelections[field] || 'kitapyurdu';
-    const val = source === 'dr' ? drData[field] : kyData[field];
-    return val as T | undefined;
+    let chosenVal: unknown;
+    if (source === drData.provider) {
+      chosenVal = drData[field];
+    } else if (source === kyData.provider) {
+      chosenVal = kyData[field];
+    } else if (source === 'dr' && drData.provider === 'dr') {
+      chosenVal = drData[field];
+    } else if (source === 'kitapyurdu' && kyData.provider === 'kitapyurdu') {
+      chosenVal = kyData[field];
+    } else if (source === 'dr') {
+      chosenVal = drData[field];
+    } else {
+      chosenVal = kyData[field];
+    }
+
+    if (chosenVal !== undefined && chosenVal !== null && chosenVal !== '') {
+      return chosenVal as T | undefined;
+    }
+    const fallback = kyData[field] ?? drData[field];
+    return fallback as T | undefined;
   };
 
   const id = kyData.id || drData.id;
@@ -449,7 +568,16 @@ export function mergeBookMetadata(
   const genres = getChosen<string[]>('genres') || undefined;
   const price = getChosen<string>('price') || undefined;
   const rating = getChosen<number>('rating');
-  const ratingCount = kyData.ratingCount ?? drData.ratingCount ?? undefined;
+  const ratingSource = effectiveSelections['rating'];
+  const ratingCount =
+    (ratingSource === drData.provider || (ratingSource === 'dr' && drData.provider === 'dr')
+      ? drData.ratingCount
+      : ratingSource === kyData.provider || (ratingSource === 'kitapyurdu' && kyData.provider === 'kitapyurdu')
+      ? kyData.ratingCount
+      : undefined) ??
+    kyData.ratingCount ??
+    drData.ratingCount ??
+    undefined;
   const coverUrl = getChosen<string>('coverUrl') || kyData.coverUrl || drData.coverUrl || '';
   const description = getChosen<string>('description') || undefined;
 

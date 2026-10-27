@@ -132,17 +132,47 @@ export default class KitapPlugin extends Plugin {
         : '';
     this.settings.defaultProvider =
       rawDefaultProvider || DEFAULT_SETTINGS.defaultProvider;
-    this.aggregator?.setDefaultProvider?.(this.settings.defaultProvider);
 
     // 12. propertyMappings migrasyonu
     const { migratePropertyMappings } = await import('./settings/propertyMapping');
     this.settings.propertyMappings = migratePropertyMappings(this.settings.propertyMappings);
+
+    // 13. enableOpenLibrary doğrulaması
+    this.settings.enableOpenLibrary =
+      typeof rawRecord.enableOpenLibrary === 'boolean'
+        ? rawRecord.enableOpenLibrary
+        : DEFAULT_SETTINGS.enableOpenLibrary;
+
+    // 14. enableHardcover doğrulaması
+    this.settings.enableHardcover =
+      typeof rawRecord.enableHardcover === 'boolean'
+        ? rawRecord.enableHardcover
+        : DEFAULT_SETTINGS.enableHardcover;
+
+    // 15. hardcoverApiKey doğrulaması
+    const rawApiKey = rawRecord.hardcoverApiKey;
+    this.settings.hardcoverApiKey =
+      typeof rawApiKey === 'string'
+        ? rawApiKey.trim()
+        : DEFAULT_SETTINGS.hardcoverApiKey;
+
+    // Eğer varsayılan olarak seçilen sağlayıcı kapalıysa hibrit moda geri dön
+    if (!this.settings.enableOpenLibrary && this.settings.defaultProvider === 'openlibrary') {
+      this.settings.defaultProvider = 'hybrid';
+    }
+    if (!this.settings.enableHardcover && this.settings.defaultProvider === 'hardcover') {
+      this.settings.defaultProvider = 'hybrid';
+    }
+
+    this.aggregator?.setDefaultProvider?.(this.settings.defaultProvider);
+    this.aggregator?.setSettings?.(this.settings);
   }
 
   /**
    * Güncel ayarları diske kaydeder.
    */
   async saveSettings(): Promise<void> {
+    this.aggregator?.setSettings?.(this.settings);
     await this.saveData(this.settings);
   }
 

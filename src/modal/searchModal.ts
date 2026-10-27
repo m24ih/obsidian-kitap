@@ -248,13 +248,35 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
         : null;
 
     if (multiProviders && multiProviders.length > 1) {
-      new Notice(`"${item.title}" için metaveriler getiriliyor (Kitapyurdu & D&R)...`);
+      const providerNames = multiProviders
+        .map(([pId]) =>
+          pId === 'kitapyurdu'
+            ? 'Kitapyurdu'
+            : pId === 'dr'
+            ? 'D&R'
+            : pId === 'openlibrary'
+            ? 'OpenLibrary'
+            : pId === 'hardcover'
+            ? 'Hardcover'
+            : pId
+        )
+        .join(' & ');
+      new Notice(`"${item.title}" için metaveriler getiriliyor (${providerNames})...`);
 
       const promises = multiProviders.map(async ([pId, srcItem]) => {
         try {
           const provider = this.aggregator.getProvider(pId);
           const data = await provider.getBookDetails(srcItem.url || srcItem.id);
-          const pName = pId === 'kitapyurdu' ? 'Kitapyurdu' : pId === 'dr' ? 'D&R' : provider.name;
+          const pName =
+            pId === 'kitapyurdu'
+              ? 'Kitapyurdu'
+              : pId === 'dr'
+              ? 'D&R'
+              : pId === 'openlibrary'
+              ? 'OpenLibrary'
+              : pId === 'hardcover'
+              ? 'Hardcover'
+              : provider.name;
           return { id: pId, name: pName, data: { ...data, provider: pId } };
         } catch (err) {
           console.warn(`Sağlayıcı veri çekme hatası (${pId}):`, err);

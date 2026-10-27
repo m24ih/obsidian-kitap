@@ -4,6 +4,7 @@ dist/
 build/
 
 # Bağımlılıklar
+node_modules
 node_modules/
 
 # Ortam değişkenleri ve gizli anahtarlar
