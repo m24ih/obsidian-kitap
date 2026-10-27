@@ -21,11 +21,11 @@ export interface HardcoverPublisher {
 export interface HardcoverEdition {
   id?: number;
   title?: string;
-  isbn_10?: string;
-  isbn_13?: string;
-  pages?: number;
-  publisher?: HardcoverPublisher;
-  image?: { url?: string };
+  isbn_10?: string | null;
+  isbn_13?: string | null;
+  pages?: number | null;
+  publisher?: HardcoverPublisher | null;
+  image?: { url?: string | null } | null;
 }
 
 export interface HardcoverTag {
@@ -39,17 +39,20 @@ export interface HardcoverTagging {
 export interface HardcoverBook {
   id: number;
   title: string;
-  slug?: string;
-  description?: string;
-  pages?: number;
-  release_date?: string;
-  release_year?: number;
-  rating?: number;
-  ratings_count?: number;
-  users_count?: number;
-  image?: { url?: string };
+  slug?: string | null;
+  description?: string | null;
+  pages?: number | null;
+  release_date?: string | null;
+  release_year?: number | null;
+  rating?: number | null;
+  ratings_count?: number | null;
+  users_count?: number | null;
+  image?: { url?: string | null } | null;
   cached_contributors?: unknown;
+  cached_tags?: { Genre?: { tag: string }[] } | Record<string, unknown> | null;
   contributions?: HardcoverContribution[];
+  default_physical_edition?: HardcoverEdition | null;
+  default_ebook_edition?: HardcoverEdition | null;
   editions?: HardcoverEdition[];
   taggings?: HardcoverTagging[];
 }
@@ -216,39 +219,98 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
 
   /**
    * Metin / başlık ile kitap araması yürütür.
+   * Hardcover resmi Typesense tabanlı search sorgusu ve ardından book detaylarını çeker.
    */
   private async searchByText(
     queryText: string,
     headers: Record<string, string>
   ): Promise<SearchResultItem[]> {
-    const graphqlQuery = `
-      query SearchBooks($searchTerm: String!) {
-        books(
-          where: { title: { _ilike: $searchTerm } }
-          limit: 20
-          order_by: { users_count: desc }
-        ) {
+    // 1. Resmi Hardcover arama uç noktası ile eşleşen kitap ID'lerini al
+    const searchGraphql = `
+      query SearchBooks($query: String!) {
+        search(query: $query, query_type: "Book", per_page: 20, page: 1) {
+          ids
+        }
+      }
+    `;
+
+    const searchRes = await fetchJson<
+      HardcoverGraphQLResponse<{ search?: { ids?: unknown } }>
+    >(this.endpoint, {
+      method: 'POST',
+      headers,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        query: searchGraphql,
+        variables: { query: queryText },
+      }),
+    });
+
+    if (searchRes.errors && searchRes.errors.length > 0) {
+      console.warn('Hardcover arama hatası:', searchRes.errors[0].message);
+      return [];
+    }
+
+    const rawIds = searchRes?.data?.search?.ids;
+    if (!Array.isArray(rawIds) || rawIds.length === 0) {
+      return [];
+    }
+
+    const ids = [
+      ...new Set(
+        rawIds
+          .map(Number)
+          .filter((id) => Number.isInteger(id) && id > 0 && id <= 2147483647)
+      ),
+    ].slice(0, 20);
+
+    if (ids.length === 0) return [];
+
+    // 2. ID'leri verilen kitapların detaylarını ve edisyonlarını çek
+    const detailsGraphql = `
+      query SearchBookDetails($ids: [Int!]!) {
+        books(where: { id: { _in: $ids } }) {
           id
           title
           slug
+          release_year
+          release_date
           description
           pages
-          release_date
-          release_year
           rating
           ratings_count
+          users_count
           image {
             url
           }
-          cached_contributors
           contributions {
+            contribution
             author {
               name
             }
           }
-          editions(limit: 1) {
+          cached_tags
+          default_physical_edition {
             isbn_10
             isbn_13
+            pages
+            publisher {
+              name
+            }
+          }
+          default_ebook_edition {
+            isbn_10
+            isbn_13
+            pages
+            publisher {
+              name
+            }
+          }
+          editions(limit: 5) {
+            id
+            isbn_10
+            isbn_13
+            pages
             publisher {
               name
             }
@@ -257,29 +319,34 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
       }
     `;
 
-    const body = JSON.stringify({
-      query: graphqlQuery,
-      variables: { searchTerm: `%${queryText}%` },
-    });
-
-    const response = await fetchJson<
+    const detailsRes = await fetchJson<
       HardcoverGraphQLResponse<{ books?: HardcoverBook[] }>
     >(this.endpoint, {
       method: 'POST',
       headers,
       contentType: 'application/json',
-      body,
+      body: JSON.stringify({
+        query: detailsGraphql,
+        variables: { ids },
+      }),
     });
 
-    if (response.errors && response.errors.length > 0) {
-      console.warn('Hardcover GraphQL hatası:', response.errors[0].message);
+    if (detailsRes.errors && detailsRes.errors.length > 0) {
+      console.warn('Hardcover kitap detay hatası:', detailsRes.errors[0].message);
       return [];
     }
 
-    const books = response?.data?.books;
-    if (!Array.isArray(books)) return [];
+    const books = detailsRes?.data?.books;
+    if (!Array.isArray(books) || books.length === 0) {
+      return [];
+    }
 
-    return books.map((book) => this.mapBookToSearchResult(book));
+    // Arama sıralamasını (ranking) koru
+    const byId = new Map(books.map((b) => [b.id, b]));
+    return ids.flatMap((id) => {
+      const book = byId.get(id);
+      return book ? [this.mapBookToSearchResult(book)] : [];
+    });
   }
 
   /**
@@ -323,7 +390,33 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
             }
             cached_contributors
             contributions {
+              contribution
               author {
+                name
+              }
+            }
+            default_physical_edition {
+              isbn_10
+              isbn_13
+              pages
+              publisher {
+                name
+              }
+            }
+            default_ebook_edition {
+              isbn_10
+              isbn_13
+              pages
+              publisher {
+                name
+              }
+            }
+            editions(limit: 5) {
+              id
+              isbn_10
+              isbn_13
+              pages
+              publisher {
                 name
               }
             }
@@ -371,6 +464,7 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
             isbn_13: ed.isbn_13,
             publisher: ed.publisher,
           },
+          ...(ed.book.editions || []),
         ],
       };
 
@@ -382,12 +476,20 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
 
   /**
    * Hardcover kitap modelini standart SearchResultItem formatına dönüştürür.
+   * Fiziksel ve dijital edisyonlardan en doğru ISBN ve yayınevini tespit eder.
    */
   private mapBookToSearchResult(book: HardcoverBook): SearchResultItem {
     const id = String(book.id);
     const title = (book.title || '').trim();
     const author = formatHardcoverAuthors(book.contributions, book.cached_contributors);
-    const publisher = book.editions?.[0]?.publisher?.name || '';
+
+    const edition = book.default_physical_edition || book.default_ebook_edition;
+    const fallbackEdition = book.editions?.find((e) => e.isbn_13 || e.isbn_10) || book.editions?.[0];
+    const publisher =
+      edition?.publisher?.name ||
+      fallbackEdition?.publisher?.name ||
+      '';
+
     const url = `https://hardcover.app/books/${book.slug || book.id}`;
     const coverUrl = book.image?.url || '';
     const rating =
@@ -395,7 +497,12 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
         ? Math.round(book.rating * 10) / 10
         : undefined;
 
-    const rawIsbn = book.editions?.[0]?.isbn_13 || book.editions?.[0]?.isbn_10 || '';
+    const rawIsbn =
+      edition?.isbn_13 ||
+      edition?.isbn_10 ||
+      fallbackEdition?.isbn_13 ||
+      fallbackEdition?.isbn_10 ||
+      '';
     const isbn = rawIsbn ? cleanIsbn(rawIsbn) : undefined;
 
     return {
@@ -483,18 +590,37 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
           release_year
           rating
           ratings_count
+          users_count
           image {
             url
           }
           cached_contributors
           contributions {
+            contribution
             author {
               name
             }
           }
+          cached_tags
           taggings {
             tag {
               tag
+            }
+          }
+          default_physical_edition {
+            isbn_10
+            isbn_13
+            pages
+            publisher {
+              name
+            }
+          }
+          default_ebook_edition {
+            isbn_10
+            isbn_13
+            pages
+            publisher {
+              name
             }
           }
           editions(limit: 5) {
@@ -551,18 +677,37 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
           release_year
           rating
           ratings_count
+          users_count
           image {
             url
           }
           cached_contributors
           contributions {
+            contribution
             author {
               name
             }
           }
+          cached_tags
           taggings {
             tag {
               tag
+            }
+          }
+          default_physical_edition {
+            isbn_10
+            isbn_13
+            pages
+            publisher {
+              name
+            }
+          }
+          default_ebook_edition {
+            isbn_10
+            isbn_13
+            pages
+            publisher {
+              name
             }
           }
           editions(limit: 5) {
@@ -624,17 +769,26 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
     const title = (book.title || '').trim();
     const author = formatHardcoverAuthors(book.contributions, book.cached_contributors);
 
-    const firstEdition = book.editions?.[0];
-    const publisher = firstEdition?.publisher?.name || '';
+    const edition = book.default_physical_edition || book.default_ebook_edition;
+    const fallbackEdition = book.editions?.find((e) => e.isbn_13 || e.isbn_10) || book.editions?.[0];
+    const publisher =
+      edition?.publisher?.name ||
+      fallbackEdition?.publisher?.name ||
+      '';
     const url = `https://hardcover.app/books/${book.slug || book.id}`;
     const coverUrl = book.image?.url || '';
     const description = book.description?.trim() || undefined;
 
-    const pages = book.pages || firstEdition?.pages || undefined;
+    const pages = edition?.pages || book.pages || fallbackEdition?.pages || undefined;
     const publishDate =
       book.release_date || (book.release_year ? String(book.release_year) : undefined);
 
-    const rawIsbn = firstEdition?.isbn_13 || firstEdition?.isbn_10 || '';
+    const rawIsbn =
+      edition?.isbn_13 ||
+      edition?.isbn_10 ||
+      fallbackEdition?.isbn_13 ||
+      fallbackEdition?.isbn_10 ||
+      '';
     const isbn = rawIsbn ? cleanIsbn(rawIsbn) : '';
 
     const rating =
@@ -643,12 +797,21 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
         : undefined;
     const ratingCount = book.ratings_count || undefined;
 
-    const genres = Array.isArray(book.taggings)
+    const tagGenres = Array.isArray(book.taggings)
       ? book.taggings
           .map((t) => t.tag?.tag?.trim())
           .filter((t): t is string => Boolean(t))
-          .slice(0, 10)
-      : undefined;
+      : [];
+    const cachedGenres =
+      book.cached_tags &&
+      typeof book.cached_tags === 'object' &&
+      'Genre' in book.cached_tags &&
+      Array.isArray((book.cached_tags as { Genre?: { tag?: string }[] }).Genre)
+        ? (book.cached_tags as { Genre: { tag?: string }[] }).Genre
+            .map((g) => g.tag?.trim())
+            .filter((t): t is string => Boolean(t))
+        : [];
+    const genres = [...new Set([...tagGenres, ...cachedGenres])].slice(0, 10);
 
     return {
       id,
@@ -663,7 +826,7 @@ export class HardcoverProvider implements IBookProvider, IHardcoverProvider {
       ...(description ? { description } : {}),
       ...(rating !== undefined ? { rating } : {}),
       ...(ratingCount !== undefined ? { ratingCount } : {}),
-      ...(genres && genres.length > 0 ? { genres } : {}),
+      ...(genres.length > 0 ? { genres } : {}),
       provider: 'hardcover',
     };
   }

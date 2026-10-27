@@ -393,6 +393,14 @@ export class MockButtonComponent {
     this.buttonEl.classList.add("mod-cta");
     return this;
   }
+  setIcon(icon: string) {
+    this.buttonEl.setAttribute("data-icon", icon);
+    return this;
+  }
+  setTooltip(tooltip: string) {
+    this.buttonEl.setAttribute("aria-label", tooltip);
+    return this;
+  }
   setWarning() {
     this.warning = true;
     this.buttonEl.classList.add("mod-warning");
@@ -485,6 +493,13 @@ export class MockSetting {
     this.buttonComponent = new MockButtonComponent();
     this.settingEl.appendChild(this.buttonComponent.buttonEl);
     cb(this.buttonComponent);
+    return this;
+  }
+
+  addExtraButton(cb: (button: MockButtonComponent) => void) {
+    const btn = new MockButtonComponent();
+    this.settingEl.appendChild(btn.buttonEl);
+    cb(btn);
     return this;
   }
 

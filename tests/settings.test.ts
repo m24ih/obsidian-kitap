@@ -113,8 +113,8 @@ describe('Plugin Settings & Lifecycle', () => {
       settingTab.display();
 
       const text = (settingTab.containerEl.textContent || '').toLowerCase();
-      expect(text).toContain('genel dosya ayarları');
-      expect(text).toContain('not şablonu ve biçimlendirme');
+      expect(text).toContain('sağlayıcılar');
+      expect(text).toContain('şablon');
       expect(text).toContain('kullanılabilir şablon değişkenleri');
       expect(text).toContain('{{title}}');
       expect(text).toContain('{{author}}');
@@ -128,7 +128,7 @@ describe('Plugin Settings & Lifecycle', () => {
       let targetFolderInput: HTMLInputElement | undefined;
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Hedef Klasör')) {
+        if (nameEl?.textContent?.toLowerCase().includes('hedef klasör')) {
           targetFolderInput = item.querySelector('input') as HTMLInputElement;
         }
       }
@@ -155,7 +155,7 @@ describe('Plugin Settings & Lifecycle', () => {
       let fileNameInput: HTMLInputElement | undefined;
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Dosya Adı Şablonu')) {
+        if (nameEl?.textContent?.toLowerCase().includes('dosya adı şablonu')) {
           fileNameInput = item.querySelector('input') as HTMLInputElement;
         }
       }
@@ -179,10 +179,10 @@ describe('Plugin Settings & Lifecycle', () => {
 
       const settingItems = Array.from(settingTab.containerEl.querySelectorAll('.setting-item')) as HTMLElement[];
       const kyItem = settingItems.find((item) =>
-        item.querySelector('.setting-item-name')?.textContent?.includes('Kitapyurdu Sağlayıcısı')
+        item.querySelector('.setting-item-name')?.textContent?.trim() === 'Kitapyurdu'
       );
       const drItem = settingItems.find((item) =>
-        item.querySelector('.setting-item-name')?.textContent?.includes('D&R Sağlayıcısı')
+        item.querySelector('.setting-item-name')?.textContent?.trim() === 'D&R'
       );
 
       expect(kyItem).toBeDefined();
@@ -196,7 +196,7 @@ describe('Plugin Settings & Lifecycle', () => {
 
       const settingItems = Array.from(settingTab.containerEl.querySelectorAll('.setting-item')) as HTMLElement[];
       const drItem = settingItems.find((item) =>
-        item.querySelector('.setting-item-name')?.textContent?.includes('D&R Sağlayıcısı')
+        item.querySelector('.setting-item-name')?.textContent?.trim() === 'D&R'
       );
       expect(drItem).toBeDefined();
 
@@ -214,7 +214,7 @@ describe('Plugin Settings & Lifecycle', () => {
       let templateModeDropdown: HTMLSelectElement | undefined;
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Şablon Modu')) {
+        if (nameEl?.textContent?.toLowerCase().includes('şablon modu')) {
           templateModeDropdown = item.querySelector('select') as HTMLSelectElement;
         }
       }
@@ -240,7 +240,7 @@ describe('Plugin Settings & Lifecycle', () => {
       let resetButton: HTMLButtonElement | undefined;
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Statik Şablona Dönüştür') || nameEl?.textContent?.includes('Şablonu Sıfırla')) {
+        if (nameEl?.textContent?.toLowerCase().includes('statik şablona dönüştür') || nameEl?.textContent?.toLowerCase().includes('şablonu sıfırla')) {
           resetButton = item.querySelector('button') as HTMLButtonElement;
         }
       }
@@ -269,10 +269,10 @@ describe('Plugin Settings & Lifecycle', () => {
 
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Kapak Görsellerini İndir')) {
+        if (nameEl?.textContent?.toLowerCase().includes('kapak görsellerini indir')) {
           downloadToggleInput = item.querySelector('input[type="checkbox"]') as HTMLInputElement;
         }
-        if (nameEl?.textContent?.includes('Kapak Klasörü')) {
+        if (nameEl?.textContent?.toLowerCase().includes('kapak klasörü')) {
           coverFolderInput = item.querySelector('input') as HTMLInputElement;
         }
       }
@@ -306,7 +306,7 @@ describe('Plugin Settings & Lifecycle', () => {
       let templateFileInput: HTMLInputElement | undefined;
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Şablon Dosyası')) {
+        if (nameEl?.textContent?.toLowerCase().includes('şablon dosyası')) {
           templateFileInput = item.querySelector('input') as HTMLInputElement;
         }
       }
@@ -331,7 +331,7 @@ describe('Plugin Settings & Lifecycle', () => {
       let reloadedInput: HTMLInputElement | undefined;
       for (const item of Array.from(reloadedItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Şablon Dosyası')) {
+        if (nameEl?.textContent?.toLowerCase().includes('şablon dosyası')) {
           reloadedInput = item.querySelector('input') as HTMLInputElement;
         }
       }
@@ -345,7 +345,7 @@ describe('Plugin Settings & Lifecycle', () => {
       let targetFolderInput: HTMLInputElement | undefined;
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Hedef Klasör')) {
+        if (nameEl?.textContent?.toLowerCase().includes('hedef klasör')) {
           targetFolderInput = item.querySelector('input') as HTMLInputElement;
         }
       }
@@ -369,7 +369,7 @@ describe('Plugin Settings & Lifecycle', () => {
       let coverFolderInput: HTMLInputElement | undefined;
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Kapak Klasörü')) {
+        if (nameEl?.textContent?.toLowerCase().includes('kapak klasörü')) {
           coverFolderInput = item.querySelector('input') as HTMLInputElement;
         }
       }
@@ -507,7 +507,7 @@ describe('Plugin Settings & Lifecycle', () => {
 
       const items = Array.from(settingTab.containerEl.querySelectorAll('.setting-item')) as HTMLElement[];
       const apiKeyItem = items.find((el) =>
-        el.querySelector('.setting-item-name')?.textContent?.includes('Hardcover API Anahtarı')
+        el.querySelector('.setting-item-name')?.textContent?.toLowerCase().includes('hardcover api anahtarı')
       );
       expect(apiKeyItem).toBeDefined();
     });

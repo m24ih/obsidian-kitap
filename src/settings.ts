@@ -23,17 +23,15 @@ export class KitapSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     containerEl.createEl('p', {
-      text: 'Kitapyurdu üzerinden kitap arama, metaveri çekme, YAML özellik eşleme ve şablon seçeneklerini buradan özelleştirebilirsiniz.',
+      text: 'Kitap arama, metaveri çekme, özellik eşleme ve şablon seçeneklerini buradan yapılandırabilirsiniz.',
       cls: 'setting-item-description',
     });
 
     // ----------------------------------------------------
-    // Bölüm 1: Genel Dosya Ayarları
+    // Genel Dosya Ayarları (Obsidian rehberine göre en üstte başlıksız)
     // ----------------------------------------------------
-    new Setting(containerEl).setName('Genel dosya ayarları').setHeading();
-
     new Setting(containerEl)
-      .setName('Hedef Klasör')
+      .setName('Hedef klasör')
       .setDesc('Oluşturulan kitap notlarının kaydedileceği vault klasörü. Klasör mevcut değilse otomatik olarak oluşturulur.')
       .addText((text) => {
         const suggester = new FolderSuggest(this.app, text.inputEl);
@@ -53,7 +51,7 @@ export class KitapSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName('Dosya Adı Şablonu')
+      .setName('Dosya adı şablonu')
       .setDesc('Oluşturulacak kitap notu dosyasının adı formatı. Kullanılabilir değişkenler: {{baslik}}, {{yazar}}, {{yayinevi}}, {{isbn}}, {{yayin_tarihi}} (İngilizce takma adlar: {{title}}, {{author}}).')
       .addText((text) =>
         text
@@ -66,9 +64,9 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     // ----------------------------------------------------
-    // Bölüm: Metaveri Sağlayıcı Ayarları
+    // Bölüm: Sağlayıcılar
     // ----------------------------------------------------
-    new Setting(containerEl).setName('Metaveri sağlayıcı ayarları').setHeading();
+    new Setting(containerEl).setName('Sağlayıcılar').setHeading();
 
     const getActiveProviderCount = (): number => {
       let count = 0;
@@ -80,7 +78,7 @@ export class KitapSettingTab extends PluginSettingTab {
     };
 
     new Setting(containerEl)
-      .setName('Kitapyurdu Sağlayıcısı')
+      .setName('Kitapyurdu')
       .setDesc('Kitapyurdu.com üzerinden Türkçe kitap arama ve metaveri çekme.')
       .addToggle((toggle) =>
         toggle
@@ -99,7 +97,7 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('D&R Sağlayıcısı')
+      .setName('D&R')
       .setDesc('D&R (dr.com.tr) üzerinden Türkçe kitap arama ve metaveri çekme.')
       .addToggle((toggle) =>
         toggle
@@ -118,7 +116,7 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('OpenLibrary Sağlayıcısı')
+      .setName('OpenLibrary')
       .setDesc('OpenLibrary.org REST API üzerinden yabancı ve küresel kitap arama.')
       .addToggle((toggle) =>
         toggle
@@ -137,7 +135,7 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Hardcover Sağlayıcısı')
+      .setName('Hardcover')
       .setDesc('Hardcover.app GraphQL API üzerinden yabancı ve küresel kitap arama.')
       .addToggle((toggle) =>
         toggle
@@ -156,12 +154,16 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     if (this.plugin.settings.enableHardcover) {
-      new Setting(containerEl)
-        .setName('Hardcover API Anahtarı')
+      let isVisible = false;
+      let textInputEl: HTMLInputElement | null = null;
+
+      const hcKeySetting = new Setting(containerEl)
+        .setName('Hardcover API anahtarı')
         .setDesc(
           'Hardcover hesabınızdan aldığınız API anahtarı (hardcover.app/account/api). Boş bırakılırsa Hardcover araması çalıştırılmaz.'
         )
         .addText((text) => {
+          textInputEl = text.inputEl;
           text.inputEl.type = 'password';
           text
             .setPlaceholder('Hardcover API anahtarınızı girin...')
@@ -171,11 +173,26 @@ export class KitapSettingTab extends PluginSettingTab {
               this.plugin.aggregator?.setSettings?.(this.plugin.settings);
               await this.plugin.saveSettings();
             });
+        })
+        .addExtraButton((btn) => {
+          btn
+            .setIcon('eye-off')
+            .setTooltip('Anahtarı göster / gizle')
+            .onClick(() => {
+              isVisible = !isVisible;
+              if (textInputEl) {
+                textInputEl.type = isVisible ? 'text' : 'password';
+              }
+              btn.setIcon(isVisible ? 'eye' : 'eye-off');
+            });
         });
+
+      // Eklenti ayar satırını temiz tut
+      hcKeySetting.settingEl.addClass('kitap-api-key-setting');
 
       if (typeof SecretComponent !== 'undefined') {
         new Setting(containerEl)
-          .setName('Hardcover Secret Storage Bağlantısı (Opsiyonel)')
+          .setName('Hardcover secret storage (opsiyonel)')
           .setDesc(
             'API anahtarınızı Obsidian Secret Storage ile saklamak isterseniz buradan bir anahtar bağlayabilirsiniz.'
           )
@@ -194,12 +211,12 @@ export class KitapSettingTab extends PluginSettingTab {
     }
 
     // ----------------------------------------------------
-    // Bölüm: Kapak Görselleri
+    // Bölüm: Kapaklar
     // ----------------------------------------------------
-    new Setting(containerEl).setName('Kapak görselleri').setHeading();
+    new Setting(containerEl).setName('Kapaklar').setHeading();
 
     new Setting(containerEl)
-      .setName('Kapak Görsellerini İndir')
+      .setName('Kapak görsellerini indir')
       .setDesc('Yeni kitap notları oluşturulurken kapak görselini yerel olarak indirir ve vault içine kaydeder. Böylece her kitap için harici bağlantıya gerek kalmaz.')
       .addToggle((toggle) =>
         toggle
@@ -214,7 +231,7 @@ export class KitapSettingTab extends PluginSettingTab {
     if (this.plugin.settings.downloadCovers) {
       new Setting(containerEl)
         .setClass('kitap-setting-wide-control')
-        .setName('Kapak Klasörü')
+        .setName('Kapak klasörü')
         .setDesc('İndirilen kitap kapaklarının kaydedileceği vault klasörü. Klasör mevcut değilse otomatik olarak oluşturulur.')
         .addSearch((cb) => {
           const suggester = new FolderSuggest(this.app, cb.inputEl);
@@ -234,14 +251,14 @@ export class KitapSettingTab extends PluginSettingTab {
     }
 
     // ----------------------------------------------------
-    // Bölüm: Okuma Durumu Ayarları
+    // Bölüm: Okuma Durumu
     // ----------------------------------------------------
-    new Setting(containerEl).setName('Okuma durumu ayarları').setHeading();
+    new Setting(containerEl).setName('Okuma durumu').setHeading();
 
     let defaultStatusDropdown: DropdownComponent | null = null;
 
     new Setting(containerEl)
-      .setName('Okuma Durumu Seçenekleri')
+      .setName('Durum seçenekleri')
       .setDesc('Kitaplar için kullanabileceğiniz durum seçenekleri (virgülle ayırarak girin). Örn: Okunacak, Okunuyor, Okundu veya TBR, Reading, Read.')
       .addText((text) =>
         text
@@ -277,7 +294,7 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Varsayılan Okuma Durumu')
+      .setName('Varsayılan durum')
       .setDesc('Yeni eklenen kitap notuna otomatik atanacak başlangıç okuma durumu.')
       .addDropdown((dropdown) => {
         defaultStatusDropdown = dropdown;
@@ -297,14 +314,14 @@ export class KitapSettingTab extends PluginSettingTab {
       });
 
     // ----------------------------------------------------
-    // Bölüm 2: Not Şablonu ve Biçimlendirme
+    // Bölüm: Şablon
     // ----------------------------------------------------
-    new Setting(containerEl).setName('Not şablonu ve biçimlendirme').setHeading();
+    new Setting(containerEl).setName('Şablon').setHeading();
 
     const currentMode = this.plugin.settings.templateMode || 'static';
 
     new Setting(containerEl)
-      .setName('Şablon Modu')
+      .setName('Şablon modu')
       .setDesc('Kitap notları oluşturulurken kullanılacak şablon yapısı.')
       .addDropdown((dropdown) => {
         dropdown
@@ -321,10 +338,10 @@ export class KitapSettingTab extends PluginSettingTab {
 
     if (currentMode === 'static') {
       const modeDesc = containerEl.createDiv({ cls: 'setting-item-description kitap-mode-desc' });
-      modeDesc.setText('ℹ️ Standart Statik Markdown şablonu etkindir. Ek eklenti gerektirmeden sade ve kalıcı notlar üretir.');
+      modeDesc.setText('Standart statik Markdown şablonu etkindir. Ek eklenti gerektirmeden sade ve kalıcı notlar üretir.');
 
       new Setting(containerEl)
-        .setName('Bu Şablonu Özelleştir')
+        .setName('Şablonu özelleştir')
         .setDesc('Statik şablonu temel alarak düzenlemek için Özel Şablon moduna aktarın.')
         .addButton((btn) => {
           btn.setButtonText('Özel Şablona Kopyala ve Düzenle').onClick(async () => {
@@ -337,10 +354,10 @@ export class KitapSettingTab extends PluginSettingTab {
         });
     } else if (currentMode === 'reactive') {
       const modeDesc = containerEl.createDiv({ cls: 'setting-item-description kitap-mode-desc' });
-      modeDesc.setText('✨ Reaktif şablon etkindir. Dataview / DataviewJS ve Templater desteğiyle dinamik okuma ilerlemesi (%), okuma günlüğü ve alıntılar tablosu sunar.');
+      modeDesc.setText('Reaktif şablon etkindir. Dataview / DataviewJS ve Templater desteğiyle dinamik okuma ilerlemesi (%), okuma günlüğü ve alıntılar tablosu sunar.');
 
       new Setting(containerEl)
-        .setName('Bu Şablonu Özelleştir')
+        .setName('Şablonu özelleştir')
         .setDesc('Reaktif şablonu temel alarak düzenlemek için Özel Şablon moduna aktarın.')
         .addButton((btn) => {
           btn.setButtonText('Özel Şablona Kopyala ve Düzenle').onClick(async () => {
@@ -355,7 +372,7 @@ export class KitapSettingTab extends PluginSettingTab {
       // custom modu: Hem dosya hem doğrudan metin alanı
       new Setting(containerEl)
         .setClass('kitap-setting-wide-control')
-        .setName('Şablon Dosyası (Vault İçi)')
+        .setName('Şablon dosyası')
         .setDesc('Kitap notları oluşturulurken kullanılacak vault içi Markdown şablon dosyası (.md). Belirtilirse aşağıdaki metin şablonu yerine bu dosya kullanılır.')
         .addSearch((cb) => {
           const suggester = new FileSuggest(this.app, cb.inputEl);
@@ -375,7 +392,7 @@ export class KitapSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setClass('kitap-setting-stacked')
-        .setName('Doğrudan Not Şablonu (Markdown)')
+        .setName('Not şablonu')
         .setDesc('Şablon dosyası seçilmediğinde veya bulunamadığında kullanılacak standart metin şablonu.')
         .addTextArea((textArea) => {
           textArea
@@ -389,7 +406,7 @@ export class KitapSettingTab extends PluginSettingTab {
         });
 
       new Setting(containerEl)
-        .setName('Şablonu Sıfırla / İçe Aktar')
+        .setName('Şablonu sıfırla')
         .setDesc('Özel metin şablonunu yerleşik şablonlardan birine dönüştürür.')
         .addButton((button) =>
           button
@@ -414,12 +431,12 @@ export class KitapSettingTab extends PluginSettingTab {
     }
 
     // ----------------------------------------------------
-    // Bölüm 3: Templater Entegrasyonu
+    // Bölüm: Templater
     // ----------------------------------------------------
-    new Setting(containerEl).setName('Templater entegrasyonu').setHeading();
+    new Setting(containerEl).setName('Templater').setHeading();
 
     new Setting(containerEl)
-      .setName('Templater Entegrasyonunu Etkinleştir')
+      .setName('Templater entegrasyonu')
       .setDesc(
         'Templater eklentisi ile entegrasyon sağlar. Not oluşturulduğunda Templater otomatik çalıştırılır ve şablonlarınızda `book` objesine (<%* const b = book; %>) erişebilirsiniz. (Templater eklentisinin kurulu olması gerekir).'
       )
@@ -433,12 +450,12 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     // ----------------------------------------------------
-    // Bölüm 4: YAML Frontmatter & Özellik Eşlemeleri (Property Mappings)
+    // Bölüm: Özellik Eşlemeleri
     // ----------------------------------------------------
-    new Setting(containerEl).setName('YAML frontmatter ve özellik eşlemeleri').setHeading();
+    new Setting(containerEl).setName('Özellik eşlemeleri').setHeading();
 
     new Setting(containerEl)
-      .setName('Varsayılan Frontmatter Oluştur')
+      .setName('Varsayılan frontmatter')
       .setDesc('Etkinleştirildiğinde, aşağıdaki özellik eşlemelerine göre otomatik YAML frontmatter oluşturulur. Devre dışı bırakılırsa yalnızca şablonda tanımlı frontmatter kullanılır.')
       .addToggle((toggle) =>
         toggle

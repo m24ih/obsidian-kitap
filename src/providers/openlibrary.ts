@@ -159,6 +159,9 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
   readonly id: string = 'openlibrary';
   readonly name: string = 'OpenLibrary';
   private readonly baseUrl = 'https://openlibrary.org';
+  private readonly requestHeaders = {
+    'User-Agent': 'obsidian-kitap/1.0.0 (https://github.com/m24ih/obsidian-kitap)',
+  };
 
   /**
    * OpenLibrary search.json uç noktası üzerinden arama yapar.
@@ -173,7 +176,9 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
     )}&limit=20&fields=key,title,author_name,publisher,first_publish_year,cover_i,subject,number_of_pages_median,number_of_pages,ratings_average,ratings_count,isbn,language`;
 
     try {
-      const response = await fetchJson<OpenLibrarySearchResponse>(url);
+      const response = await fetchJson<OpenLibrarySearchResponse>(url, {
+        headers: this.requestHeaders,
+      });
       return this.parseSearchResults(response);
     } catch (error) {
       console.error('OpenLibrary arama hatası:', error);
@@ -278,7 +283,9 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
   private async getBookDetailsByIsbn(isbn: string): Promise<BookMetadata> {
     const clean = cleanIsbn(isbn);
     const url = `${this.baseUrl}/isbn/${clean}.json`;
-    const bookData = await fetchJson<OpenLibraryBookResponse>(url);
+    const bookData = await fetchJson<OpenLibraryBookResponse>(url, {
+      headers: this.requestHeaders,
+    });
     return this.mapEditionToMetadata(bookData, `/isbn/${clean}`);
   }
 
@@ -287,7 +294,9 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
    */
   private async getBookDetailsByEditionKey(editionKey: string): Promise<BookMetadata> {
     const url = `${this.baseUrl}${editionKey}.json`;
-    const bookData = await fetchJson<OpenLibraryBookResponse>(url);
+    const bookData = await fetchJson<OpenLibraryBookResponse>(url, {
+      headers: this.requestHeaders,
+    });
     return this.mapEditionToMetadata(bookData, editionKey);
   }
 
@@ -296,7 +305,9 @@ export class OpenLibraryProvider implements IBookProvider, IOpenLibraryProvider 
    */
   private async getBookDetailsByWorkKey(workKey: string): Promise<BookMetadata> {
     const url = `${this.baseUrl}${workKey}.json`;
-    const workData = await fetchJson<OpenLibraryWorkResponse>(url);
+    const workData = await fetchJson<OpenLibraryWorkResponse>(url, {
+      headers: this.requestHeaders,
+    });
 
     const title = (workData.title || '').trim();
     const description = pickOpenLibraryDescription(workData.description);

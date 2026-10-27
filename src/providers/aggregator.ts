@@ -92,6 +92,12 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
       } catch (err) {
         console.warn('Secret storage üzerinden Hardcover anahtarı alınamadı:', err);
       }
+
+      // 3. Savunmacı yedek: Eğer kullanıcı Secret ID alanına yanlışlıkla doğrudan API anahtarı girdiyse
+      const fallbackKey = this.settings.hardcoverApiKeyId.trim();
+      if (fallbackKey.length > 25 && !fallbackKey.includes(' ')) {
+        return fallbackKey;
+      }
     }
     return '';
   }

@@ -157,9 +157,9 @@ describe('Reading Status Customization & Migration Suite', () => {
       settingTab.display();
 
       const text = settingTab.containerEl.textContent || '';
-      expect(text.toLowerCase()).toContain('okuma durumu ayarları');
-      expect(text).toContain('Okuma Durumu Seçenekleri');
-      expect(text).toContain('Varsayılan Okuma Durumu');
+      expect(text.toLowerCase()).toContain('okuma durumu');
+      expect(text).toContain('Durum seçenekleri');
+      expect(text).toContain('Varsayılan durum');
 
       const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');
       let optionsInput: HTMLInputElement | undefined;
@@ -167,10 +167,10 @@ describe('Reading Status Customization & Migration Suite', () => {
 
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Okuma Durumu Seçenekleri')) {
+        if (nameEl?.textContent?.toLowerCase().includes('durum seçenekleri')) {
           optionsInput = item.querySelector('input') as HTMLInputElement;
         }
-        if (nameEl?.textContent?.includes('Varsayılan Okuma Durumu')) {
+        if (nameEl?.textContent?.toLowerCase().includes('varsayılan durum')) {
           defaultSelect = item.querySelector('select') as HTMLSelectElement;
         }
       }
@@ -189,7 +189,7 @@ describe('Reading Status Customization & Migration Suite', () => {
 
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Okuma Durumu Seçenekleri')) {
+        if (nameEl?.textContent?.toLowerCase().includes('durum seçenekleri')) {
           optionsInput = item.querySelector('input') as HTMLInputElement;
         }
       }
@@ -218,7 +218,7 @@ describe('Reading Status Customization & Migration Suite', () => {
 
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Varsayılan Okuma Durumu')) {
+        if (nameEl?.textContent?.toLowerCase().includes('varsayılan durum')) {
           defaultSelect = item.querySelector('select') as HTMLSelectElement;
         }
       }
@@ -238,7 +238,7 @@ describe('Reading Status Customization & Migration Suite', () => {
 
       for (const item of Array.from(settingItems)) {
         const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Okuma Durumu Seçenekleri')) {
+        if (nameEl?.textContent?.toLowerCase().includes('durum seçenekleri')) {
           optionsInput = item.querySelector('input') as HTMLInputElement;
         }
       }
@@ -256,7 +256,7 @@ describe('Reading Status Customization & Migration Suite', () => {
         let currentInput: HTMLInputElement | undefined;
         for (const item of Array.from(currentItems)) {
           const nameEl = item.querySelector('.setting-item-name');
-          if (nameEl?.textContent?.includes('Okuma Durumu Seçenekleri')) {
+          if (nameEl?.textContent?.toLowerCase().includes('durum seçenekleri')) {
             currentInput = item.querySelector('input') as HTMLInputElement;
           }
         }

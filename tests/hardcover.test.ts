@@ -98,7 +98,15 @@ describe('Hardcover Provider Suite (HardcoverProvider)', () => {
     });
 
     it('executes GraphQL title query with Bearer authorization and parses results', async () => {
-      const mockGraphQLResponse = {
+      const mockSearchResponse = {
+        data: {
+          search: {
+            ids: [4242],
+          },
+        },
+      };
+
+      const mockDetailsResponse = {
         data: {
           books: [
             {
@@ -112,6 +120,12 @@ describe('Hardcover Provider Suite (HardcoverProvider)', () => {
               ratings_count: 8500,
               image: { url: 'https://images.hardcover.app/covers/phm.jpg' },
               contributions: [{ author: { name: 'Andy Weir' } }],
+              default_physical_edition: {
+                isbn_10: '0593135202',
+                isbn_13: '9780593135203',
+                pages: 496,
+                publisher: { name: 'Ballantine Books' },
+              },
               editions: [
                 {
                   isbn_10: '0593135202',
@@ -124,21 +138,29 @@ describe('Hardcover Provider Suite (HardcoverProvider)', () => {
         },
       };
 
-      (requestUrl as any).mockResolvedValueOnce({
-        status: 200,
-        json: mockGraphQLResponse,
-      });
+      (requestUrl as any)
+        .mockResolvedValueOnce({
+          status: 200,
+          json: mockSearchResponse,
+        })
+        .mockResolvedValueOnce({
+          status: 200,
+          json: mockDetailsResponse,
+        });
 
       const results = await provider.search('Project Hail Mary');
 
-      expect(requestUrl).toHaveBeenCalledTimes(1);
-      const reqParam = (requestUrl as any).mock.calls[0][0];
-      expect(reqParam.url).toBe('https://api.hardcover.app/v1/graphql');
-      expect(reqParam.method).toBe('POST');
-      expect(reqParam.headers['Authorization']).toBe('Bearer test_api_key_123');
+      expect(requestUrl).toHaveBeenCalledTimes(2);
+      const reqParam1 = (requestUrl as any).mock.calls[0][0];
+      expect(reqParam1.url).toBe('https://api.hardcover.app/v1/graphql');
+      expect(reqParam1.method).toBe('POST');
+      expect(reqParam1.headers['Authorization']).toBe('Bearer test_api_key_123');
+      const parsedBody1 = JSON.parse(reqParam1.body);
+      expect(parsedBody1.variables.query).toBe('Project Hail Mary');
 
-      const parsedBody = JSON.parse(reqParam.body);
-      expect(parsedBody.variables.searchTerm).toBe('%Project Hail Mary%');
+      const reqParam2 = (requestUrl as any).mock.calls[1][0];
+      const parsedBody2 = JSON.parse(reqParam2.body);
+      expect(parsedBody2.variables.ids).toEqual([4242]);
 
       expect(results).toHaveLength(1);
       const item = results[0];

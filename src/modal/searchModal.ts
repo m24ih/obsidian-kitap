@@ -107,14 +107,10 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
       this.containerEl ||
       (this.resultContainerEl && this.resultContainerEl.parentElement);
 
-    if (hostEl && typeof hostEl.createDiv === 'function') {
-      this.statusBarEl = hostEl.createDiv({
-        cls: 'kitap-search-status-bar is-hidden',
-      });
-    } else {
-      this.statusBarEl = document.createElement('div');
-      this.statusBarEl.className = 'kitap-search-status-bar is-hidden';
-    }
+    const container = hostEl || this.contentEl || document.body;
+    this.statusBarEl = container.createDiv({
+      cls: 'kitap-search-status-bar is-hidden',
+    });
 
     // Bilgilendirme notu
     this.noticeEl = this.statusBarEl.createDiv({
