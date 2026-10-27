@@ -5,7 +5,9 @@ import {
 } from '../types';
 import { KitapyurduProvider } from './kitapyurdu';
 import { DrProvider } from './dr';
-import { HybridProvider } from './hybrid';
+import { OpenLibraryProvider } from './openlibrary';
+import { HardcoverProvider } from './hardcover';
+import { HybridProvider, IHybridProviderDeps } from './hybrid';
 import { IKitapyurduProvider, IBookProvider, ProviderInfo } from './types';
 
 export interface IBookAggregator {
@@ -20,15 +22,18 @@ export interface IBookAggregator {
   getAvailableProviders(options?: { includeComposite?: boolean }): ProviderInfo[];
   setDefaultProvider(providerId: string): void;
   getDefaultProviderId(): string;
+  setSettings?(settings: KitapPluginSettings): void;
+  getSettings?(): KitapPluginSettings | undefined;
 }
 
 /**
  * Farklı metaveri kaynaklarından bibliyografik verileri çeken toplayıcı servis.
  */
-export class BookAggregator implements IBookAggregator {
+export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
   private readonly providers: Map<string, IBookProvider> = new Map();
   private defaultProviderId: string = 'hybrid';
   private readonly hybridProvider: HybridProvider;
+  private settings?: KitapPluginSettings;
 
   constructor(defaultProvider?: IKitapyurduProvider | IBookProvider) {
     this.hybridProvider = new HybridProvider(this);
@@ -42,6 +47,55 @@ export class BookAggregator implements IBookAggregator {
       this.registerProvider(new DrProvider());
       this.defaultProviderId = 'hybrid';
     }
+  }
+
+  /**
+   * Eklenti ayarlarını toplayıcıya aktarır ve sağlayıcı kayıtlarını günceller.
+   */
+  setSettings(settings: KitapPluginSettings): void {
+    this.settings = settings;
+
+    // OpenLibrary dinamik kayıt yönetimi
+    if (settings.enableOpenLibrary) {
+      if (!this.providers.has('openlibrary')) {
+        this.registerProvider(new OpenLibraryProvider());
+      }
+    } else {
+      this.unregisterProvider('openlibrary');
+    }
+
+    // Hardcover dinamik kayıt yönetimi
+    if (settings.enableHardcover) {
+      const existingHc = this.providers.get('hardcover') as HardcoverProvider | undefined;
+      if (!existingHc) {
+        this.registerProvider(
+          new HardcoverProvider(() => this.settings?.hardcoverApiKey || '')
+        );
+      } else if (typeof existingHc.setApiKey === 'function') {
+        existingHc.setApiKey(settings.hardcoverApiKey || '');
+      }
+    } else {
+      this.unregisterProvider('hardcover');
+    }
+  }
+
+  /**
+   * Aktif eklenti ayarlarını döndürür.
+   */
+  getSettings(): KitapPluginSettings | undefined {
+    return this.settings;
+  }
+
+  /**
+   * Bir sağlayıcının aktif olup olmadığını belirler.
+   */
+  isProviderEnabled(id: string): boolean {
+    if (id === 'kitapyurdu' || id === 'dr') return true;
+    if (this.settings) {
+      if (id === 'openlibrary') return Boolean(this.settings.enableOpenLibrary);
+      if (id === 'hardcover') return Boolean(this.settings.enableHardcover);
+    }
+    return this.providers.has(id);
   }
 
   /**

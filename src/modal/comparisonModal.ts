@@ -82,14 +82,25 @@ export class MetadataComparisonModal extends Modal {
     const drItem = this.options.providers.find((p) => p.id === 'dr');
 
     for (const field of COMPARISON_FIELDS) {
-      if (kyItem && drItem) {
+      if (this.options.providers.length === 2 && kyItem && drItem) {
         const best = resolveBestValue(kyItem.data[field.key], drItem.data[field.key], field.key);
         this.selections[field.key] = best.source;
-      } else if (p2) {
+      } else if (this.options.providers.length === 2 && p2) {
         const best = resolveBestValue(p1.data[field.key], p2.data[field.key], field.key);
         this.selections[field.key] = best.source === 'dr' ? p2.id : p1.id;
       } else {
-        this.selections[field.key] = p1.id;
+        let chosenProvider = p1.id;
+        let chosenVal = p1.data[field.key];
+        for (let i = 1; i < this.options.providers.length; i++) {
+          const cand = this.options.providers[i];
+          const candVal = cand.data[field.key];
+          const comp = resolveBestValue(chosenVal, candVal, field.key);
+          if (comp.source === 'dr') {
+            chosenProvider = cand.id;
+            chosenVal = candVal;
+          }
+        }
+        this.selections[field.key] = chosenProvider;
       }
     }
   }

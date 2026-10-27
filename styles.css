@@ -748,6 +748,34 @@
   border-color: rgba(0, 91, 187, 0.35);
 }
 
+/* OpenLibrary Marka Rozeti (Turkuaz / Teal) */
+.kitap-badge-openlibrary {
+  color: #2dd4bf;
+  background-color: rgba(45, 212, 191, 0.15);
+  border-color: rgba(45, 212, 191, 0.38);
+  font-weight: 600;
+}
+
+.theme-light .kitap-badge-openlibrary {
+  color: #0f766e;
+  background-color: rgba(15, 118, 110, 0.12);
+  border-color: rgba(15, 118, 110, 0.35);
+}
+
+/* Hardcover Marka Rozeti (Mor / Violet) */
+.kitap-badge-hardcover {
+  color: #c084fc;
+  background-color: rgba(192, 132, 252, 0.15);
+  border-color: rgba(192, 132, 252, 0.38);
+  font-weight: 600;
+}
+
+.theme-light .kitap-badge-hardcover {
+  color: #7e22ce;
+  background-color: rgba(126, 34, 206, 0.12);
+  border-color: rgba(126, 34, 206, 0.35);
+}
+
 .setting-item.kitap-comparison-footer {
   margin-top: 14px;
   padding: 0;

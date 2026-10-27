@@ -13,6 +13,18 @@ export function cleanIsbn(input?: string): string {
 }
 
 /**
+ * Checks whether an input string looks like an ISBN-10 or ISBN-13 (with optional hyphens/spaces/prefix).
+ */
+export function isIsbn(input: string): boolean {
+  if (!input || typeof input !== 'string') return false;
+  const stripped = input.trim().replace(/^isbn\s*:?\s*/i, '').replace(/[-\s]/g, '');
+  return (
+    (stripped.length === 13 && /^97[89]\d{10}$/.test(stripped)) ||
+    (stripped.length === 10 && /^\d{9}[\dX]$/i.test(stripped))
+  );
+}
+
+/**
  * Compares two ISBNs, accounting for ISBN-10 to ISBN-13 (978 prefix) conversion.
  */
 export function isbnsMatch(isbn1?: string, isbn2?: string): boolean {
@@ -260,7 +272,8 @@ export function areBooksMatching(itemA: SearchResultItem, itemB: SearchResultIte
  */
 export function mergeSearchResults(
   kyResults: SearchResultItem[],
-  drResults: SearchResultItem[]
+  drResults: SearchResultItem[],
+  ...additionalResults: SearchResultItem[][]
 ): SearchResultItem[] {
   const merged: SearchResultItem[] = [];
   const matchedDrIndices = new Set<number>();
@@ -322,6 +335,60 @@ export function mergeSearchResults(
           dr: drItem,
         },
       });
+    }
+  }
+
+  // Merge additional provider results (e.g. OpenLibrary, Hardcover)
+  for (const extraList of additionalResults) {
+    if (!Array.isArray(extraList) || extraList.length === 0) continue;
+
+    for (const extraItem of extraList) {
+      if (!extraItem) continue;
+      const extraProvider = extraItem.provider || 'unknown';
+
+      let matchedIndex = -1;
+      for (let i = 0; i < merged.length; i++) {
+        if (areBooksMatching(merged[i], extraItem)) {
+          matchedIndex = i;
+          break;
+        }
+      }
+
+      if (matchedIndex !== -1) {
+        const target = merged[matchedIndex];
+        const existingProviders = target.providers || (target.provider ? [target.provider] : []);
+        const newProviders = existingProviders.includes(extraProvider)
+          ? existingProviders
+          : [...existingProviders, extraProvider];
+
+        const existingSources = target.sources || {};
+        const newSources = {
+          ...existingSources,
+          [extraProvider]: extraItem,
+        };
+
+        target.id = `${target.id}__${extraProvider}_${extraItem.id}`;
+        target.provider = 'hybrid';
+        target.providers = newProviders;
+        target.sources = newSources;
+        target.title = target.title || extraItem.title;
+        target.author = target.author || extraItem.author;
+        target.publisher = target.publisher || extraItem.publisher;
+        target.coverUrl = target.coverUrl || extraItem.coverUrl;
+        target.isbn = target.isbn || extraItem.isbn;
+        if (target.rating === undefined && extraItem.rating !== undefined) {
+          target.rating = extraItem.rating;
+        }
+      } else {
+        merged.push({
+          ...extraItem,
+          provider: extraProvider,
+          providers: [extraProvider],
+          sources: {
+            [extraProvider]: extraItem,
+          },
+        });
+      }
     }
   }
 
@@ -420,19 +487,23 @@ export function resolveDefaultSelections(
 }
 
 /**
- * Combines metadata from Kitapyurdu and D&R based on chosen provider per field.
+ * Combines metadata from two providers based on chosen provider per field.
  */
 export function mergeBookMetadata(
   kyData: BookMetadata,
   drData: BookMetadata,
-  selections?: Record<string, 'kitapyurdu' | 'dr'>
+  selections?: Record<string, 'kitapyurdu' | 'dr'> | Record<string, string>
 ): BookMetadata {
-  const effectiveSelections = selections || resolveDefaultSelections(kyData, drData);
+  const effectiveSelections = (selections as Record<string, string>) || resolveDefaultSelections(kyData, drData);
 
   const getChosen = <T>(field: keyof BookMetadata): T | undefined => {
     const source = effectiveSelections[field] || 'kitapyurdu';
-    const val = source === 'dr' ? drData[field] : kyData[field];
-    return val as T | undefined;
+    const chosenVal = (source === drData.provider || source === 'dr') ? drData[field] : kyData[field];
+    if (chosenVal !== undefined && chosenVal !== null && chosenVal !== '') {
+      return chosenVal as T | undefined;
+    }
+    const fallback = kyData[field] ?? drData[field];
+    return fallback as T | undefined;
   };
 
   const id = kyData.id || drData.id;

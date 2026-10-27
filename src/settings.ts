@@ -93,6 +93,55 @@ export class KitapSettingTab extends PluginSettingTab {
       });
 
     // ----------------------------------------------------
+    // Bölüm: Global Sağlayıcılar (OpenLibrary & Hardcover)
+    // ----------------------------------------------------
+    new Setting(containerEl).setName('Global sağlayıcılar').setHeading();
+
+    new Setting(containerEl)
+      .setName('OpenLibrary Sağlayıcısını Etkinleştir')
+      .setDesc('OpenLibrary.org REST API üzerinden yabancı ve global kitap araması yapılmasını sağlar. Hibrit aramaya dahil edilir.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.enableOpenLibrary)
+          .onChange(async (value) => {
+            this.plugin.settings.enableOpenLibrary = value;
+            this.plugin.aggregator?.setSettings?.(this.plugin.settings);
+            await this.plugin.saveSettings();
+            this.refresh();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Hardcover Sağlayıcısını Etkinleştir')
+      .setDesc('Hardcover.app GraphQL API üzerinden yabancı ve global kitap araması yapılmasını sağlar. Hibrit aramaya dahil edilir.')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.enableHardcover)
+          .onChange(async (value) => {
+            this.plugin.settings.enableHardcover = value;
+            this.plugin.aggregator?.setSettings?.(this.plugin.settings);
+            await this.plugin.saveSettings();
+            this.refresh();
+          })
+      );
+
+    if (this.plugin.settings.enableHardcover) {
+      new Setting(containerEl)
+        .setName('Hardcover API Anahtarı')
+        .setDesc('Hardcover hesabınızdan aldığınız API anahtarı (hardcover.app/account/api). Boş bırakılırsa Hardcover araması çalıştırılmaz.')
+        .addText((text) =>
+          text
+            .setPlaceholder('Hardcover API anahtarınızı girin...')
+            .setValue(this.plugin.settings.hardcoverApiKey)
+            .onChange(async (value) => {
+              this.plugin.settings.hardcoverApiKey = value.trim();
+              this.plugin.aggregator?.setSettings?.(this.plugin.settings);
+              await this.plugin.saveSettings();
+            })
+        );
+    }
+
+    // ----------------------------------------------------
     // Bölüm: Kapak Görselleri
     // ----------------------------------------------------
     new Setting(containerEl).setName('Kapak görselleri').setHeading();
