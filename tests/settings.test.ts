@@ -174,45 +174,37 @@ describe('Plugin Settings & Lifecycle', () => {
       expect(mockData?.fileNameTemplate).toBe('{{isbn}} - {{title}}');
     });
 
-    it('renders defaultProvider dropdown and updates settings when changed', async () => {
+    it('renders provider toggles with kitapyurdu and dr enabled by default', async () => {
       settingTab.display();
 
-      const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');
-      let providerDropdown: HTMLSelectElement | undefined;
-      for (const item of Array.from(settingItems)) {
-        const nameEl = item.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Varsayılan Metaveri Sağlayıcı')) {
-          providerDropdown = item.querySelector('select') as HTMLSelectElement;
-        }
-      }
+      const settingItems = Array.from(settingTab.containerEl.querySelectorAll('.setting-item')) as HTMLElement[];
+      const kyItem = settingItems.find((item) =>
+        item.querySelector('.setting-item-name')?.textContent?.includes('Kitapyurdu Sağlayıcısı')
+      );
+      const drItem = settingItems.find((item) =>
+        item.querySelector('.setting-item-name')?.textContent?.includes('D&R Sağlayıcısı')
+      );
 
-      expect(providerDropdown).toBeDefined();
-      expect(providerDropdown?.value).toBe('hybrid');
-
-      const component = (providerDropdown as any).component;
-      if (component) {
-        await component.simulateChange('kitapyurdu');
-      }
-
-      expect(plugin.settings.defaultProvider).toBe('kitapyurdu');
+      expect(kyItem).toBeDefined();
+      expect(drItem).toBeDefined();
+      expect(plugin.settings.enableKitapyurdu).toBe(true);
+      expect(plugin.settings.enableDr).toBe(true);
     });
 
-    it('safely falls back to available provider in dropdown when settings contain unknown provider', () => {
-      plugin.settings.defaultProvider = 'deleted_provider';
+    it('allows toggling providers directly and updates plugin settings', async () => {
       settingTab.display();
 
-      const settingItems = settingTab.containerEl.querySelectorAll('.setting-item');
-      let providerDropdown: HTMLSelectElement | undefined;
-      for (const item of Array.from(settingItems)) {
-        const el = item as HTMLElement;
-        const nameEl = el.querySelector('.setting-item-name');
-        if (nameEl?.textContent?.includes('Varsayılan Metaveri Sağlayıcı')) {
-          providerDropdown = el.querySelector('select') as HTMLSelectElement;
-        }
-      }
+      const settingItems = Array.from(settingTab.containerEl.querySelectorAll('.setting-item')) as HTMLElement[];
+      const drItem = settingItems.find((item) =>
+        item.querySelector('.setting-item-name')?.textContent?.includes('D&R Sağlayıcısı')
+      );
+      expect(drItem).toBeDefined();
 
-      expect(providerDropdown).toBeDefined();
-      expect(providerDropdown?.value).toBe('hybrid');
+      const drToggle = (drItem?.querySelector('input[type="checkbox"]') as any)?.component;
+      expect(drToggle).toBeDefined();
+
+      await drToggle.simulateToggle(false);
+      expect(plugin.settings.enableDr).toBe(false);
     });
 
     it('renders templateMode dropdown and updates settings when changed', async () => {

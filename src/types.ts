@@ -30,6 +30,18 @@ export interface SearchResultItem {
 export type SearchResult = SearchResultItem;
 
 /**
+ * Sağlayıcı arama performansı ve durum metriği modeli
+ */
+export interface ProviderSearchMetric {
+  providerId: string;
+  name: string;
+  durationMs: number;
+  status: 'pending' | 'success' | 'empty' | 'error';
+  resultCount: number;
+  error?: string;
+}
+
+/**
  * Kitabın tüm bibliyografik metaveri modeli
  */
 export interface BookMetadata {

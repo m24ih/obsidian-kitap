@@ -1,6 +1,10 @@
-import { BookMetadata, KitapPluginSettings, SearchResultItem } from '../types';
+import { BookMetadata, KitapPluginSettings, ProviderSearchMetric, SearchResultItem } from '../types';
 import { IBookProvider } from './types';
 import { mergeBookMetadata, mergeSearchResults } from './matcher';
+
+export interface SearchExecutionOptions {
+  onProgress?: (metric: ProviderSearchMetric) => void;
+}
 
 export interface IHybridProviderDeps {
   getProvider(id: string): IBookProvider;
@@ -20,13 +24,21 @@ export interface HybridProviderConfig {
  */
 export class HybridProvider implements IBookProvider {
   readonly id: string = 'hybrid';
-  readonly name: string = 'Hibrit (Kitapyurdu + D&R)';
+  readonly name: string = 'Hibrit Arama';
   private readonly deps: IHybridProviderDeps;
   private config?: HybridProviderConfig;
+  private lastMetrics: ProviderSearchMetric[] = [];
 
   constructor(deps: IHybridProviderDeps, config?: HybridProviderConfig) {
     this.deps = deps;
     this.config = config;
+  }
+
+  /**
+   * En son gerçekleştirilen aramanın sağlayıcı bazlı süre ve başarı metriklerini döndürür.
+   */
+  getLastMetrics(): ProviderSearchMetric[] {
+    return [...this.lastMetrics];
   }
 
   /**
@@ -59,27 +71,89 @@ export class HybridProvider implements IBookProvider {
   }
 
   /**
+   * Tek bir sağlayıcıyı süre ve durum ölçümüyle birlikte yürütür.
+   */
+  private async executeWithMetric(
+    provider: IBookProvider | null,
+    providerId: string,
+    providerName: string,
+    query: string,
+    onProgress?: (metric: ProviderSearchMetric) => void
+  ): Promise<SearchResultItem[]> {
+    if (!provider) return [];
+
+    onProgress?.({
+      providerId,
+      name: providerName,
+      durationMs: 0,
+      status: 'pending',
+      resultCount: 0,
+    });
+
+    const start = performance.now();
+    try {
+      const results = await provider.search(query);
+      const durationMs = Math.max(1, Math.round(performance.now() - start));
+      const status = results.length > 0 ? 'success' : 'empty';
+      const metric: ProviderSearchMetric = {
+        providerId,
+        name: providerName,
+        durationMs,
+        status,
+        resultCount: results.length,
+      };
+      this.lastMetrics = this.lastMetrics.filter((m) => m.providerId !== providerId);
+      this.lastMetrics.push(metric);
+      onProgress?.(metric);
+      return results;
+    } catch (err: unknown) {
+      const durationMs = Math.max(1, Math.round(performance.now() - start));
+      const metric: ProviderSearchMetric = {
+        providerId,
+        name: providerName,
+        durationMs,
+        status: 'error',
+        resultCount: 0,
+        error: String((err as Error)?.message || err),
+      };
+      this.lastMetrics = this.lastMetrics.filter((m) => m.providerId !== providerId);
+      this.lastMetrics.push(metric);
+      onProgress?.(metric);
+      throw err;
+    }
+  }
+
+  /**
    * Tüm aktif sağlayıcılar üzerinde paralel arama yapar ve sonuçları tekilleştirerek birleştirir.
    */
-  async search(query: string): Promise<SearchResultItem[]> {
+  async search(query: string, options?: SearchExecutionOptions): Promise<SearchResultItem[]> {
     const trimmed = (query || '').trim();
-    if (!trimmed) return [];
+    if (!trimmed) {
+      this.lastMetrics = [];
+      return [];
+    }
+
+    this.lastMetrics = [];
 
     let kyProvider: IBookProvider | null = null;
     let drProvider: IBookProvider | null = null;
     let olProvider: IBookProvider | null = null;
     let hcProvider: IBookProvider | null = null;
 
-    try {
-      kyProvider = this.deps.getProvider('kitapyurdu');
-    } catch (err) {
-      console.warn('Kitapyurdu sağlayıcısı bulunamadı:', err);
+    if (this.isProviderActive('kitapyurdu')) {
+      try {
+        kyProvider = this.deps.getProvider('kitapyurdu');
+      } catch (err) {
+        console.warn('Kitapyurdu sağlayıcısı bulunamadı:', err);
+      }
     }
 
-    try {
-      drProvider = this.deps.getProvider('dr');
-    } catch (err) {
-      console.warn('D&R sağlayıcısı bulunamadı:', err);
+    if (this.isProviderActive('dr')) {
+      try {
+        drProvider = this.deps.getProvider('dr');
+      } catch (err) {
+        console.warn('D&R sağlayıcısı bulunamadı:', err);
+      }
     }
 
     if (this.isProviderActive('openlibrary')) {
@@ -98,10 +172,21 @@ export class HybridProvider implements IBookProvider {
       }
     }
 
-    const kyPromise = kyProvider ? kyProvider.search(trimmed) : Promise.resolve([]);
-    const drPromise = drProvider ? drProvider.search(trimmed) : Promise.resolve([]);
-    const olPromise = olProvider ? olProvider.search(trimmed) : Promise.resolve([]);
-    const hcPromise = hcProvider ? hcProvider.search(trimmed) : Promise.resolve([]);
+    const kyPromise = kyProvider
+      ? this.executeWithMetric(kyProvider, 'kitapyurdu', 'Kitapyurdu', trimmed, options?.onProgress)
+      : Promise.resolve([]);
+
+    const drPromise = drProvider
+      ? this.executeWithMetric(drProvider, 'dr', 'D&R', trimmed, options?.onProgress)
+      : Promise.resolve([]);
+
+    const olPromise = olProvider
+      ? this.executeWithMetric(olProvider, 'openlibrary', 'OpenLibrary', trimmed, options?.onProgress)
+      : Promise.resolve([]);
+
+    const hcPromise = hcProvider
+      ? this.executeWithMetric(hcProvider, 'hardcover', 'Hardcover', trimmed, options?.onProgress)
+      : Promise.resolve([]);
 
     const [kySettled, drSettled, olSettled, hcSettled] = await Promise.allSettled([
       kyPromise,

@@ -607,6 +607,8 @@ export class Modal {
 
 export class SuggestModal {
   app: unknown;
+  containerEl: HTMLElement;
+  modalEl: HTMLElement;
   inputEl: HTMLInputElement;
   resultContainerEl: HTMLElement;
   emptyStateText = "";
@@ -616,8 +618,12 @@ export class SuggestModal {
   constructor(app: unknown) {
     this.app = app;
     this.scope = new Scope();
+    this.containerEl = document.createElement("div");
+    this.modalEl = this.containerEl.createDiv({ cls: "modal" });
     this.inputEl = document.createElement("input");
     this.resultContainerEl = document.createElement("div");
+    this.modalEl.appendChild(this.inputEl);
+    this.modalEl.appendChild(this.resultContainerEl);
   }
   setPlaceholder(placeholder: string): void {
     this.placeholder = placeholder;

@@ -9,7 +9,6 @@ import { FolderSuggest } from './settings/folderSuggest';
 import { PropertyMappingComponent } from './settings/propertyMappingComponent';
 import { PropertyMappingData } from './settings/propertyMapping';
 import { adaptTemplateToPropertyMappings } from './templates/templateAdapter';
-import { DEFAULT_PROVIDERS } from './providers/types';
 
 export class KitapSettingTab extends PluginSettingTab {
   plugin: KitapPlugin;
@@ -157,24 +156,13 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     if (this.plugin.settings.enableHardcover) {
-      const apiKeySetting = new Setting(containerEl)
+      new Setting(containerEl)
         .setName('Hardcover API Anahtarı')
         .setDesc(
-          'Obsidian Secret Storage ile korunan Hardcover API anahtarı (hardcover.app/account/api). Boş bırakılırsa Hardcover araması çalıştırılmaz.'
-        );
-
-      if (typeof SecretComponent !== 'undefined') {
-        apiKeySetting.addComponent((el) => {
-          const component = new SecretComponent(this.app, el);
-          component.setValue(this.plugin.settings.hardcoverApiKeyId).onChange(async (data: string | null) => {
-            this.plugin.settings.hardcoverApiKeyId = (data || '').trim();
-            this.plugin.aggregator?.setSettings?.(this.plugin.settings);
-            await this.plugin.saveSettings();
-          });
-          return component;
-        });
-      } else {
-        apiKeySetting.addText((text) =>
+          'Hardcover hesabınızdan aldığınız API anahtarı (hardcover.app/account/api). Boş bırakılırsa Hardcover araması çalıştırılmaz.'
+        )
+        .addText((text) => {
+          text.inputEl.type = 'password';
           text
             .setPlaceholder('Hardcover API anahtarınızı girin...')
             .setValue(this.plugin.settings.hardcoverApiKey)
@@ -182,31 +170,28 @@ export class KitapSettingTab extends PluginSettingTab {
               this.plugin.settings.hardcoverApiKey = value.trim();
               this.plugin.aggregator?.setSettings?.(this.plugin.settings);
               await this.plugin.saveSettings();
-            })
-        );
+            });
+        });
+
+      if (typeof SecretComponent !== 'undefined') {
+        new Setting(containerEl)
+          .setName('Hardcover Secret Storage Bağlantısı (Opsiyonel)')
+          .setDesc(
+            'API anahtarınızı Obsidian Secret Storage ile saklamak isterseniz buradan bir anahtar bağlayabilirsiniz.'
+          )
+          .addComponent((el) => {
+            const component = new SecretComponent(this.app, el);
+            component
+              .setValue(this.plugin.settings.hardcoverApiKeyId)
+              .onChange(async (data: string | null) => {
+                this.plugin.settings.hardcoverApiKeyId = (data || '').trim();
+                this.plugin.aggregator?.setSettings?.(this.plugin.settings);
+                await this.plugin.saveSettings();
+              });
+            return component;
+          });
       }
     }
-
-    new Setting(containerEl)
-      .setName('Varsayılan Metaveri Sağlayıcı')
-      .setDesc('Kitap arama ve bilgi çekme işlemlerinde varsayılan olarak kullanılacak veri sağlayıcı.')
-      .addDropdown((dropdown) => {
-        const providers =
-          this.plugin.aggregator?.getAvailableProviders?.({ includeComposite: true }) ?? DEFAULT_PROVIDERS;
-        for (const provider of providers) {
-          dropdown.addOption(provider.id, provider.name);
-        }
-        const currentSetting = this.plugin.settings.defaultProvider || 'hybrid';
-        const hasCurrent = providers.some((p) => p.id === currentSetting);
-        const resolvedValue = hasCurrent ? currentSetting : (providers[0]?.id ?? 'hybrid');
-        dropdown
-          .setValue(resolvedValue)
-          .onChange(async (value) => {
-            this.plugin.settings.defaultProvider = value;
-            this.plugin.aggregator?.setDefaultProvider?.(value);
-            await this.plugin.saveSettings();
-          });
-      });
 
     // ----------------------------------------------------
     // Bölüm: Kapak Görselleri

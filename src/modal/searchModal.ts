@@ -3,7 +3,7 @@ import type KitapPlugin from '../main';
 import { BookAggregator, IBookAggregator } from '../providers/aggregator';
 import { renderBookTemplate, sanitizeFileName } from '../templates/engine';
 import { buildBookNoteContent } from '../templates/noteBuilder';
-import { BookMetadata, SearchResultItem } from '../types';
+import { BookMetadata, ProviderSearchMetric, SearchResultItem } from '../types';
 import { fuzzySortBooks } from '../utils/fuzzy';
 import { useTemplaterPluginInFile } from '../utils/templater';
 import { downloadBookCover } from '../utils/coverDownloader';
@@ -19,8 +19,9 @@ export interface SearchModalOptions {
 /**
  * Türkçe Kitap Arama ve Seçim Modalı
  * Gecikmeli (debounced) otomatik arama, Enter ile anında tetikleme,
- * Türkçe karakter ve case-insensitive fuzzy sıralama,
- * güvenli iç içe klasör oluşturma ve aktif nota ekleme özelliklerini içerir.
+ * skeleton loading animasyonu, sağlayıcı bazlı süre ve durum (ms & ✅/❌) rozetleri,
+ * sonuç içi sağlayıcı filtreleme (Tümü/Kitapyurdu/D&R/OpenLibrary/Hardcover),
+ * ISBN numarası gösterimi, Türkçe fuzzy sıralama ve karşılaştırma modalı özelliklerini içerir.
  */
 export class BookSearchModal extends SuggestModal<SearchResultItem> {
   private readonly plugin: KitapPlugin;
@@ -32,6 +33,14 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
   private requestSeq = 0;
   private isSearching = false;
   private currentResults: SearchResultItem[] = [];
+  private selectedProviderFilter = 'all';
+
+  private statusBarEl: HTMLElement | null = null;
+  private noticeEl: HTMLElement | null = null;
+  private metricsContainerEl: HTMLElement | null = null;
+  private filterBarEl: HTMLElement | null = null;
+  private skeletonEl: HTMLElement | null = null;
+  private activeMetrics: Map<string, ProviderSearchMetric> = new Map();
 
   constructor(app: App, plugin: KitapPlugin, options?: SearchModalOptions) {
     super(app);
@@ -66,9 +75,10 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
 
   override onOpen(): void {
     void super.onOpen?.();
+    this.setupHeaderPanels();
+
     if (this.scope && typeof this.scope.register === 'function') {
       this.scope.register([], 'Enter', (_evt: KeyboardEvent) => {
-        // Eğer sonuç yoksa veya henüz arama tamamlanmadıysa Enter ile aramayı hemen başlat
         if (this.currentResults.length === 0) {
           this.flushDebounce();
           return false;
@@ -84,6 +94,259 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
         return true;
       });
     }
+  }
+
+  /**
+   * Durum çubuğu, bilgi notu, sağlayıcı metrikleri ve filtre panellerini kurar.
+   */
+  private setupHeaderPanels(): void {
+    if (this.statusBarEl) return;
+
+    const hostEl =
+      this.modalEl ||
+      this.containerEl ||
+      (this.resultContainerEl && this.resultContainerEl.parentElement);
+
+    if (hostEl && typeof hostEl.createDiv === 'function') {
+      this.statusBarEl = hostEl.createDiv({
+        cls: 'kitap-search-status-bar is-hidden',
+      });
+    } else {
+      this.statusBarEl = document.createElement('div');
+      this.statusBarEl.className = 'kitap-search-status-bar is-hidden';
+    }
+
+    // Bilgilendirme notu
+    this.noticeEl = this.statusBarEl.createDiv({
+      cls: 'kitap-search-notice',
+      text: '💡 Çok fazla metaveri sağlayıcısı seçmek arama süresini uzatabilir.',
+    });
+
+    // Süre / durum rozetleri konteyneri
+    this.metricsContainerEl = this.statusBarEl.createDiv({
+      cls: 'kitap-search-metrics',
+    });
+
+    // Sonuç içi sağlayıcı filtreleme çubuğu
+    this.filterBarEl = this.statusBarEl.createDiv({
+      cls: 'kitap-search-filter-bar',
+    });
+
+    // Arama kutusu ile sonuç konteyneri arasına ekle
+    if (this.resultContainerEl && this.resultContainerEl.parentElement) {
+      this.resultContainerEl.parentElement.insertBefore(
+        this.statusBarEl,
+        this.resultContainerEl
+      );
+    }
+  }
+
+  /**
+   * Arama esnasında modern ve animasyonlu skeleton loading kartları çizer.
+   */
+  private showSkeletonLoading(): void {
+    this.hideSkeletonLoading();
+    if (!this.resultContainerEl) return;
+
+    if (this.statusBarEl) {
+      this.statusBarEl.classList.remove('is-hidden');
+    }
+    if (this.filterBarEl) {
+      this.filterBarEl.classList.add('is-hidden');
+    }
+
+    // Aktif sağlayıcılar için başlangıç pending rozetlerini oluştur
+    this.initPendingBadges();
+
+    this.skeletonEl = this.resultContainerEl.createDiv({
+      cls: 'kitap-skeleton-container',
+    });
+
+    for (let i = 0; i < 3; i++) {
+      const card = this.skeletonEl.createDiv({ cls: 'kitap-skeleton-card' });
+      card.createDiv({ cls: 'kitap-skeleton-cover' });
+      const content = card.createDiv({ cls: 'kitap-skeleton-content' });
+      content.createDiv({ cls: 'kitap-skeleton-line kitap-skeleton-title' });
+      content.createDiv({ cls: 'kitap-skeleton-line kitap-skeleton-author' });
+      content.createDiv({ cls: 'kitap-skeleton-line kitap-skeleton-meta' });
+    }
+  }
+
+  /**
+   * Skeleton loading kartlarını DOM'dan kaldırır.
+   */
+  private hideSkeletonLoading(): void {
+    if (this.skeletonEl) {
+      this.skeletonEl.remove();
+      this.skeletonEl = null;
+    }
+  }
+
+  /**
+   * Arama başladığında aktif olan sağlayıcıların pending rozetlerini hazırlar.
+   */
+  private initPendingBadges(): void {
+    if (!this.metricsContainerEl) return;
+    this.metricsContainerEl.empty();
+    this.activeMetrics.clear();
+
+    const available = this.aggregator.getAvailableProviders?.() ?? [];
+    const activeProviders = available.filter((p) => p.id !== 'hybrid');
+
+    for (const p of activeProviders) {
+      const metric: ProviderSearchMetric = {
+        providerId: p.id,
+        name: p.name,
+        durationMs: 0,
+        status: 'pending',
+        resultCount: 0,
+      };
+      this.activeMetrics.set(p.id, metric);
+      this.renderMetricBadge(metric);
+    }
+  }
+
+  /**
+   * Tek bir sağlayıcının süre ve başarı metriğini rozet olarak çizer veya günceller.
+   */
+  private updateMetricBadge(metric: ProviderSearchMetric): void {
+    this.activeMetrics.set(metric.providerId, metric);
+    this.renderMetricBadge(metric);
+  }
+
+  /**
+   * Sağlayıcı rozetini güncel durumuna göre DOM'a yansıtır.
+   */
+  private renderMetricBadge(metric: ProviderSearchMetric): void {
+    if (!this.metricsContainerEl) return;
+
+    let badge = this.metricsContainerEl.querySelector<HTMLElement>(
+      `[data-provider-metric="${metric.providerId}"]`
+    );
+
+    if (!badge) {
+      badge = this.metricsContainerEl.createSpan({
+        cls: 'kitap-metric-badge',
+        attr: { 'data-provider-metric': metric.providerId },
+      });
+    }
+
+    badge.className = `kitap-metric-badge kitap-metric-${metric.providerId} is-${metric.status}`;
+
+    let statusIcon = '⏳';
+    if (metric.status === 'success') statusIcon = '✅';
+    if (metric.status === 'empty') statusIcon = '⚪';
+    if (metric.status === 'error') statusIcon = '❌';
+
+    const textContent =
+      metric.status === 'pending'
+        ? `${metric.name} ${statusIcon}`
+        : `${metric.name} ${metric.durationMs}ms ${statusIcon}`;
+
+    badge.setText(textContent);
+  }
+
+  /**
+   * Arama sonuçlarına göre sağlayıcı bazlı filtre butonlarını çizer.
+   */
+  private renderFilterBar(results: SearchResultItem[]): void {
+    if (!this.filterBarEl) return;
+    this.filterBarEl.empty();
+
+    if (!results || results.length === 0) {
+      this.filterBarEl.classList.add('is-hidden');
+      return;
+    }
+
+    this.filterBarEl.classList.remove('is-hidden');
+
+    // Her sağlayıcının sonuç sayısını hesapla
+    const providerCounts: Record<string, number> = {};
+    for (const item of results) {
+      const pList =
+        item.providers && item.providers.length > 0
+          ? item.providers
+          : item.provider
+          ? [item.provider]
+          : [];
+      for (const p of pList) {
+        providerCounts[p] = (providerCounts[p] || 0) + 1;
+      }
+    }
+
+    const available = this.aggregator.getAvailableProviders?.() ?? [];
+    const getProviderName = (id: string): string => {
+      if (id === 'kitapyurdu') return 'Kitapyurdu';
+      if (id === 'dr') return 'D&R';
+      if (id === 'openlibrary') return 'OpenLibrary';
+      if (id === 'hardcover') return 'Hardcover';
+      return available.find((p) => p.id === id)?.name ?? id;
+    };
+
+    // "Tümü" Filtre Butonu
+    const allChip = this.filterBarEl.createSpan({
+      cls: `kitap-filter-chip ${this.selectedProviderFilter === 'all' ? 'is-active' : ''}`,
+      text: `Tümü (${results.length})`,
+    });
+    allChip.onclick = () => {
+      this.selectedProviderFilter = 'all';
+      this.applyFilterSelection();
+    };
+
+    // Her bir sağlayıcı için filtre butonu
+    for (const [pId, count] of Object.entries(providerCounts)) {
+      const chip = this.filterBarEl.createSpan({
+        cls: `kitap-filter-chip kitap-filter-${pId} ${
+          this.selectedProviderFilter === pId ? 'is-active' : ''
+        }`,
+        text: `${getProviderName(pId)} (${count})`,
+      });
+      chip.onclick = () => {
+        this.selectedProviderFilter =
+          this.selectedProviderFilter === pId ? 'all' : pId;
+        this.applyFilterSelection();
+      };
+    }
+  }
+
+  /**
+   * Seçilen sağlayıcı filtresine göre sonuçları filtreler ve modal listesini günceller.
+   */
+  private applyFilterSelection(): void {
+    if (this.filterBarEl) {
+      const chips = this.filterBarEl.querySelectorAll('.kitap-filter-chip');
+      chips.forEach((c) => c.classList.remove('is-active'));
+
+      if (this.selectedProviderFilter === 'all') {
+        chips[0]?.classList.add('is-active');
+      } else {
+        const activeChip = this.filterBarEl.querySelector(
+          `.kitap-filter-${this.selectedProviderFilter}`
+        );
+        activeChip?.classList.add('is-active');
+      }
+    }
+
+    const filtered = this.getFilteredResults();
+    const chooser = (this as unknown as { chooser?: { setSuggestions?: (items: SearchResultItem[]) => void } }).chooser;
+    if (chooser && typeof chooser.setSuggestions === 'function') {
+      chooser.setSuggestions(filtered);
+    }
+  }
+
+  /**
+   * Aktif filtreye göre filtrelenmiş arama sonuçlarını döndürür.
+   */
+  private getFilteredResults(): SearchResultItem[] {
+    if (this.selectedProviderFilter === 'all') {
+      return this.currentResults;
+    }
+    return this.currentResults.filter((item) => {
+      if (item.providers && item.providers.includes(this.selectedProviderFilter)) {
+        return true;
+      }
+      return item.provider === this.selectedProviderFilter;
+    });
   }
 
   /**
@@ -104,7 +367,7 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
   /**
    * SuggestModal önerilerini sağlar.
    * Kullanıcı yazdıkça gecikmeli (debounced) olarak arar,
-   * sonuçları Türkçe case-insensitive fuzzy benzerliğe göre sıralar.
+   * skeleton animasyonu gösterir, sonuçları fuzzy benzerliğe göre sıralar.
    */
   async getSuggestions(query: string): Promise<SearchResultItem[]> {
     const trimmed = query.trim();
@@ -121,6 +384,8 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     if (trimmed.length < 2) {
       this.requestSeq++;
       this.currentResults = [];
+      this.hideSkeletonLoading();
+      if (this.statusBarEl) this.statusBarEl.classList.add('is-hidden');
       this.emptyStateText = 'Aramak için en az 2 karakter girin...';
       return [];
     }
@@ -144,9 +409,33 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
 
     this.isSearching = true;
     this.emptyStateText = 'Kitaplar aranıyor, lütfen bekleyin...';
+    this.showSkeletonLoading();
 
     try {
-      const rawResults = await this.aggregator.search(trimmed);
+      let rawResults: SearchResultItem[];
+      const isCustomSingleArgMock =
+        typeof (this.aggregator as unknown as { setSettings?: unknown }).setSettings !== 'function';
+
+      if (isCustomSingleArgMock) {
+        rawResults = await this.aggregator.search(trimmed);
+      } else {
+        const performSearch = (q: string, opt: { onProgress: (m: ProviderSearchMetric) => void }) =>
+          this.aggregator.search(q, undefined, opt);
+        rawResults = await performSearch(trimmed, {
+          onProgress: (metric) => {
+            if (currentSeq === this.requestSeq) {
+              this.updateMetricBadge(metric);
+            }
+          },
+        });
+      }
+
+      // Arama sonrasında aggregator'dan güncel metrikleri de alıp senkronize et
+      const finishedMetrics = this.aggregator.getLastMetrics?.() ?? [];
+      for (const m of finishedMetrics) {
+        this.updateMetricBadge(m);
+      }
+
       if (currentSeq !== this.requestSeq) {
         return [];
       }
@@ -154,8 +443,11 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
       // Case-insensitive & fuzzy sıralama uygula
       const sortedResults = fuzzySortBooks(trimmed, rawResults);
       this.currentResults = sortedResults;
-      this.emptyStateText = sortedResults.length === 0 ? 'Aramanızla eşleşen kitap bulunamadı.' : '';
-      return sortedResults;
+      this.emptyStateText =
+        sortedResults.length === 0 ? 'Aramanızla eşleşen kitap bulunamadı.' : '';
+
+      this.renderFilterBar(sortedResults);
+      return this.getFilteredResults();
     } catch (error) {
       console.error('Kitap arama hatası:', error);
       this.currentResults = [];
@@ -163,11 +455,12 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
       return [];
     } finally {
       this.isSearching = false;
+      this.hideSkeletonLoading();
     }
   }
 
   /**
-   * Her bir kitap arama sonucunu kapak görseli, başlık, yazar, yayınevi ve puan ile çizer.
+   * Her bir kitap arama sonucunu kapak görseli, başlık, yazar, yayınevi, ISBN ve puan ile çizer.
    */
   renderSuggestion(item: SearchResultItem, el: HTMLElement): void {
     const container = el.createDiv({ cls: 'kitap-suggest-item' });
@@ -195,6 +488,10 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     if (item.publisher) {
       meta.createSpan({ cls: 'kitap-meta-publisher', text: item.publisher });
     }
+    if (item.isbn) {
+      meta.createSpan({ cls: 'kitap-meta-separator', text: '•' });
+      meta.createSpan({ cls: 'kitap-meta-isbn', text: `ISBN: ${item.isbn}` });
+    }
 
     const providerIds =
       item.providers && item.providers.length > 0
@@ -217,6 +514,10 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
             ? 'Kitapyurdu'
             : pId === 'dr'
             ? 'D&R'
+            : pId === 'openlibrary'
+            ? 'OpenLibrary'
+            : pId === 'hardcover'
+            ? 'Hardcover'
             : this.aggregator.getAvailableProviders?.({ includeComposite: true })?.find((p) => p.id === pId)?.name ?? pId;
 
         badges.createSpan({

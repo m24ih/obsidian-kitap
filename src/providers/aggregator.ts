@@ -1,17 +1,22 @@
 import {
   BookMetadata,
   KitapPluginSettings,
+  ProviderSearchMetric,
   SearchResultItem,
 } from '../types';
 import { KitapyurduProvider } from './kitapyurdu';
 import { DrProvider } from './dr';
 import { OpenLibraryProvider } from './openlibrary';
 import { HardcoverProvider } from './hardcover';
-import { HybridProvider, IHybridProviderDeps } from './hybrid';
+import { HybridProvider, IHybridProviderDeps, SearchExecutionOptions } from './hybrid';
 import { IKitapyurduProvider, IBookProvider, ProviderInfo } from './types';
 
 export interface IBookAggregator {
-  search(query: string, providerId?: string): Promise<SearchResultItem[]>;
+  search(
+    query: string,
+    providerId?: string,
+    options?: SearchExecutionOptions
+  ): Promise<SearchResultItem[]>;
   getFullBookData(
     searchItem: SearchResultItem,
     settings?: KitapPluginSettings
@@ -25,6 +30,7 @@ export interface IBookAggregator {
   setSettings?(settings: KitapPluginSettings): void;
   getSettings?(): KitapPluginSettings | undefined;
   setApp?(app: unknown): void;
+  getLastMetrics?(): ProviderSearchMetric[];
 }
 
 /**
@@ -60,10 +66,20 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
 
   /**
    * Hardcover API anahtarını çözer.
-   * Öncelikle Obsidian Secret Storage (hardcoverApiKeyId) sorgulanır,
-   * ardından geriye dönük uyumluluk için düz metin hardcoverApiKey kullanılır.
+   * Öncelikle açık metin hardcoverApiKey kontrol edilir,
+   * ardından Obsidian Secret Storage (hardcoverApiKeyId) sorgulanır.
    */
   private resolveHardcoverApiKey(): string {
+    // 1. Açık metin anahtar önceliği (kullanıcının doğrudan girdiği)
+    if (
+      this.settings?.hardcoverApiKey &&
+      typeof this.settings.hardcoverApiKey === 'string' &&
+      this.settings.hardcoverApiKey.trim()
+    ) {
+      return this.settings.hardcoverApiKey.trim();
+    }
+
+    // 2. Obsidian Secret Storage
     if (this.settings?.hardcoverApiKeyId && this.app) {
       try {
         const secretStorage = (this.app as { secretStorage?: { getSecret?: (id: string) => string | null } }).secretStorage;
@@ -77,7 +93,7 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
         console.warn('Secret storage üzerinden Hardcover anahtarı alınamadı:', err);
       }
     }
-    return this.settings?.hardcoverApiKey || '';
+    return '';
   }
 
   /**
@@ -208,6 +224,9 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
       search: (q: string) => provider.search(q),
       getBookDetails: (u: string) => provider.getBookDetails(u),
     };
+    Object.assign(adapted, provider);
+    (adapted as { id: string }).id = id;
+    (adapted as { name: string }).name = name;
     this.providers.set(id, adapted);
   }
 
@@ -273,13 +292,24 @@ export class BookAggregator implements IBookAggregator, IHybridProviderDeps {
   }
 
   /**
+   * En son gerçekleştirilen aramanın sağlayıcı metriklerini döndürür.
+   */
+  getLastMetrics(): ProviderSearchMetric[] {
+    return this.hybridProvider.getLastMetrics();
+  }
+
+  /**
    * Kitap aramasını seçilen sağlayıcı (veya varsayılan sağlayıcı) üzerinden yürütür.
    * Dönen arama sonuçlarına sağlayıcı kimliğinin (provider) iliştirilmesini garanti eder.
    */
-  async search(query: string, providerId?: string): Promise<SearchResultItem[]> {
+  async search(
+    query: string,
+    providerId?: string,
+    options?: SearchExecutionOptions
+  ): Promise<SearchResultItem[]> {
     const id = (providerId && providerId.trim()) || this.defaultProviderId;
     if (id === 'hybrid') {
-      return this.hybridProvider.search(query);
+      return this.hybridProvider.search(query, options);
     }
 
     const provider = this.getProvider(id);
