@@ -30,22 +30,39 @@ export function createKitapKartProcessor(app: App) {
 
       // 2. Read frontmatter from active note
       let frontmatter: Record<string, unknown> | null = null;
-      if (ctx?.sourcePath) {
-        const cache = app.metadataCache.getCache(ctx.sourcePath);
+      const sourcePath = ctx?.sourcePath || app.workspace?.getActiveFile?.()?.path || '';
+
+      if (sourcePath) {
+        const cache = app.metadataCache.getCache(sourcePath);
         frontmatter = (cache?.frontmatter as Record<string, unknown>) || null;
 
         if (!frontmatter) {
-          const file = app.vault.getAbstractFileByPath(ctx.sourcePath);
+          const file = app.vault.getAbstractFileByPath(sourcePath);
           if (file instanceof TFile) {
             const fileCache = app.metadataCache.getFileCache(file);
             frontmatter = (fileCache?.frontmatter as Record<string, unknown>) || null;
+
+            if (!frontmatter && typeof app.vault.read === 'function') {
+              try {
+                const content = await app.vault.read(file);
+                const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+                if (match && match[1]) {
+                  const parsed: unknown = parseYaml(match[1]);
+                  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    frontmatter = parsed as Record<string, unknown>;
+                  }
+                }
+              } catch {
+                // Ignore fallback read errors
+              }
+            }
           }
         }
       }
 
       // 3. Normalise card data
       const cardData = parseCardData(frontmatter, {
-        sourcePath: ctx?.sourcePath,
+        sourcePath,
         app,
         overrides,
       });

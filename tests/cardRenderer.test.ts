@@ -3,6 +3,7 @@ import {
   cleanWikilink,
   cleanStringList,
   formatIsbnDisplay,
+  resolveCoverUrl,
   generateDeweyAndCatalogCode,
   normalizeReadingStatus,
   parseCardData,
@@ -34,6 +35,18 @@ describe('Card Types & Parser Suite', () => {
       expect(cleanWikilink(null)).toBe('');
       expect(cleanWikilink(undefined)).toBe('');
     });
+
+    it('cleans multiple wikilinks in a single string', () => {
+      expect(cleanWikilink('[[Stefan Zweig]], [[Ahmet Arpad]]')).toBe('Stefan Zweig, Ahmet Arpad');
+    });
+
+    it('cleans markdown links and extracts link text', () => {
+      expect(cleanWikilink('[Stefan Zweig](https://example.com)')).toBe('Stefan Zweig');
+    });
+
+    it('extracts name/title from object values', () => {
+      expect(cleanWikilink({ name: 'Stefan Zweig' })).toBe('Stefan Zweig');
+    });
   });
 
   describe('cleanStringList', () => {
@@ -62,8 +75,36 @@ describe('Card Types & Parser Suite', () => {
       expect(formatIsbnDisplay('0306406152')).toBe('030-64-0615-2');
     });
 
+    it('preserves already hyphenated international ISBNs', () => {
+      expect(formatIsbnDisplay('978-0-14-118280-3')).toBe('978-0-14-118280-3');
+    });
+
     it('returns placeholder dash for empty ISBN', () => {
       expect(formatIsbnDisplay('')).toBe('—');
+    });
+  });
+
+  describe('resolveCoverUrl', () => {
+    it('resolves remote URLs and cleans wikilinks', () => {
+      expect(resolveCoverUrl('https://example.com/cover.jpg')).toBe('https://example.com/cover.jpg');
+      expect(resolveCoverUrl('[[cover.jpg]]')).toBe('cover.jpg');
+      expect(resolveCoverUrl('![[cover.jpg|300]]')).toBe('cover.jpg');
+    });
+
+    it('handles array and object cover inputs', () => {
+      expect(resolveCoverUrl(['https://example.com/cover1.jpg', 'https://example.com/cover2.jpg'])).toBe('https://example.com/cover1.jpg');
+      expect(resolveCoverUrl({ url: 'https://example.com/cover.jpg' })).toBe('https://example.com/cover.jpg');
+      expect(resolveCoverUrl({ link: '[[cover.jpg]]' })).toBe('cover.jpg');
+    });
+
+    it('preserves data URIs', () => {
+      expect(resolveCoverUrl('data:image/png;base64,iVBORw0KGgo=')).toBe('data:image/png;base64,iVBORw0KGgo=');
+    });
+
+    it('returns null for null, empty or invalid values', () => {
+      expect(resolveCoverUrl(null)).toBeNull();
+      expect(resolveCoverUrl('')).toBeNull();
+      expect(resolveCoverUrl('   ')).toBeNull();
     });
   });
 
@@ -78,6 +119,25 @@ describe('Card Types & Parser Suite', () => {
       expect(res.deweyCode).toBe('833.912');
       expect(res.catalogCode).toContain('Dewey: 833.912 ZWE 2024');
       expect(res.catalogCode).toContain('ACC-2024-TR-8913');
+    });
+
+    it('uses first author last name for Cutter code when multiple authors exist', () => {
+      const res = generateDeweyAndCatalogCode('Stefan Zweig, Ahmet Arpad', ['Roman']);
+      expect(res.catalogCode).toContain('ZWE');
+      expect(res.catalogCode).not.toContain('ARP');
+    });
+
+    it('infers Austrian/German literature Dewey code from author nationality even without genre cue', () => {
+      const res = generateDeweyAndCatalogCode(
+        'Stefan Zweig',
+        ['Klasik', 'Roman'],
+        '2024',
+        '9789750738913',
+        undefined,
+        undefined,
+        'Avusturya'
+      );
+      expect(res.deweyCode).toBe('833.912');
     });
 
     it('uses custom user dewey and user catalog code when provided', () => {
@@ -191,6 +251,61 @@ describe('Card Types & Parser Suite', () => {
       const data = parseCardData(fm, { overrides });
       expect(data.pagesRead).toBe(80);
       expect(data.readingPercent).toBe(80);
+    });
+
+    it('ensures overrides take precedence even when using different language keys', () => {
+      const fm = {
+        baslik: 'Sabırsız Yürek',
+        yazar: 'Stefan Zweig',
+        yayinevi: 'Can Yayınları',
+        okunan_sayfa: 50,
+        sayfa: 310,
+      };
+      const overrides = {
+        title: 'Overridden Book Title',
+        author: 'Overridden Author',
+        publisher: 'Overridden Publisher',
+        current_page: 200,
+        total_pages: 400,
+      };
+      const data = parseCardData(fm, { overrides });
+      expect(data.title).toBe('Overridden Book Title');
+      expect(data.author).toBe('Overridden Author');
+      expect(data.publisher).toBe('Overridden Publisher');
+      expect(data.pagesRead).toBe(200);
+      expect(data.totalPages).toBe(400);
+      expect(data.readingPercent).toBe(50);
+    });
+
+    it('ensures completed status auto-advances pagesRead to totalPages if not recorded', () => {
+      const fm = {
+        baslik: 'Satranç',
+        yazar: 'Stefan Zweig',
+        sayfa: 80,
+        okuma_durumu: 'Okundu',
+      };
+      const data = parseCardData(fm);
+      expect(data.pagesRead).toBe(80);
+      expect(data.readingPercent).toBe(100);
+      expect(data.readingStatus).toBe('Okundu');
+    });
+
+    it('handles zero total pages gracefully without division by zero', () => {
+      const fm = {
+        baslik: 'Bilinmeyen Sayfa Kitabı',
+        yazar: 'Test',
+        okuma_durumu: 'Okunacak',
+      };
+      const data = parseCardData(fm);
+      expect(data.totalPages).toBe(0);
+      expect(data.pagesRead).toBe(0);
+      expect(data.readingPercent).toBe(0);
+
+      const container = document.createElement('div');
+      const card = renderKitapCard(container, data);
+      const fields = card.querySelectorAll('.meta-field-value');
+      const progressField = Array.from(fields).find(f => f.classList.contains('highlight') && f.classList.contains('mono'));
+      expect(progressField?.textContent).toBe('—');
     });
   });
 });

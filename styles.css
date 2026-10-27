@@ -850,7 +850,7 @@
   font-size: 0.65rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--text-accent);
+  color: var(--color-purple-light, #a78bfa);
   font-weight: 700;
   border-bottom: 1px solid rgba(var(--interactive-accent-rgb, 124, 58, 237), 0.25);
   padding-bottom: 0.4rem;
@@ -897,7 +897,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-accent);
+  color: var(--color-purple-light, #c4b5fd);
 }
 
 .kitap-kart-wrapper .cover-footer-info {
@@ -911,7 +911,7 @@
 .kitap-kart-wrapper .cover-translator {
   font-family: var(--font-text);
   font-size: 0.64rem;
-  color: var(--text-accent);
+  color: var(--color-purple-light, #c4b5fd);
   line-height: 1.25;
   white-space: pre-line;
   text-align: left;

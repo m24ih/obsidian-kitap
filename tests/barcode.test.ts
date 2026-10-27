@@ -30,6 +30,10 @@ describe('Barcode Module (Offline Pure SVG EAN-13 Generator)', () => {
       expect(normalizeToIsbn13('9789750738913')).toBe('9789750738913');
     });
 
+    it('corrects invalid check digit on 13-digit sequence to guarantee scannable EAN-13', () => {
+      expect(normalizeToIsbn13('9789750738910')).toBe('9789750738913');
+    });
+
     it('cleans hyphens and spaces from ISBN-13', () => {
       expect(normalizeToIsbn13('978-975-07-3891-3')).toBe('9789750738913');
     });

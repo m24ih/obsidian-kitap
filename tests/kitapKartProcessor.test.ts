@@ -95,6 +95,44 @@ okuma_durumu: Okundu
     expect(authorEl?.textContent).toBe('Bilinmeyen Yazar');
   });
 
+  it('falls back to workspace active file when ctx.sourcePath is empty', async () => {
+    mockApp.metadataCache.getCache.mockReturnValue(null);
+    mockApp.vault.getAbstractFileByPath.mockReturnValue(null);
+    mockApp.workspace.getActiveFile.mockReturnValue({ path: 'Kitaplar/Kürk Mantolu Madonna.md' });
+
+    const processor = createKitapKartProcessor(mockApp);
+    await processor('', mockContainer, {} as any);
+
+    const titleEl = mockContainer.querySelector('.cover-book-title');
+    expect(titleEl?.textContent).toBe('Kürk Mantolu Madonna');
+  });
+
+  it('reads frontmatter directly from file when metadataCache is not indexed yet', async () => {
+    const { TFile } = await import('obsidian');
+    const mockFile = new (TFile as any)();
+    mockFile.path = 'Kitaplar/Yeni Kitap.md';
+
+    mockApp.metadataCache.getCache.mockReturnValue(null);
+    mockApp.vault.getAbstractFileByPath.mockReturnValue(mockFile);
+    mockApp.metadataCache.getFileCache.mockReturnValue(null);
+    mockApp.vault.read = vi.fn().mockResolvedValue(`---
+baslik: "Doğrudan Okunan Kitap"
+yazar: "Test Yazar"
+sayfa: 150
+okunan_sayfa: 75
+---
+# Not içeriği
+`);
+
+    const processor = createKitapKartProcessor(mockApp);
+    await processor('', mockContainer, { sourcePath: 'Kitaplar/Yeni Kitap.md' } as any);
+
+    const titleEl = mockContainer.querySelector('.cover-book-title');
+    expect(titleEl?.textContent).toBe('Doğrudan Okunan Kitap');
+    const progressFill = mockContainer.querySelector('.slip-progress-bar-fill') as HTMLElement;
+    expect(progressFill?.style.width).toBe('50%');
+  });
+
   it('renders graceful error message if card generation throws an unexpected error', async () => {
     // Cause an error by passing a throwing getter
     const badApp = {

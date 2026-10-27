@@ -173,7 +173,16 @@ export function renderBibliographicSlip(parentEl: HTMLElement, data: KitapCardDa
   addField('Baskı & Cilt Türü', `${data.edition} · ${data.format}`);
 
   // Field 7: Okuma İlerlemesi
-  const progressText = `${data.pagesRead} / ${data.totalPages} (%${data.readingPercent})`;
+  let progressText: string;
+  if (data.totalPages > 0) {
+    progressText = `${data.pagesRead} / ${data.totalPages} (%${data.readingPercent})`;
+  } else if (data.readingStatus === 'Okundu') {
+    progressText = 'Tamamlandı (%100)';
+  } else if (data.pagesRead > 0) {
+    progressText = `${data.pagesRead} sayfa okundu`;
+  } else {
+    progressText = '—';
+  }
   addField('Okuma İlerlemesi', progressText, true, true);
 
   // Field 8: Okur Puanı
@@ -183,6 +192,10 @@ export function renderBibliographicSlip(parentEl: HTMLElement, data: KitapCardDa
   addField('Okur Puanı & Değerlendirme', ratingText);
 
   // 3. Visual Reading Progress Bar
+  const ariaValueText = data.totalPages > 0
+    ? `%${data.readingPercent} Okundu, ${data.pagesRead}/${data.totalPages} sayfa`
+    : (data.readingStatus === 'Okundu' ? 'Tamamlandı (%100)' : `%${data.readingPercent} Okundu`);
+
   const progressSec = slipEl.createDiv({ cls: 'slip-progress-section' });
   const barWrap = progressSec.createDiv({
     cls: 'slip-progress-bar-wrap',
@@ -192,7 +205,7 @@ export function renderBibliographicSlip(parentEl: HTMLElement, data: KitapCardDa
       'aria-valuemin': '0',
       'aria-valuemax': '100',
       'aria-label': 'Okuma İlerlemesi',
-      'aria-valuetext': `%${data.readingPercent} Okundu, ${data.pagesRead}/${data.totalPages} sayfa`,
+      'aria-valuetext': ariaValueText,
     },
   });
 

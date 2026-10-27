@@ -45,7 +45,8 @@ export function calculateEan13CheckDigit(digits12: string): string {
 export function normalizeToIsbn13(raw: string): string {
   const clean = (raw || '').replace(/[^0-9X]/gi, '').toUpperCase();
   if (clean.length === 13 && /^\d{13}$/.test(clean)) {
-    return clean;
+    const base12 = clean.slice(0, 12);
+    return base12 + calculateEan13CheckDigit(base12);
   }
   if (clean.length === 10) {
     const base9 = '978' + clean.slice(0, 9);
@@ -166,6 +167,7 @@ export function renderBarcodeSvgElement(isbn: string, height = 38): SVGSVGElemen
       viewBox: `0 0 ${totalWidth} ${height}`,
       fill: 'currentColor',
       'aria-label': `ISBN Barkodu: ${isbn13}`,
+      role: 'img',
     },
   });
 

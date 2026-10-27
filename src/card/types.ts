@@ -32,13 +32,23 @@ export interface KitapCardData {
  * Safely converts an unknown value to a string without producing '[object Object]'.
  */
 export function toSafeString(val: unknown): string {
+  if (val == null) return '';
   if (typeof val === 'string') return val;
   if (typeof val === 'number' || typeof val === 'boolean') return val.toString();
+  if (typeof val === 'object') {
+    const obj = val as Record<string, unknown>;
+    if (typeof obj.name === 'string') return obj.name;
+    if (typeof obj.title === 'string') return obj.title;
+    if (typeof obj.value === 'string') return obj.value;
+    if (typeof obj.label === 'string') return obj.label;
+    if (typeof obj.url === 'string') return obj.url;
+    if (typeof obj.link === 'string') return obj.link;
+  }
   return '';
 }
 
 /**
- * Strips wikilink brackets [[...]], ![[...]], and aliases [[target|alias]].
+ * Strips wikilink brackets [[...]], ![[...]], aliases [[target|alias]], and markdown links [text](url).
  */
 export function cleanWikilink(val: unknown): string {
   if (val == null) return '';
@@ -47,13 +57,15 @@ export function cleanWikilink(val: unknown): string {
   }
   const str = toSafeString(val).trim();
   if (!str) return '';
-  // Strip quotes if present
   const unquoted = str.replace(/^["']|["']$/g, '').trim();
-  // Match ![[target|alias]] or [[target|alias]]
-  return unquoted.replace(/^!?\[\[(.*?)\]\]$/, (_m, inner: string) => {
-    const parts = inner.split('|');
-    return (parts[1] || parts[0] || '').trim();
-  }).trim();
+  return unquoted
+    // 1. Markdown links [text](url) -> text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // 2. Wikilinks ![[target|alias]] or [[target|alias]]
+    .replace(/!?\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, alias?: string) => {
+      return (alias || target || '').trim();
+    })
+    .trim();
 }
 
 /**
@@ -79,7 +91,11 @@ export function cleanStringList(val: unknown): string[] {
  * Formats an ISBN-13 into standard hyphenated book display format: 978-975-07-3891-3
  */
 export function formatIsbnDisplay(isbn: string): string {
-  const clean = (isbn || '').replace(/[^0-9X]/gi, '').toUpperCase();
+  if (!isbn) return '—';
+  const clean = isbn.replace(/[^0-9X]/gi, '').toUpperCase();
+  if (isbn.includes('-') && (clean.length === 10 || clean.length === 13)) {
+    return isbn.trim();
+  }
   if (clean.length === 13) {
     // 3 - 3 - 2 - 4 - 1 (Turkish standard) or fallback grouping
     return `${clean.slice(0, 3)}-${clean.slice(3, 6)}-${clean.slice(6, 8)}-${clean.slice(8, 12)}-${clean.slice(12)}`;
@@ -94,12 +110,21 @@ export function formatIsbnDisplay(isbn: string): string {
  * Resolves a book cover path or URL to a renderable image source in Obsidian.
  */
 export function resolveCoverUrl(rawCover: unknown, app?: App, sourcePath?: string): string | null {
-  if (!rawCover || typeof rawCover !== 'string') return null;
-  const trimmed = rawCover.trim().replace(/^["']|["']$/g, '');
+  let target: unknown = rawCover;
+  if (Array.isArray(target)) {
+    target = (target as unknown[])[0];
+  }
+  if (typeof target === 'object' && target !== null) {
+    const obj = target as Record<string, unknown>;
+    target = obj.url ?? obj.link ?? obj.path ?? obj.name ?? '';
+  }
+  if (!target || typeof target !== 'string') return null;
+
+  const trimmed = target.trim().replace(/^["']|["']$/g, '');
   if (!trimmed) return null;
 
-  // 1. Direct Web URLs
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+  // 1. Direct Web URLs or data URIs
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:image/')) {
     return trimmed;
   }
 
@@ -112,7 +137,7 @@ export function resolveCoverUrl(rawCover: unknown, app?: App, sourcePath?: strin
 
   if (!cleanPath) return null;
 
-  if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+  if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://') || cleanPath.startsWith('data:image/')) {
     return cleanPath;
   }
 
@@ -137,10 +162,12 @@ export function resolveCoverUrl(rawCover: unknown, app?: App, sourcePath?: strin
  */
 function extractAuthorCutter(author: string): string {
   if (!author || author === 'Bilinmeyen Yazar') return 'KIT';
-  const clean = author.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ\s]/g, '').trim();
+  // Use first author if multiple are listed
+  const firstAuthor = author.split(/[,;&]/)[0].trim();
+  const clean = firstAuthor.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ\s]/g, '').trim();
   const words = clean.split(/\s+/).filter(Boolean);
   if (words.length === 0) return 'KIT';
-  // Use last name
+  // Use last name of first author
   const lastName = words[words.length - 1];
   return lastName.slice(0, 3).toLocaleUpperCase('tr-TR');
 }
@@ -154,27 +181,32 @@ export function generateDeweyAndCatalogCode(
   publishDate?: string,
   isbn13?: string,
   userDewey?: string,
-  userCatalog?: string
+  userCatalog?: string,
+  authorNationality?: string
 ): { deweyCode: string; catalogCode: string } {
   let dewey = (userDewey || '').trim();
 
   if (!dewey) {
-    const lowerGenres = genres.map(g => g.toLocaleLowerCase('tr-TR')).join(' ');
-    if (lowerGenres.includes('türk') || lowerGenres.includes('turk')) {
+    const matchPool = [authorNationality, ...genres]
+      .filter(Boolean)
+      .map(g => String(g).toLocaleLowerCase('tr-TR'))
+      .join(' ');
+
+    if (matchPool.includes('türk') || matchPool.includes('turk')) {
       dewey = '894.35';
-    } else if (lowerGenres.includes('alman') || lowerGenres.includes('avusturya')) {
+    } else if (matchPool.includes('alman') || matchPool.includes('avusturya')) {
       dewey = '833.912';
-    } else if (lowerGenres.includes('ingiliz') || lowerGenres.includes('amerikan')) {
+    } else if (matchPool.includes('ingiliz') || matchPool.includes('amerikan')) {
       dewey = '823';
-    } else if (lowerGenres.includes('fransız') || lowerGenres.includes('fransiz')) {
+    } else if (matchPool.includes('fransız') || matchPool.includes('fransiz')) {
       dewey = '843';
-    } else if (lowerGenres.includes('rus')) {
+    } else if (matchPool.includes('rus')) {
       dewey = '891.7';
-    } else if (lowerGenres.includes('felsefe')) {
+    } else if (matchPool.includes('felsefe')) {
       dewey = '100';
-    } else if (lowerGenres.includes('tarih')) {
+    } else if (matchPool.includes('tarih')) {
       dewey = '900';
-    } else if (lowerGenres.includes('şiir') || lowerGenres.includes('siir')) {
+    } else if (matchPool.includes('şiir') || matchPool.includes('siir')) {
       dewey = '894.351';
     } else {
       dewey = '800';
@@ -231,10 +263,24 @@ export function parseCardData(
 ): KitapCardData {
   const fm = frontmatter || {};
   const ovr = options?.overrides || {};
-  const merged: Record<string, unknown> = { ...fm, ...ovr };
+
+  // Prioritize overrides over frontmatter across multiple alias keys
+  const getField = <T = unknown>(...keys: string[]): T | undefined => {
+    for (const k of keys) {
+      if (ovr[k] !== undefined && ovr[k] !== null && ovr[k] !== '') {
+        return ovr[k] as T;
+      }
+    }
+    for (const k of keys) {
+      if (fm[k] !== undefined && fm[k] !== null && fm[k] !== '') {
+        return fm[k] as T;
+      }
+    }
+    return undefined;
+  };
 
   // 1. Title
-  const rawTitle = merged.baslik ?? merged.title ?? merged.name ?? merged.kitap_adi ?? merged.book_title;
+  const rawTitle = getField('baslik', 'title', 'name', 'kitap_adi', 'book_title');
   let title = cleanWikilink(rawTitle);
   if (!title && options?.sourcePath) {
     const parts = options.sourcePath.split('/');
@@ -246,53 +292,60 @@ export function parseCardData(
   }
 
   // 2. Original Title
-  const rawOrigTitle = merged.orijinal_baslik ?? merged.original_title ?? merged.originalTitle ?? merged.ozgun_adi;
+  const rawOrigTitle = getField('orijinal_baslik', 'original_title', 'originalTitle', 'ozgun_adi');
   const originalTitle = rawOrigTitle ? cleanWikilink(rawOrigTitle) : undefined;
 
   // 3. Author & Nationality
-  const rawAuthor = merged.yazar ?? merged.author ?? merged.authors ?? merged.yazarlar;
+  const rawAuthor = getField('yazar', 'author', 'authors', 'yazarlar');
   const author = cleanWikilink(rawAuthor) || 'Bilinmeyen Yazar';
 
-  const rawNat = merged.uyruk ?? merged.nationality ?? merged.yazar_bilgi ?? merged.author_info;
+  const rawNat = getField('uyruk', 'nationality', 'yazar_bilgi', 'author_info');
   const authorNationality = rawNat ? cleanWikilink(rawNat) : undefined;
 
   // 4. Translator
-  const rawTrans = merged.cevirmen ?? merged.translator ?? merged.ceviren ?? merged.translators;
+  const rawTrans = getField('cevirmen', 'translator', 'ceviren', 'translators');
   const translator = rawTrans ? cleanWikilink(rawTrans) : undefined;
 
   // 5. Publisher & Series
-  const rawPub = merged.yayinevi ?? merged.publisher ?? merged.yayin_evi ?? merged.yayin;
+  const rawPub = getField('yayinevi', 'publisher', 'yayin_evi', 'yayin');
   const publisher = cleanWikilink(rawPub) || 'Bilinmeyen Yayınevi';
 
-  const rawSeries = merged.dizi ?? merged.series ?? merged.kitap_dizisi;
+  const rawSeries = getField('dizi', 'series', 'kitap_dizisi');
   const series = rawSeries ? cleanWikilink(rawSeries) : undefined;
 
   // 6. ISBN & Barcode
-  const rawIsbn = merged.isbn ?? merged.isbn13 ?? merged.isbn10 ?? merged.barkod ?? merged.barcode ?? '';
+  const rawIsbn = getField('isbn', 'isbn13', 'isbn10', 'barkod', 'barcode') ?? '';
   const isbn = toSafeString(rawIsbn).trim();
   const isbn13 = normalizeToIsbn13(isbn);
 
   // 7. Pages & Progress
-  const rawTotal = merged.toplam_sayfa ?? merged.sayfa ?? merged.total_pages ?? merged.pages ?? merged.sayfa_sayisi ?? 0;
+  const rawTotal = getField('toplam_sayfa', 'sayfa', 'total_pages', 'pages', 'sayfa_sayisi') ?? 0;
   const totalPages = typeof rawTotal === 'number'
     ? Math.max(0, Math.floor(rawTotal))
     : Math.max(0, parseInt(toSafeString(rawTotal), 10) || 0);
 
-  const rawRead = merged.okunan_sayfa ?? merged.current_page ?? merged.pages_read ?? merged.okunan ?? merged.read_pages ?? 0;
-  const pagesRead = typeof rawRead === 'number'
+  const rawRead = getField('okunan_sayfa', 'current_page', 'pages_read', 'okunan', 'read_pages') ?? 0;
+  let pagesRead = typeof rawRead === 'number'
     ? Math.max(0, Math.floor(rawRead))
     : Math.max(0, parseInt(toSafeString(rawRead), 10) || 0);
 
-  const readingPercent = totalPages > 0
-    ? Math.min(100, Math.max(0, Math.round((pagesRead / totalPages) * 100)))
-    : (pagesRead > 0 ? 100 : 0);
-
   // 8. Reading Status
-  const rawStatus = merged.okuma_durumu ?? merged.durum ?? merged.status ?? merged.reading_status;
+  const rawStatus = getField('okuma_durumu', 'durum', 'status', 'reading_status');
   const readingStatus = normalizeReadingStatus(rawStatus, pagesRead, totalPages);
 
+  // If status is "Okundu", ensure progress reflects completion
+  if (readingStatus === 'Okundu') {
+    if (totalPages > 0 && pagesRead === 0) {
+      pagesRead = totalPages;
+    }
+  }
+
+  const readingPercent = totalPages > 0
+    ? Math.min(100, Math.max(0, Math.round((pagesRead / totalPages) * 100)))
+    : (readingStatus === 'Okundu' ? 100 : (pagesRead > 0 ? 100 : 0));
+
   // 9. Rating & Count
-  const rawRating = merged.puan ?? merged.rating ?? merged.puan_kitapyurdu ?? merged.puan_dr ?? merged.kisisel_puan ?? merged.score;
+  const rawRating = getField('puan', 'rating', 'puan_kitapyurdu', 'puan_dr', 'kisisel_puan', 'score');
   let rating: number | undefined;
   if (typeof rawRating === 'number') {
     rating = rawRating;
@@ -301,7 +354,7 @@ export function parseCardData(
     if (!isNaN(num)) rating = num;
   }
 
-  const rawRatingCount = merged.oy_sayisi ?? merged.rating_count ?? merged.ratingCount ?? merged.degerlendirme_sayisi;
+  const rawRatingCount = getField('oy_sayisi', 'rating_count', 'ratingCount', 'degerlendirme_sayisi');
   let ratingCount: number | undefined;
   if (typeof rawRatingCount === 'number') {
     ratingCount = Math.floor(rawRatingCount);
@@ -311,32 +364,32 @@ export function parseCardData(
   }
 
   // 10. Format & Edition
-  const rawFormat = merged.format ?? merged.cilt ?? merged.binding;
-  const rawEdition = merged.baski ?? merged.edition ?? merged.basim;
+  const rawFormat = getField('format', 'cilt', 'binding');
+  const rawEdition = getField('baski', 'edition', 'basim');
   const format = rawFormat ? cleanWikilink(rawFormat) : 'Karton Kapak';
   const edition = rawEdition ? cleanWikilink(rawEdition) : 'Standart Baskı';
 
   // 11. Genres
-  const rawGenres = merged.tur ?? merged.genres ?? merged.kategori ?? merged.category ?? merged.etiketler ?? merged.tags;
+  const rawGenres = getField('tur', 'genres', 'kategori', 'category', 'etiketler', 'tags');
   const genres = cleanStringList(rawGenres);
 
   // 12. Publish Date & Date Added
-  const rawPubDate = merged.yayin_tarihi ?? merged.publishDate ?? merged.publish_date ?? merged.year ?? merged.yil ?? merged.date;
+  const rawPubDate = getField('yayin_tarihi', 'publishDate', 'publish_date', 'year', 'yil', 'date');
   const pubDateStr = toSafeString(rawPubDate).trim();
   const publishDate = pubDateStr || undefined;
 
-  const rawAdded = merged.date_added ?? merged.eklenme_tarihi ?? merged.created ?? merged.kayit_tarihi;
+  const rawAdded = getField('date_added', 'eklenme_tarihi', 'created', 'kayit_tarihi');
   const addedStr = toSafeString(rawAdded).trim();
   const dateAdded = addedStr || undefined;
 
   // 13. Cover URL
-  const rawCover = merged.kapak ?? merged.cover ?? merged.coverUrl ?? merged.image;
+  const rawCover = getField('kapak', 'cover', 'coverUrl', 'image');
+  const coverUrl = resolveCoverUrl(rawCover, options?.app, options?.sourcePath) || undefined;
   const rawCoverStr = rawCover != null ? toSafeString(rawCover) : undefined;
-  const coverUrl = resolveCoverUrl(rawCoverStr, options?.app, options?.sourcePath) || undefined;
 
   // 14. Dewey & Catalog Code
-  const rawDewey = merged.dewey ?? merged.dewey_kodu;
-  const rawCatalog = merged.katalog_kodu ?? merged.catalog_code ?? merged.call_number ?? merged.demirbas_no;
+  const rawDewey = getField('dewey', 'dewey_kodu');
+  const rawCatalog = getField('katalog_kodu', 'catalog_code', 'call_number', 'demirbas_no');
   const deweyInput = rawDewey != null ? toSafeString(rawDewey) : undefined;
   const catalogInput = rawCatalog != null ? toSafeString(rawCatalog) : undefined;
   const { deweyCode, catalogCode } = generateDeweyAndCatalogCode(
@@ -345,7 +398,8 @@ export function parseCardData(
     publishDate,
     isbn13,
     deweyInput,
-    catalogInput
+    catalogInput,
+    authorNationality
   );
 
   return {
