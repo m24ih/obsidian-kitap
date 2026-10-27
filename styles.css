@@ -207,6 +207,38 @@
   color: var(--text-muted);
 }
 
+.kitap-callout {
+  padding: 12px 14px;
+  border-radius: var(--radius-m, 8px);
+  margin: 10px 0 16px 0;
+  border-left: 4px solid var(--text-warning, #e5a93c);
+  background-color: var(--background-secondary-alt);
+}
+
+.kitap-callout-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-warning, #e5a93c);
+}
+
+.kitap-callout-icon {
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+.kitap-callout-title {
+  font-size: var(--font-ui-medium, 14px);
+}
+
+.kitap-callout-body {
+  font-size: var(--font-ui-smaller, 12.5px);
+  line-height: 1.5;
+  color: var(--text-normal);
+}
+
 .kitap-vars-list {
   padding-left: 20px;
   line-height: 1.6;

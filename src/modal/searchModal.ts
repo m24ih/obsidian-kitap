@@ -52,11 +52,9 @@ export class BookSearchModal extends SuggestModal<SearchResultItem> {
     this.insertIntoActive = options?.insertIntoActive ?? false;
     this.debounceMs = options?.debounceMs ?? 500;
 
-    this.emptyStateText = 'Kitap adı, yazar veya ISBN girin (örn. Üç Cisim Problemi, Dune)...';
+    this.emptyStateText = 'Kitap adı, yazar veya ISBN girin...';
 
-    this.setPlaceholder?.(
-      'Kitap adı, yazar veya ISBN girin (örn. Üç Cisim Problemi, Dune)...'
-    );
+    this.setPlaceholder?.('Kitap adı, yazar veya ISBN girin...');
     this.setInstructions?.([
       { command: '↑↓', purpose: 'Gezin' },
       { command: '↵ Enter', purpose: this.insertIntoActive ? 'Aktif Nota Ekle' : 'Not Oluştur' },

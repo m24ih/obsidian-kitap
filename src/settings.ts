@@ -154,47 +154,11 @@ export class KitapSettingTab extends PluginSettingTab {
       );
 
     if (this.plugin.settings.enableHardcover) {
-      let isVisible = false;
-      let textInputEl: HTMLInputElement | null = null;
-
-      const hcKeySetting = new Setting(containerEl)
-        .setName('Hardcover API anahtarı')
-        .setDesc(
-          'Hardcover hesabınızdan aldığınız API anahtarı (hardcover.app/account/api). Boş bırakılırsa Hardcover araması çalıştırılmaz.'
-        )
-        .addText((text) => {
-          textInputEl = text.inputEl;
-          text.inputEl.type = 'password';
-          text
-            .setPlaceholder('Hardcover API anahtarınızı girin...')
-            .setValue(this.plugin.settings.hardcoverApiKey)
-            .onChange(async (value) => {
-              this.plugin.settings.hardcoverApiKey = value.trim();
-              this.plugin.aggregator?.setSettings?.(this.plugin.settings);
-              await this.plugin.saveSettings();
-            });
-        })
-        .addExtraButton((btn) => {
-          btn
-            .setIcon('eye-off')
-            .setTooltip('Anahtarı göster / gizle')
-            .onClick(() => {
-              isVisible = !isVisible;
-              if (textInputEl) {
-                textInputEl.type = isVisible ? 'text' : 'password';
-              }
-              btn.setIcon(isVisible ? 'eye' : 'eye-off');
-            });
-        });
-
-      // Eklenti ayar satırını temiz tut
-      hcKeySetting.settingEl.addClass('kitap-api-key-setting');
-
       if (typeof SecretComponent !== 'undefined') {
         new Setting(containerEl)
-          .setName('Hardcover secret storage (opsiyonel)')
+          .setName('Hardcover API anahtarı')
           .setDesc(
-            'API anahtarınızı Obsidian Secret Storage ile saklamak isterseniz buradan bir anahtar bağlayabilirsiniz.'
+            'API anahtarınızı Obsidian Secret Storage ile saklayın ve buradan bağlayın (hardcover.app/account/api).'
           )
           .addComponent((el) => {
             const component = new SecretComponent(this.app, el);
@@ -206,6 +170,23 @@ export class KitapSettingTab extends PluginSettingTab {
                 await this.plugin.saveSettings();
               });
             return component;
+          });
+      } else {
+        new Setting(containerEl)
+          .setName('Hardcover API anahtarı')
+          .setDesc(
+            'Hardcover hesabınızdan aldığınız API anahtarı (hardcover.app/account/api). Boş bırakılırsa Hardcover araması çalıştırılmaz.'
+          )
+          .addText((text) => {
+            text.inputEl.type = 'password';
+            text
+              .setPlaceholder('Hardcover API anahtarınızı girin...')
+              .setValue(this.plugin.settings.hardcoverApiKey)
+              .onChange(async (value) => {
+                this.plugin.settings.hardcoverApiKey = value.trim();
+                this.plugin.aggregator?.setSettings?.(this.plugin.settings);
+                await this.plugin.saveSettings();
+              });
           });
       }
     }
@@ -353,8 +334,15 @@ export class KitapSettingTab extends PluginSettingTab {
           });
         });
     } else if (currentMode === 'reactive') {
-      const modeDesc = containerEl.createDiv({ cls: 'setting-item-description kitap-mode-desc' });
-      modeDesc.setText('Reaktif şablon etkindir. Dataview / DataviewJS ve Templater desteğiyle dinamik okuma ilerlemesi (%), okuma günlüğü ve alıntılar tablosu sunar.');
+      const alertBox = containerEl.createDiv({ cls: 'kitap-callout kitap-callout-warning' });
+      const headerEl = alertBox.createDiv({ cls: 'kitap-callout-header' });
+      headerEl.createSpan({ cls: 'kitap-callout-icon', text: '⚠️' });
+      headerEl.createSpan({ cls: 'kitap-callout-title', text: 'Önemli gereksinim: Dataview ve Templater' });
+
+      alertBox.createDiv({
+        cls: 'kitap-callout-body',
+        text: 'Reaktif şablonun dinamik okuma ilerlemesi (%), okuma günlüğü ve kitap kartı özelliklerinin eksiksiz çalışabilmesi için hem Dataview hem de Templater topluluk eklentilerinin kurulu ve etkin olması gereklidir.',
+      });
 
       new Setting(containerEl)
         .setName('Şablonu özelleştir')
@@ -512,9 +500,9 @@ export class KitapSettingTab extends PluginSettingTab {
       { tag: '{{tur}} / {{genres}}', desc: 'Kategoriler / Türler (örn: Edebiyat, Bilimkurgu)' },
       { tag: '{{orijinal_baslik}} / {{originalTitle}}', desc: 'Kitabın orijinal adı (Dune vb.)' },
       { tag: '{{dil}} / {{language}}', desc: 'Basım dili (TÜRKÇE vb.)' },
-      { tag: '{{puan}} / {{rating}}', desc: 'Kitapyurdu okur puanı (0-5)' },
+      { tag: '{{puan}} / {{rating}}', desc: 'Kitap okur puanı (0-5)' },
       { tag: '{{aciklama}} / {{description}}', desc: 'Kitap açıklaması / tanıtım bülteni' },
-      { tag: '{{url}}', desc: 'Kitapyurdu ürün sayfası bağlantısı' },
+      { tag: '{{url}}', desc: 'Kitap detay veya ürün sayfası bağlantısı' },
     ];
 
     for (const v of variables) {
