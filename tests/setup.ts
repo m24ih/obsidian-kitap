@@ -49,6 +49,25 @@ if (typeof HTMLElement !== "undefined") {
     };
   }
 
+  if (!proto.createSvg) {
+    proto.createSvg = function (
+      tag: string,
+      o?: { cls?: string; attr?: Record<string, string> },
+      callback?: (el: any) => void
+    ) {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      if (o?.cls) el.setAttribute("class", o.cls);
+      if (o?.attr) {
+        for (const [key, val] of Object.entries(o.attr)) {
+          el.setAttribute(key, val);
+        }
+      }
+      this.appendChild(el);
+      if (callback) callback(el);
+      return el;
+    };
+  }
+
   if (!proto.appendText) {
     proto.appendText = function (text: string) {
       const node = document.createTextNode(text);
@@ -80,6 +99,42 @@ if (typeof HTMLElement !== "undefined") {
       this.textContent = text;
     };
   }
+}
+
+if (typeof SVGElement !== "undefined") {
+  const svgProto = SVGElement.prototype as any;
+  if (!svgProto.createSvg) {
+    svgProto.createSvg = function (
+      tag: string,
+      o?: { cls?: string; attr?: Record<string, string> },
+      callback?: (el: any) => void
+    ) {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      if (o?.cls) el.setAttribute("class", o.cls);
+      if (o?.attr) {
+        for (const [key, val] of Object.entries(o.attr)) {
+          el.setAttribute(key, val);
+        }
+      }
+      this.appendChild(el);
+      if (callback) callback(el);
+      return el;
+    };
+  }
+}
+
+if (typeof globalThis !== "undefined") {
+  (globalThis as any).createSvg = function (tag: string, o?: any, callback?: any) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    if (o?.cls) el.setAttribute("class", o.cls);
+    if (o?.attr) {
+      for (const [key, val] of Object.entries(o.attr)) {
+        el.setAttribute(key, String(val));
+      }
+    }
+    if (callback) callback(el);
+    return el;
+  };
 }
 
 // Mock components for Setting
@@ -464,6 +519,10 @@ export class Plugin {
     return el;
   }
   addCommand(): void {}
+  registerMarkdownCodeBlockProcessor(
+    _language: string,
+    _handler: (source: string, el: HTMLElement, ctx: any) => Promise<any> | void
+  ): any {}
 }
 
 export class PluginSettingTab {

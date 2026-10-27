@@ -761,5 +761,413 @@
   justify-content: flex-end;
 }
 
+/* ==========================================================================
+   Kütüphane Kartı (`kitap-kart`) Codeblock Processor Styles
+   Native Obsidian CSS variables, zero !important, responsive 960px & 640px
+   ========================================================================== */
 
+.kitap-kart-wrapper {
+  margin: 1.25rem 0;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-text);
+  color: var(--text-normal);
+}
 
+.kitap-kart-wrapper .library-card-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+/* 3D Book Cover Stage */
+.kitap-kart-wrapper .book-cover-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.kitap-kart-wrapper .book-cover-3d {
+  width: 220px;
+  height: 330px;
+  position: relative;
+  background: linear-gradient(135deg, #181024 0%, #0d0914 100%);
+  border: 1px solid rgba(var(--interactive-accent-rgb, 124, 58, 237), 0.28);
+  border-radius: 4px 10px 10px 4px;
+  box-shadow: 
+    -4px 0 10px rgba(0, 0, 0, 0.4),
+    10px 14px 26px rgba(0, 0, 0, 0.6),
+    inset -1px 0 2px rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  padding: 1.35rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+.kitap-kart-wrapper .book-cover-3d.has-image {
+  padding: 0;
+}
+
+.kitap-kart-wrapper .book-cover-3d .book-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 4px 10px 10px 4px;
+}
+
+.kitap-kart-wrapper .book-cover-3d::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 14px;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.2) 60%, rgba(255, 255, 255, 0.05) 90%, transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.kitap-kart-wrapper .book-ribbon {
+  position: absolute;
+  top: 0;
+  right: 24px;
+  width: 14px;
+  height: 56px;
+  background: linear-gradient(to bottom, var(--interactive-accent), #9333ea);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.45);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%);
+  z-index: 3;
+}
+
+/* Typographic Cover Elements */
+.kitap-kart-wrapper .cover-header-brand {
+  font-family: var(--font-text);
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-accent);
+  font-weight: 700;
+  border-bottom: 1px solid rgba(var(--interactive-accent-rgb, 124, 58, 237), 0.25);
+  padding-bottom: 0.4rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kitap-kart-wrapper .cover-main-titles {
+  margin: auto 0;
+  text-align: center;
+}
+
+.kitap-kart-wrapper .cover-author {
+  font-family: var(--font-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #f5f3ff;
+  margin-bottom: 0.45rem;
+  text-transform: uppercase;
+}
+
+.kitap-kart-wrapper .cover-book-title {
+  font-family: var(--font-text);
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  line-height: 1.18;
+  background: linear-gradient(to right, #ffffff, #e9d5ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.6rem;
+  word-break: break-word;
+}
+
+.kitap-kart-wrapper .cover-emblem {
+  width: 32px;
+  height: 32px;
+  margin: 0.4rem auto 0;
+  border: 1px solid rgba(var(--interactive-accent-rgb, 124, 58, 237), 0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-accent);
+}
+
+.kitap-kart-wrapper .cover-footer-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-top: 1px solid rgba(var(--interactive-accent-rgb, 124, 58, 237), 0.2);
+  padding-top: 0.5rem;
+}
+
+.kitap-kart-wrapper .cover-translator {
+  font-family: var(--font-text);
+  font-size: 0.64rem;
+  color: var(--text-accent);
+  line-height: 1.25;
+  white-space: pre-line;
+  text-align: left;
+}
+
+.kitap-kart-wrapper .cover-publisher {
+  font-family: var(--font-text);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #f5f3ff;
+  letter-spacing: 0.08em;
+}
+
+.kitap-kart-wrapper .cover-typo-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Bibliographic Accession Slip */
+.kitap-kart-wrapper .bibliographic-slip {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m, 8px);
+  padding: 1.35rem 1.45rem;
+  position: relative;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.kitap-kart-wrapper .slip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px dashed var(--background-modifier-border-hover);
+  padding-bottom: 0.85rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.kitap-kart-wrapper .slip-inst-title {
+  font-family: var(--font-monospace);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--text-accent);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.kitap-kart-wrapper .slip-catalog-code {
+  font-family: var(--font-monospace);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-normal);
+  letter-spacing: 0.04em;
+  margin-top: 0.2rem;
+  word-break: break-word;
+}
+
+/* Slip Metadata Grid (8 fields) */
+.kitap-kart-wrapper .slip-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.85rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.kitap-kart-wrapper .meta-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  overflow: hidden;
+}
+
+.kitap-kart-wrapper .meta-field-label {
+  font-family: var(--font-monospace);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.kitap-kart-wrapper .meta-field-value {
+  font-size: 0.84rem;
+  color: var(--text-normal);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.kitap-kart-wrapper .meta-field-value.highlight {
+  color: var(--text-accent);
+  font-weight: 600;
+}
+
+.kitap-kart-wrapper .meta-field-value.mono {
+  font-family: var(--font-monospace);
+  font-size: 0.8rem;
+}
+
+/* Visual Reading Progress Bar */
+.kitap-kart-wrapper .slip-progress-section {
+  margin-top: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.kitap-kart-wrapper .slip-progress-bar-wrap {
+  width: 100%;
+  height: 8px;
+  background: var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  overflow: hidden;
+  position: relative;
+}
+
+.kitap-kart-wrapper .slip-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--interactive-accent), #9333ea);
+  border-radius: var(--radius-s, 4px);
+  transition: width 0.3s ease;
+}
+
+/* Barcode & Accession Stamp Footer */
+.kitap-kart-wrapper .slip-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 1rem;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.kitap-kart-wrapper .barcode-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kitap-kart-wrapper .barcode-svg {
+  height: 34px;
+  width: 155px;
+  max-width: 100%;
+  color: var(--text-normal);
+}
+
+.kitap-kart-wrapper .barcode-number {
+  font-family: var(--font-monospace);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.kitap-kart-wrapper .accession-stamp {
+  border: 2px dashed rgba(var(--interactive-accent-rgb, 124, 58, 237), 0.45);
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  font-family: var(--font-monospace);
+  font-size: 0.65rem;
+  color: var(--text-accent);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transform: rotate(-1.5deg);
+  text-align: center;
+  background: rgba(var(--interactive-accent-rgb, 124, 58, 237), 0.08);
+  line-height: 1.3;
+}
+
+/* Card Badges */
+.kitap-kart-wrapper .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-s, 4px);
+  font-family: var(--font-monospace);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.kitap-kart-wrapper .badge-emerald {
+  background: rgba(var(--color-green-rgb, 16, 185, 129), 0.15);
+  border-color: rgba(var(--color-green-rgb, 16, 185, 129), 0.35);
+  color: var(--text-success, #10b981);
+}
+
+.kitap-kart-wrapper .badge-purple {
+  background: rgba(var(--interactive-accent-rgb, 124, 58, 237), 0.15);
+  border-color: rgba(var(--interactive-accent-rgb, 124, 58, 237), 0.35);
+  color: var(--text-accent, #a78bfa);
+}
+
+.kitap-kart-wrapper .badge-amber {
+  background: rgba(var(--color-orange-rgb, 245, 158, 11), 0.15);
+  border-color: rgba(var(--color-orange-rgb, 245, 158, 11), 0.35);
+  color: var(--text-warning, #f59e0b);
+}
+
+.kitap-kart-wrapper .badge-indigo {
+  background: rgba(var(--interactive-accent-rgb, 99, 102, 241), 0.15);
+  border-color: rgba(var(--interactive-accent-rgb, 99, 102, 241), 0.35);
+  color: var(--text-accent, #a5b4fc);
+}
+
+/* Error State */
+.kitap-kart-error {
+  background: rgba(var(--color-red-rgb, 239, 68, 68), 0.08);
+  border: 1px solid rgba(var(--color-red-rgb, 239, 68, 68), 0.25);
+  border-radius: var(--radius-m, 8px);
+  padding: 1rem 1.25rem;
+  color: var(--text-error, #ef4444);
+  font-family: var(--font-text);
+  margin: 1rem 0;
+}
+
+.kitap-kart-error-title {
+  font-weight: 600;
+  font-size: var(--font-ui-medium);
+  margin-bottom: 0.25rem;
+}
+
+.kitap-kart-error-desc {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 960px) {
+  .kitap-kart-wrapper .library-card-layout {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+  }
+  .kitap-kart-wrapper .book-cover-stage {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .kitap-kart-wrapper .slip-meta-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .kitap-kart-wrapper .bibliographic-slip {
+    padding: 1rem;
+  }
+  .kitap-kart-wrapper .slip-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -3,6 +3,7 @@ import { KitapPluginSettings, DEFAULT_SETTINGS } from './types';
 import { KitapSettingTab } from './settings';
 import { BookAggregator } from './providers/aggregator';
 import { BookSearchModal } from './modal/searchModal';
+import { createKitapKartProcessor } from './codeblock/kitapKartProcessor';
 
 export default class KitapPlugin extends Plugin {
   declare settings: KitapPluginSettings;
@@ -20,6 +21,12 @@ export default class KitapPlugin extends Plugin {
 
     // 4. Komut Paleti Komutlarını Kaydet
     this.registerCommands();
+
+    // 5. Kütüphane Kartı (`kitap-kart`) Codeblock İşlemcisini Kaydet
+    this.registerMarkdownCodeBlockProcessor(
+      'kitap-kart',
+      createKitapKartProcessor(this.app)
+    );
   }
 
   onunload(): void {
