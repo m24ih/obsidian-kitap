@@ -11,6 +11,7 @@ import { parseGoodreadsCsv, stripBom } from '../goodreads/csvParser';
 import { mapGoodreadsRow } from '../goodreads/mapper';
 import { scanVaultBooks } from '../goodreads/vaultScanner';
 import { detectDuplicates } from '../goodreads/duplicateDetector';
+import { GoodreadsImporter } from '../goodreads/importer';
 import type {
   GoodreadsRawRow,
   ParsedGoodreadsBook,
@@ -591,12 +592,8 @@ export class GoodreadsImportModal extends Modal {
       if (this.options?.importHandler) {
         result = await this.options.importHandler(this.scanResult, importOptions);
       } else {
-        result = {
-          importedCount: this.scanResult.newBooks.length,
-          updatedCount: this.updateExisting ? this.scanResult.existingBooks.length : 0,
-          skippedCount: this.updateExisting ? 0 : this.scanResult.existingBooks.length,
-          errors: [],
-        };
+        const importer = new GoodreadsImporter(this.app, this.plugin);
+        result = await importer.importBooks(this.scanResult, importOptions);
       }
 
       this.importResult = result;
