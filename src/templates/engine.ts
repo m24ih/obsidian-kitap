@@ -6,6 +6,39 @@ import { adaptTemplateToPropertyMappings } from './templateAdapter';
 export { sanitizeFileName, adaptTemplateToPropertyMappings };
 
 /**
+ * Dataview inline JS (`$= ...`) satırlarında tırnak içine gömülen değerlerdeki
+ * çakışan tırnak karakterlerini kaçırır. Örn: `'[[Kitaplar/Kapaklar/Ay'a Yolculuk.jpg]]'`
+ * gibi bir değer Dataview tarafından `SyntaxError: Unexpected identifier 'a'` ile patlar;
+ * bu yardımcı fonksiyon değeri `Ay\'a Yolculuk` biçimine dönüştürür.
+ */
+function escapeInlineJsQuotes(value: string, quote: "'" | '"'): string {
+  return quote === "'" ? value.replace(/'/g, "\\'") : value.replace(/"/g, '\\"');
+}
+
+/**
+ * Tek bir satırdaki `{{degisken}}` yer tutucularını, tırnak bağlamına duyarlı biçimde çözer.
+ * Yer tutucu tek tırnak içindeyse (`'{{x}}'`) tek tırnaklar, çift tırnak içindeyse
+ * (`"{{x}}"`) çift tırnaklar kaçırılır. Böylece Dataview inline JS sözdizimi bozulmaz.
+ */
+function interpolateInlineJsLine(
+  line: string,
+  replacements: Record<string, string>
+): string {
+  return line.replace(
+    /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,
+    (fullMatch: string, key: string, offset: number, whole: string) => {
+      if (!Object.prototype.hasOwnProperty.call(replacements, key)) return fullMatch;
+      const value = replacements[key] ?? '';
+      const prevChar = offset > 0 ? whole.charAt(offset - 1) : '';
+      const nextChar = whole.charAt(offset + fullMatch.length);
+      if (prevChar === "'" && nextChar === "'") return escapeInlineJsQuotes(value, "'");
+      if (prevChar === '"' && nextChar === '"') return escapeInlineJsQuotes(value, '"');
+      return value;
+    }
+  );
+}
+
+/**
  * Kitap şablonundaki tüm `{{degisken}}` yer tutucularını BookMetadata değerleriyle doldurur.
  * Eksik veya undefined olan opsiyonel alanlar "undefined" veya "null" yerine boş dize ("") olarak işlenir.
  * Eğer özellik eşlemeleri (mappings) sağlanırsa, şablon gövdesi bu eşlemelere göre otomatik uyarlanır.
@@ -147,15 +180,22 @@ export function renderBookTemplate(
     }
   }
 
-  // 1. Standart {{değişken}} yer tutucularını çöz
-  let rendered = processedTemplate.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (fullMatch, key: string) => {
+  // 1. Dataview inline JS (`$= ...`) satırları: tırnak bağlamına duyarlı kaçış
+  //    (örn. `'{{coverUrl}}'` içindeki "Ay'a Yolculuk" değeri `Ay\'a Yolculuk` olur)
+  let rendered = processedTemplate
+    .split('\n')
+    .map((line) => (line.includes('`$=') ? interpolateInlineJsLine(line, replacements) : line))
+    .join('\n');
+
+  // 2. Standart {{değişken}} yer tutucularını çöz
+  rendered = rendered.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (fullMatch, key: string) => {
     if (Object.prototype.hasOwnProperty.call(replacements, key)) {
       return replacements[key];
     }
     return fullMatch;
   });
 
-  // 2. Basit <% degisken %> kalıpları (tp.* veya kod blokları hariç saf kitap değişkenleri için tolerans)
+  // 3. Basit <% degisken %> kalıpları (tp.* veya kod blokları hariç saf kitap değişkenleri için tolerans)
   rendered = rendered.replace(/<%\s*([a-zA-Z0-9_]+)\s*%>/g, (fullMatch, key: string) => {
     if (Object.prototype.hasOwnProperty.call(replacements, key)) {
       return replacements[key];

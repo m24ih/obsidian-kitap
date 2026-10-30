@@ -1697,6 +1697,95 @@
   white-space: nowrap;
 }
 
+.kitap-import-selection-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kitap-import-search-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kitap-import-search-input {
+  width: 100%;
+}
+
+.kitap-import-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kitap-import-select-btn {
+  padding: 4px 8px;
+  font-size: var(--font-ui-smaller);
+}
+
+.kitap-import-selection-counter {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.kitap-import-book-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+}
+
+.kitap-import-book-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.kitap-import-book-item:last-child {
+  border-bottom: none;
+}
+
+.kitap-import-book-checkbox {
+  flex: 0 0 auto;
+}
+
+.kitap-import-book-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.kitap-import-book-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kitap-import-book-author {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.kitap-import-badge-new {
+  padding: 1px 6px;
+  border-radius: var(--radius-s);
+  background-color: var(--background-secondary-alt);
+  color: var(--text-success, #10b981);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.kitap-import-book-empty {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  text-align: center;
+}
+
 /* Seçenekler & Ayar Satırları */
 .kitap-import-options-section {
   display: flex;

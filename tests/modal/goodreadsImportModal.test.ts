@@ -147,6 +147,139 @@ describe('GoodreadsImportModal UI & Lifecycle', () => {
     modal.close();
   });
 
+  it('renders checked new-book checkboxes and unchecked existing-book checkboxes', async () => {
+    mockEnv.vault.createFile('Kitaplar/Dune.md', SAMPLE_EXISTING_VAULT_NOTE_DUNE, {
+      isbn: '9780441172719',
+    });
+
+    const modal = new GoodreadsImportModal(mockEnv.app, mockPlugin);
+    modal.open();
+    await modal.handleFileSelected(SAMPLE_CSV_STANDARD, 'goodreads.csv');
+
+    const newCheckboxes = Array.from(
+      modal.contentEl.querySelectorAll<HTMLInputElement>(
+        '.kitap-import-book-item[data-book-kind="new"] .kitap-import-book-checkbox'
+      )
+    );
+    const existingCheckboxes = Array.from(
+      modal.contentEl.querySelectorAll<HTMLInputElement>(
+        '.kitap-import-book-item[data-book-kind="existing"] .kitap-import-book-checkbox'
+      )
+    );
+
+    expect(newCheckboxes.length).toBeGreaterThan(0);
+    expect(newCheckboxes.every((checkbox) => checkbox.checked)).toBe(true);
+    expect(existingCheckboxes.length).toBe(1);
+    expect(existingCheckboxes[0].checked).toBe(false);
+
+    modal.close();
+  });
+
+  it('filters by title, author, Turkish characters, and ISBN without replacing the focused search input', async () => {
+    mockEnv.vault.createFile('Kitaplar/Dune.md', SAMPLE_EXISTING_VAULT_NOTE_DUNE, {
+      isbn: '9780441172719',
+    });
+
+    const modal = new GoodreadsImportModal(mockEnv.app, mockPlugin);
+    modal.open();
+    await modal.handleFileSelected(SAMPLE_CSV_STANDARD, 'goodreads.csv');
+
+    const input = modal.contentEl.querySelector<HTMLInputElement>('.kitap-import-search-input');
+    expect(input).not.toBeNull();
+    input?.focus();
+
+    const setSearch = (value: string): HTMLElement[] => {
+      if (!input) return [];
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      expect(document.activeElement).toBe(input);
+      return Array.from(
+        modal.contentEl.querySelectorAll<HTMLElement>('.kitap-import-book-item')
+      ).filter((item) => item.style.display !== 'none');
+    };
+
+    expect(setSearch('İnce Memed')).toHaveLength(1);
+    expect(setSearch('Yaşar Kemal')).toHaveLength(1);
+    expect(setSearch('ince memed')).toHaveLength(1);
+    expect(setSearch('9780441172719')).toHaveLength(1);
+
+    modal.close();
+  });
+
+  it('imports only individually selected books and keeps existing updates enabled for a checked match', async () => {
+    mockEnv.vault.createFile('Kitaplar/Dune.md', SAMPLE_EXISTING_VAULT_NOTE_DUNE, {
+      isbn: '9780441172719',
+    });
+    let receivedNewCount = -1;
+    let receivedExistingCount = -1;
+    let receivedUpdateExisting = false;
+    const modal = new GoodreadsImportModal(mockEnv.app, mockPlugin, {
+      importHandler: async (scanResult, options) => {
+        receivedNewCount = scanResult.newBooks.length;
+        receivedExistingCount = scanResult.existingBooks.length;
+        receivedUpdateExisting = options.updateExisting;
+        return { importedCount: receivedNewCount, updatedCount: receivedExistingCount, errors: [] };
+      },
+    });
+    modal.open();
+    await modal.handleFileSelected(SAMPLE_CSV_STANDARD, 'goodreads.csv');
+
+    const newCheckboxes = Array.from(
+      modal.contentEl.querySelectorAll<HTMLInputElement>(
+        '.kitap-import-book-item[data-book-kind="new"] .kitap-import-book-checkbox'
+      )
+    );
+    newCheckboxes.slice(1).forEach((checkbox) => checkbox.click());
+    const existingCheckbox = modal.contentEl.querySelector<HTMLInputElement>(
+      '.kitap-import-book-item[data-book-kind="existing"] .kitap-import-book-checkbox'
+    );
+    existingCheckbox?.click();
+
+    await modal.startImport();
+
+    expect(receivedNewCount).toBe(1);
+    expect(receivedExistingCount).toBe(1);
+    expect(receivedUpdateExisting).toBe(true);
+
+    modal.close();
+  });
+
+  it('selects and deselects only visible books, and disables import with no selection', async () => {
+    mockEnv.vault.createFile('Kitaplar/Dune.md', SAMPLE_EXISTING_VAULT_NOTE_DUNE, {
+      isbn: '9780441172719',
+    });
+
+    const modal = new GoodreadsImportModal(mockEnv.app, mockPlugin);
+    modal.open();
+    await modal.handleFileSelected(SAMPLE_CSV_STANDARD, 'goodreads.csv');
+
+    const input = modal.contentEl.querySelector<HTMLInputElement>('.kitap-import-search-input');
+    if (input) {
+      input.value = 'Dune';
+      input.dispatchEvent(new Event('input'));
+    }
+    const selectAll = modal.contentEl.querySelector<HTMLButtonElement>('[data-action="select-all"]');
+    selectAll?.click();
+    expect(modal.getSelectedExistingBookIndices()).toEqual([0]);
+    expect(modal.getUpdateExisting()).toBe(true);
+
+    const deselectAll = modal.contentEl.querySelector<HTMLButtonElement>('[data-action="deselect-all"]');
+    deselectAll?.click();
+    expect(modal.getSelectedExistingBookIndices()).toEqual([]);
+    expect(modal.getUpdateExisting()).toBe(false);
+
+    if (input) {
+      input.value = '';
+      input.dispatchEvent(new Event('input'));
+    }
+    deselectAll?.click();
+    const submitButton = modal.contentEl.querySelector<HTMLButtonElement>('button.mod-cta');
+    expect(submitButton?.disabled).toBe(true);
+    expect(submitButton?.textContent).toContain('En Az Bir Kitap Seçin');
+
+    modal.close();
+  });
+
   it('updates progress bar and status message reactively during import', async () => {
     const modal = new GoodreadsImportModal(mockEnv.app, mockPlugin, {
       importHandler: async (_scanResult, options) => {

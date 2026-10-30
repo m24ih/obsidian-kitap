@@ -137,6 +137,98 @@ code: <%* const x = 1; %>`;
     });
   });
 
+  describe('Dataview Inline JS Quote Escaping (apostrophes in metadata)', () => {
+    const apostropheBook: BookMetadata = {
+      ...sampleBook,
+      title: "Ay'a Yolculuk",
+      author: "Madeleine L'Engle",
+      publisher: "Ay'a Yayınları",
+      coverUrl: "[[Kitaplar/Kapaklar/Ay'a Yolculuk - Jules Verne.jpg]]",
+      description: "Jules Verne'in klasik eseri.",
+    };
+
+    const extractInlineJsBlocks = (markdown: string): string[] => {
+      const blocks: string[] = [];
+      const re = /`\$=([\s\S]*?)`/g;
+      let match: RegExpExecArray | null;
+      while ((match = re.exec(markdown)) !== null) {
+        blocks.push(match[1]);
+      }
+      return blocks;
+    };
+
+    const expectAllInlineJsValid = (markdown: string): string[] => {
+      const blocks = extractInlineJsBlocks(markdown);
+      expect(blocks.length).toBeGreaterThanOrEqual(3);
+      for (const block of blocks) {
+        expect(() => new Function('dv', `return (${block})`)).not.toThrow();
+      }
+      return blocks;
+    };
+
+    it("escapes apostrophes in coverUrl so the inline Dataview JS stays valid", () => {
+      const rendered = renderBookTemplate(DEFAULT_REACTIVE_TEMPLATE, apostropheBook);
+
+      // Kaçırılmamış ham literal kalmamalı
+      expect(rendered).not.toContain("'[[Kitaplar/Kapaklar/Ay'a");
+      expect(rendered).toContain("Ay\\'a Yolculuk - Jules Verne.jpg");
+
+      const blocks = expectAllInlineJsValid(rendered);
+      expect(blocks.length).toBeGreaterThan(0);
+
+      // Kapak literali doğru yola çözülmeli
+      const coverBlock = blocks.find((b) => b.includes('const k = '));
+      expect(coverBlock).toBeDefined();
+      const evaluated = new Function(
+        'dv',
+        `return (${coverBlock as string})`
+      )({ current: () => ({ kapak: '' }) });
+      expect(evaluated).toBe("![[Kitaplar/Kapaklar/Ay'a Yolculuk - Jules Verne.jpg|250]]");
+    });
+
+    it("escapes apostrophes in title/author placeholders rendered as inline JS", () => {
+      const rendered = renderBookTemplate(DEFAULT_REACTIVE_TEMPLATE, apostropheBook);
+
+      expect(rendered).toContain('Ay\'a Yolculuk');
+      expectAllInlineJsValid(rendered);
+
+      const titleBlock = extractInlineJsBlocks(rendered).find((b) => b.includes('?.baslik'));
+      expect(titleBlock).toBeDefined();
+      const title = new Function('dv', `return (${titleBlock as string})`)({ current: () => ({}) });
+      expect(title).toBe("Ay'a Yolculuk");
+    });
+
+    it('escapes double quotes inside double-quoted placeholders', () => {
+      const quotedBook: BookMetadata = {
+        ...sampleBook,
+        title: 'Kitap "Özel" Adı',
+        author: 'Yazar "Takma" Adı',
+        coverUrl: '[[Kitaplar/Kapaklar/Kitap "Özel" Adı.jpg]]',
+      };
+
+      const rendered = renderBookTemplate(DEFAULT_REACTIVE_TEMPLATE, quotedBook);
+      expectAllInlineJsValid(rendered);
+
+      const titleBlock = extractInlineJsBlocks(rendered).find((b) => b.includes('?.baslik'));
+      const title = new Function('dv', `return (${titleBlock as string})`)({ current: () => ({}) });
+      expect(title).toBe('Kitap "Özel" Adı');
+    });
+
+    it('returns an empty string instead of a broken ![[|250]] embed when the cover is missing', () => {
+      const noCoverBook: BookMetadata = { ...sampleBook, coverUrl: undefined };
+      const rendered = renderBookTemplate(DEFAULT_REACTIVE_TEMPLATE, noCoverBook);
+
+      expect(rendered).not.toContain('![[|250]]');
+      const coverBlock = extractInlineJsBlocks(rendered).find((b) => b.includes('const k = '));
+      expect(coverBlock).toBeDefined();
+      const evaluated = new Function(
+        'dv',
+        `return (${coverBlock as string})`
+      )({ current: () => ({}) });
+      expect(evaluated).toBe('');
+    });
+  });
+
   describe('Boundary & Corner Cases — Missing & Undefined Fields', () => {
     it('replaces missing optional fields with empty strings instead of "undefined" literals', () => {
       const bookWithMissingFields: BookMetadata = {

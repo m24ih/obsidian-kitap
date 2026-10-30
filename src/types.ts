@@ -182,7 +182,7 @@ kisisel_puan:
 
 # 📖 \`$= dv.current()?.baslik || dv.current()?.title || "{{title}}"\`
 
-\`$= (() => { const k = dv.current()?.kapak || dv.current()?.cover || dv.current()?.coverUrl || dv.current()?.image || '{{coverUrl}}'; const p = (typeof k === 'object' && k?.path) ? k.path : String(k).replace(/^\\[\\[/, '').replace(/\\]\\]$/, ''); return p.startsWith('http') ? '![Kapak|250](' + p + ')' : '![[' + p + '|250]]'; })()\`
+\`$= (() => { const k = dv.current()?.kapak || dv.current()?.cover || dv.current()?.coverUrl || dv.current()?.image || '{{coverUrl}}'; const p = (typeof k === 'object' && k?.path) ? k.path : String(k).replace(/^\\[\\[/, '').replace(/\\]\\]$/, ''); if (!p) return ''; return p.startsWith('http') ? '![Kapak|250](' + p + ')' : '![[' + p + '|250]]'; })()\`
 
 > **Yazar:** \`$= dv.current()?.yazar || dv.current()?.author || "{{author}}"\`  
 > **Yayınevi:** \`$= dv.current()?.yayinevi || dv.current()?.publisher || "{{publisher}}"\`  

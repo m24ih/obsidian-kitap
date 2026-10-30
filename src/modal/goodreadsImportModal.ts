@@ -6,12 +6,14 @@
  */
 
 import { App, Modal, Setting } from 'obsidian';
+import type { ToggleComponent } from 'obsidian';
 import type KitapPlugin from '../main';
 import { parseGoodreadsCsv, stripBom } from '../goodreads/csvParser';
 import { mapGoodreadsRow } from '../goodreads/mapper';
 import { scanVaultBooks } from '../goodreads/vaultScanner';
 import { detectDuplicates } from '../goodreads/duplicateDetector';
 import { GoodreadsImporter } from '../goodreads/importer';
+import { normalizeTurkish } from '../utils/fuzzy';
 import type {
   GoodreadsRawRow,
   ParsedGoodreadsBook,
@@ -60,6 +62,11 @@ export class GoodreadsImportModal extends Modal {
   private updateExisting = false;
   private enrichFromProviders = false;
 
+  // Book Selection & Search State
+  private selectedNewBookIndices: Set<number> = new Set();
+  private selectedExistingBookIndices: Set<number> = new Set();
+  private searchQuery = '';
+
   // Execution & Progress State
   private abortController: AbortController | null = null;
   private isImportRunning = false;
@@ -72,6 +79,11 @@ export class GoodreadsImportModal extends Modal {
   private progressStatusEl: HTMLElement | null = null;
   private errorBannerEl: HTMLElement | null = null;
   private submitButtonEl: HTMLButtonElement | null = null;
+  private updateExistingToggle: ToggleComponent | null = null;
+  private searchInputEl: HTMLInputElement | null = null;
+  private selectionCounterEl: HTMLElement | null = null;
+  private bookListEl: HTMLElement | null = null;
+  private bookListEmptyEl: HTMLElement | null = null;
   private currentProgress = { current: 0, total: 0, percent: 0, message: '' };
 
   constructor(app: App, plugin: KitapPlugin, options?: GoodreadsImportModalOptions) {
@@ -113,9 +125,29 @@ export class GoodreadsImportModal extends Modal {
 
   setUpdateExisting(val: boolean): void {
     this.updateExisting = val;
-    if (this.submitButtonEl) {
-      this.submitButtonEl.setText(this.getSubmitButtonText());
+    this.updateExistingToggle?.setValue(val);
+    if (this.scanResult) {
+      // Mevcut kitap seçimi her zaman updateExisting ile senkronize edilir
+      this.selectedExistingBookIndices = val
+        ? new Set(this.scanResult.existingBooks.map((_book, index) => index))
+        : new Set<number>();
+    } else if (!val) {
+      this.selectedExistingBookIndices.clear();
     }
+    this.syncCheckboxStates();
+    this.refreshSelectionUi();
+  }
+
+  getSearchQuery(): string {
+    return this.searchQuery;
+  }
+
+  getSelectedNewBookIndices(): number[] {
+    return Array.from(this.selectedNewBookIndices).sort((a, b) => a - b);
+  }
+
+  getSelectedExistingBookIndices(): number[] {
+    return Array.from(this.selectedExistingBookIndices).sort((a, b) => a - b);
   }
 
   getEnrichFromProviders(): boolean {
@@ -272,7 +304,8 @@ export class GoodreadsImportModal extends Modal {
     });
     totalCard.createDiv({ cls: 'kitap-import-stat-label', text: 'Toplam Kitap' });
 
-    // 3. Existing Books Interactive Confirmation & Details
+    // 3. Existing Books Interactive Confirmation
+    this.updateExistingToggle = null;
     if (this.scanResult.existingBooks.length > 0) {
       const confirmBox = container.createDiv({ cls: 'kitap-import-confirm-box' });
       confirmBox.createDiv({
@@ -287,37 +320,20 @@ export class GoodreadsImportModal extends Modal {
       new Setting(confirmBox)
         .setName('Mevcut Kitap Notlarını Güncelle')
         .setDesc(
-          'Açık: Mevcut notların YAML frontmatter değerleri güncellenir. Kapalı: Mevcut notlar atlanır, yalnızca yeni kitaplar eklenir.'
+          'Açık: Mevcut notların YAML frontmatter değerleri güncellenir. Kapalı: Mevcut notlar atlanır, yalnızca yeni kitaplar eklenir. Seçimi aşağıdaki listeden tek tek de değiştirebilirsiniz.'
         )
         .addToggle((toggle) => {
+          this.updateExistingToggle = toggle;
           toggle.setValue(this.updateExisting).onChange((val) => {
             this.setUpdateExisting(val);
           });
         });
-
-      const detailsEl = container.createEl('details', {
-        cls: 'kitap-import-existing-details',
-      });
-      detailsEl.createEl('summary', {
-        cls: 'kitap-import-existing-summary',
-        text: `Kasada Bulunan Mevcut Kitapları İncele (${this.scanResult.existingBooks.length})`,
-      });
-      const listEl = detailsEl.createDiv({ cls: 'kitap-import-existing-list' });
-      for (const match of this.scanResult.existingBooks) {
-        const itemEl = listEl.createDiv({ cls: 'kitap-import-existing-item' });
-        const titleSpan = itemEl.createSpan();
-        titleSpan.setText(
-          `${match.csvBook.cleanTitle} - ${match.csvBook.metadata.author}`
-        );
-        const reasonText =
-          match.matchReason === 'title-author-normalized'
-            ? 'Başlık & Yazar Eşleşmesi'
-            : 'ISBN Eşleşmesi';
-        itemEl.createSpan({ cls: 'kitap-import-match-badge', text: reasonText });
-      }
     }
 
-    // 4. Provider Enrichment Toggle
+    // 4. Searchable & Checkable Book Selection List
+    this.renderBookSelectionSection(container);
+
+
     const optionsSection = container.createDiv({ cls: 'kitap-import-options-section' });
     new Setting(optionsSection)
       .setName('Eksik kapak ve künye bilgilerini sağlayıcılardan zenginleştir')
@@ -348,6 +364,7 @@ export class GoodreadsImportModal extends Modal {
     this.submitButtonEl.addEventListener('click', () => {
       void this.startImport();
     });
+    this.refreshSelectionUi();
   }
 
   private renderImportingStep(): void {
@@ -457,13 +474,184 @@ export class GoodreadsImportModal extends Modal {
     });
   }
 
+  private renderBookSelectionSection(container: HTMLElement): void {
+    if (!this.scanResult) return;
+
+    const section = container.createDiv({ cls: 'kitap-import-selection-section' });
+    const toolbar = section.createDiv({ cls: 'kitap-import-search-toolbar' });
+    this.searchInputEl = toolbar.createEl('input', {
+      cls: 'kitap-import-search-input',
+      attr: { type: 'search', placeholder: 'Kitap adı, yazar veya ISBN ile ara...' },
+    });
+    this.searchInputEl.value = this.searchQuery;
+    this.searchInputEl.addEventListener('input', () => {
+      this.searchQuery = this.searchInputEl?.value ?? '';
+      this.filterBookListDom();
+    });
+
+    const actionsRow = toolbar.createDiv({ cls: 'kitap-import-selection-actions' });
+    const selectVisibleBooks = (selected: boolean): void => {
+      if (!this.bookListEl) return;
+      for (const item of Array.from(this.bookListEl.children)) {
+        const el = item as HTMLElement;
+        if (el.style.display === 'none') continue;
+        const index = Number(el.dataset.bookIndex);
+        if (el.dataset.bookKind === 'new') {
+          selected ? this.selectedNewBookIndices.add(index) : this.selectedNewBookIndices.delete(index);
+        } else if (el.dataset.bookKind === 'existing') {
+          selected
+            ? this.selectedExistingBookIndices.add(index)
+            : this.selectedExistingBookIndices.delete(index);
+        }
+      }
+      if (selected && this.selectedExistingBookIndices.size > 0) {
+        this.updateExisting = true;
+        this.updateExistingToggle?.setValue(true);
+      } else if (!selected && this.selectedExistingBookIndices.size === 0) {
+        this.updateExisting = false;
+        this.updateExistingToggle?.setValue(false);
+      }
+      this.syncCheckboxStates();
+      this.refreshSelectionUi();
+    };
+
+    const selectAllButton = actionsRow.createEl('button', {
+      cls: 'kitap-import-select-btn',
+      text: 'Tümünü Seç',
+      attr: { type: 'button', 'data-action': 'select-all' },
+    });
+    selectAllButton.addEventListener('click', () => selectVisibleBooks(true));
+    const deselectAllButton = actionsRow.createEl('button', {
+      cls: 'kitap-import-select-btn',
+      text: 'Seçimi Kaldır',
+      attr: { type: 'button', 'data-action': 'deselect-all' },
+    });
+    deselectAllButton.addEventListener('click', () => selectVisibleBooks(false));
+    this.selectionCounterEl = actionsRow.createSpan({ cls: 'kitap-import-selection-counter' });
+
+    this.bookListEl = section.createDiv({ cls: 'kitap-import-book-list' });
+    const addBookItem = (
+      book: ParsedGoodreadsBook,
+      kind: 'new' | 'existing',
+      index: number,
+      badgeText: string
+    ): void => {
+      const item = this.bookListEl?.createDiv({
+        cls: `kitap-import-book-item${kind === 'existing' ? ' kitap-existing-item kitap-import-existing-item' : ''}`,
+        attr: { 'data-book-kind': kind, 'data-book-index': String(index) },
+      });
+      if (!item) return;
+      const checkbox = item.createEl('input', {
+        cls: 'kitap-import-book-checkbox',
+        attr: { type: 'checkbox' },
+      });
+      checkbox.checked = kind === 'new'
+        ? this.selectedNewBookIndices.has(index)
+        : this.selectedExistingBookIndices.has(index);
+      checkbox.addEventListener('change', () => {
+        const selectedIndices = kind === 'new'
+          ? this.selectedNewBookIndices
+          : this.selectedExistingBookIndices;
+        checkbox.checked ? selectedIndices.add(index) : selectedIndices.delete(index);
+        if (kind === 'existing') {
+          this.updateExisting = this.selectedExistingBookIndices.size > 0;
+          this.updateExistingToggle?.setValue(this.updateExisting);
+        }
+        this.refreshSelectionUi();
+      });
+      const info = item.createDiv({ cls: 'kitap-import-book-info' });
+      info.createDiv({
+        cls: 'kitap-import-book-title',
+        text: kind === 'existing' ? `${book.cleanTitle} - ${book.metadata.author}` : book.cleanTitle,
+      });
+      info.createDiv({
+        cls: 'kitap-import-book-author',
+        text: book.metadata.author || 'Bilinmeyen Yazar',
+      });
+      item.createSpan({
+        cls: kind === 'new' ? 'kitap-import-badge-new' : 'kitap-import-match-badge',
+        text: badgeText,
+      });
+    };
+
+    this.scanResult.newBooks.forEach((book, index) => addBookItem(book, 'new', index, 'Yeni Kitap'));
+    this.scanResult.existingBooks.forEach((match, index) => {
+      addBookItem(
+        match.csvBook,
+        'existing',
+        index,
+        match.matchReason === 'title-author-normalized'
+          ? 'Başlık & Yazar Eşleşmesi'
+          : 'ISBN Eşleşmesi'
+      );
+    });
+    this.bookListEmptyEl = section.createDiv({
+      cls: 'kitap-import-book-empty',
+      text: 'Aramanızla eşleşen kitap bulunamadı.',
+    });
+    this.filterBookListDom();
+    this.refreshSelectionUi();
+  }
+
+  private matchesSearchQuery(book: ParsedGoodreadsBook): boolean {
+    if (!this.searchQuery.trim()) return true;
+    const query = normalizeTurkish(this.searchQuery);
+    return [book.cleanTitle, book.metadata.title, book.metadata.author, book.isbn13 || '', book.isbn10 || '']
+      .some((value) => normalizeTurkish(value || '').includes(query));
+  }
+
+  private filterBookListDom(): void {
+    if (!this.bookListEl || !this.scanResult) return;
+    let visibleCount = 0;
+    for (const item of Array.from(this.bookListEl.children)) {
+      const el = item as HTMLElement;
+      const index = Number(el.dataset.bookIndex);
+      const book = el.dataset.bookKind === 'new'
+        ? this.scanResult.newBooks[index]
+        : this.scanResult.existingBooks[index]?.csvBook;
+      const matches = book ? this.matchesSearchQuery(book) : false;
+      el.style.display = matches ? '' : 'none';
+      if (matches) visibleCount++;
+    }
+    if (this.bookListEmptyEl) this.bookListEmptyEl.style.display = visibleCount ? 'none' : '';
+  }
+
+  private syncCheckboxStates(): void {
+    if (!this.bookListEl) return;
+    for (const item of Array.from(this.bookListEl.querySelectorAll<HTMLElement>('.kitap-import-book-item'))) {
+      const checkbox = item.querySelector<HTMLInputElement>('.kitap-import-book-checkbox');
+      const index = Number(item.dataset.bookIndex);
+      if (!checkbox) continue;
+      checkbox.checked = item.dataset.bookKind === 'new'
+        ? this.selectedNewBookIndices.has(index)
+        : this.selectedExistingBookIndices.has(index);
+    }
+  }
+
+  private refreshSelectionUi(): void {
+    const selectedCount = this.selectedNewBookIndices.size + this.selectedExistingBookIndices.size;
+    const totalCount = this.scanResult
+      ? this.scanResult.newBooks.length + this.scanResult.existingBooks.length
+      : 0;
+    if (this.selectionCounterEl) {
+      this.selectionCounterEl.setText(
+        `${selectedCount} / ${totalCount} seçili (${this.selectedNewBookIndices.size} yeni, ${this.selectedExistingBookIndices.size} güncelleme)`
+      );
+    }
+    if (this.submitButtonEl) {
+      this.submitButtonEl.setText(this.getSubmitButtonText());
+      this.submitButtonEl.disabled = selectedCount === 0;
+    }
+  }
+
   // --- Logic Helpers ---
 
   private getSubmitButtonText(): string {
     if (!this.scanResult) return 'İçe Aktarmayı Başlat';
-    const newCount = this.scanResult.newBooks.length;
-    const existingCount = this.scanResult.existingBooks.length;
-    if (this.updateExisting) {
+    const newCount = this.selectedNewBookIndices.size;
+    const existingCount = this.selectedExistingBookIndices.size;
+    if (newCount === 0 && existingCount === 0) return 'En Az Bir Kitap Seçin';
+    if (existingCount > 0) {
       return `İçe Aktar ve Güncelle (${newCount} Yeni, ${existingCount} Güncelleme)`;
     }
     return `Yalnızca Yeni Kitapları Aktar (${newCount} Kitap)`;
@@ -537,6 +725,11 @@ export class GoodreadsImportModal extends Modal {
 
       const detector = this.options?.detectorFn ?? detectDuplicates;
       this.scanResult = detector(parsedBooks, vaultBooks);
+      this.selectedNewBookIndices = new Set(this.scanResult.newBooks.map((_book, index) => index));
+      this.selectedExistingBookIndices = this.updateExisting
+        ? new Set(this.scanResult.existingBooks.map((_book, index) => index))
+        : new Set();
+      this.searchQuery = '';
 
       this.currentStep = 'preview';
       this.renderCurrentStep();
@@ -561,7 +754,6 @@ export class GoodreadsImportModal extends Modal {
       this.progressStatusEl.setText(message);
     }
   }
-
   async startImport(): Promise<ImportResult> {
     if (!this.scanResult) {
       throw new Error('İçe aktarma başlatılamadı: Tarama sonucu bulunamadı.');
@@ -572,13 +764,27 @@ export class GoodreadsImportModal extends Modal {
     this.abortController = new AbortController();
     this.renderCurrentStep();
 
-    const total =
-      this.scanResult.newBooks.length +
-      (this.updateExisting ? this.scanResult.existingBooks.length : 0);
+    const filteredNewBooks = this.scanResult.newBooks.filter((_book, index) =>
+      this.selectedNewBookIndices.has(index)
+    );
+    const selectedExistingBooks = this.scanResult.existingBooks.filter((_book, index) =>
+      this.selectedExistingBookIndices.has(index)
+    );
+    const effectiveUpdateExisting = this.updateExisting && selectedExistingBooks.length > 0;
+    const filteredExistingBooks = effectiveUpdateExisting ? selectedExistingBooks : this.scanResult.existingBooks;
+    const unselectedNewCount = this.scanResult.newBooks.length - filteredNewBooks.length;
+    const unselectedExistingCount = effectiveUpdateExisting
+      ? this.scanResult.existingBooks.length - selectedExistingBooks.length
+      : 0;
+    const filteredScanResult: DuplicateScanResult = {
+      newBooks: filteredNewBooks,
+      existingBooks: filteredExistingBooks,
+    };
+    const total = filteredNewBooks.length + (effectiveUpdateExisting ? filteredExistingBooks.length : 0);
     this.updateProgressUI(0, total, 'İçe aktarma başlatılıyor...');
 
     const importOptions: ImportOptions = {
-      updateExisting: this.updateExisting,
+      updateExisting: effectiveUpdateExisting,
       enrichFromProviders: this.enrichFromProviders,
       targetFolder: this.plugin.settings?.targetFolder,
       abortSignal: this.abortController.signal,
@@ -590,11 +796,13 @@ export class GoodreadsImportModal extends Modal {
     try {
       let result: ImportResult;
       if (this.options?.importHandler) {
-        result = await this.options.importHandler(this.scanResult, importOptions);
+        result = await this.options.importHandler(filteredScanResult, importOptions);
       } else {
         const importer = new GoodreadsImporter(this.app, this.plugin);
-        result = await importer.importBooks(this.scanResult, importOptions);
+        result = await importer.importBooks(filteredScanResult, importOptions);
       }
+
+      result.skippedCount = (result.skippedCount ?? 0) + unselectedNewCount + unselectedExistingCount;
 
       this.importResult = result;
       this.currentStep = 'completed';
