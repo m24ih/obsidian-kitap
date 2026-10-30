@@ -555,6 +555,31 @@ export class KitapSettingTab extends PluginSettingTab {
       },
 
       // ----------------------------------------------------
+      // Bölüm: İçe Aktarma
+      // ----------------------------------------------------
+      {
+        type: 'group',
+        heading: 'İçe aktarma',
+        items: [
+          {
+            name: 'Goodreads Kütüphanesini İçe Aktar',
+            desc: 'Goodreads dışa aktarım CSV dosyasını (goodreads_library_export.csv) okuyarak kitaplarınızı Markdown notları olarak kütüphanenize aktarır veya mevcut notları günceller.',
+            render: (setting) => {
+              setting.addButton((button) => {
+                button
+                  .setButtonText('İçe Aktarmayı Başlat')
+                  .setCta()
+                  .setTooltip('Goodreads CSV dosyasını seçmek ve içe aktarma sihirbazını başlatmak için tıklayın')
+                  .onClick(() => {
+                    this.plugin.openGoodreadsImportModal();
+                  });
+              });
+            },
+          },
+        ],
+      },
+
+      // ----------------------------------------------------
       // Bölüm: Değişkenler Rehberi
       // ----------------------------------------------------
       {

@@ -3,11 +3,13 @@ import { KitapPluginSettings, DEFAULT_SETTINGS } from './types';
 import { KitapSettingTab } from './settings';
 import { BookAggregator } from './providers/aggregator';
 import { BookSearchModal } from './modal/searchModal';
+import { GoodreadsImportModal } from './modal/goodreadsImportModal';
 import { createKitapKartProcessor } from './codeblock/kitapKartProcessor';
 
 export default class KitapPlugin extends Plugin {
   declare settings: KitapPluginSettings;
   aggregator: BookAggregator = new BookAggregator();
+  activeImportModal: GoodreadsImportModal | null = null;
 
   async onload(): Promise<void> {
     // 0. Aggregator'a Obsidian App nesnesini bağla
@@ -231,6 +233,28 @@ export default class KitapPlugin extends Plugin {
   }
 
   /**
+   * Goodreads CSV İçe Aktarma modal penceresini açar.
+   * Halihazırda açık bir içe aktarma penceresi varsa DOM ve bellek sızıntısını
+   * önlemek için eski pencereyi kapatır ve yenisini başlatır.
+   */
+  openGoodreadsImportModal(): GoodreadsImportModal {
+    if (this.activeImportModal) {
+      const prev = this.activeImportModal;
+      this.activeImportModal = null;
+      try {
+        prev.close();
+      } catch {
+        // Zaten kapatılmışsa sessizce yut
+      }
+    }
+
+    const modal = new GoodreadsImportModal(this.app, this);
+    this.activeImportModal = modal;
+    modal.open();
+    return modal;
+  }
+
+  /**
    * Sol şeritte yer alan kitap ikonunu kaydeder.
    */
   private registerRibbonIcons(): void {
@@ -270,6 +294,15 @@ export default class KitapPlugin extends Plugin {
           this.openSearchModal({ insertIntoActive: true });
         }
         return true;
+      },
+    });
+
+    // 3. Goodreads CSV İçe Aktarma Komutu
+    this.addCommand({
+      id: 'goodreads-csv-import',
+      name: 'Goodreads CSV İçe Aktar',
+      callback: () => {
+        this.openGoodreadsImportModal();
       },
     });
   }
