@@ -315,6 +315,16 @@ export function updateFrontmatterNonDestructive(
   }
 
   // Case B: Existing frontmatter present
+  // Açılış --- satırından hemen sonra gelen boş satırları temizle
+  let hadLeadingBlankLines = false;
+  if (rawFm.length > 0) {
+    const strippedFm = rawFm.replace(/^(?:[ \t]*\r?\n)+/, '');
+    if (strippedFm !== rawFm) {
+      rawFm = strippedFm;
+      hadLeadingBlankLines = true;
+    }
+  }
+
   const fmLines = rawFm.length > 0 ? rawFm.split(/\r?\n/) : [];
   const entries: FrontmatterEntry[] = [];
   let currentProp: FrontmatterEntry | null = null;
@@ -365,7 +375,61 @@ export function updateFrontmatterNonDestructive(
   }
 
   const handledKeys = new Set<string>();
-  let changed = false;
+
+  // Eski/yinelenen alan adlarını yerinde hedef alana taşı:
+  //   durum -> okuma_durumu, puan_kitapyurdu / puan_dr -> puan
+  // Hedef alan zaten mevcutsa eski alan yinelenen olarak kaldırılır.
+  const existingPropertyKeys = new Set<string>();
+  for (const entry of entries) {
+    if (entry.type === 'property' && entry.key) {
+      existingPropertyKeys.add(entry.key);
+    }
+  }
+
+  const migrateAliasInPlace = (targetKey: string, aliasKeys: string[]): boolean => {
+    if (!(targetKey in updatedProperties) || updatedProperties[targetKey] === undefined) {
+      return false;
+    }
+    // Kullanıcı eski alanı açıkça güncellemek istiyorsa taşıma yapma
+    if (aliasKeys.some((alias) => alias in updatedProperties)) {
+      return false;
+    }
+
+    const targetExists = existingPropertyKeys.has(targetKey);
+    let migrated = false;
+    let structuralChange = false;
+
+    for (const entry of entries) {
+      if (entry.type !== 'property' || !entry.key || !aliasKeys.includes(entry.key)) {
+        continue;
+      }
+
+      if (targetExists || migrated) {
+        // Hedef alan zaten var: yinelenen eski alanı kaldır
+        entry.originalLines = [];
+      } else {
+        // Eski alanı yerinde hedef alana dönüştür (konum ve satır içi yorum korunur)
+        entry.key = targetKey;
+        entry.rawKey = targetKey;
+        // Değer aynı kalsa bile anahtar adı değiştiği için satırı yeniden yaz
+        entry.originalLines = formatUpdatedPropertyLines(
+          targetKey,
+          updatedProperties[targetKey],
+          entry.quoteStyle || 'double',
+          entry.inlineComment || ''
+        );
+        migrated = true;
+      }
+      structuralChange = true;
+    }
+
+    return structuralChange;
+  };
+
+  const migratedReadingStatus = migrateAliasInPlace('okuma_durumu', ['durum']);
+  const migratedRating = migrateAliasInPlace('puan', ['puan_kitapyurdu', 'puan_dr']);
+
+  let changed = hadLeadingBlankLines || migratedReadingStatus || migratedRating;
 
   // Process existing properties
   for (const entry of entries) {

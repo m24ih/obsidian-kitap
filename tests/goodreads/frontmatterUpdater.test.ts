@@ -210,6 +210,63 @@ describe('updateFrontmatterNonDestructive Unit Tests', () => {
     });
   });
 
+  describe('Legacy Alias Migration & Leading Blank Line Cleanup', () => {
+    it('migrates legacy durum key to okuma_durumu in place', () => {
+      const note = '---\nbaslik: "Dune"\ndurum: Okunacak\n---\n# Body\n';
+      const result = updateFrontmatterNonDestructive(note, { okuma_durumu: 'Okundu' });
+
+      expect(result.changed).toBe(true);
+      expect(result.updatedContent).toBe('---\nbaslik: "Dune"\nokuma_durumu: "Okundu"\n---\n# Body\n');
+      expect(result.updatedContent).not.toMatch(/^durum:/m);
+    });
+
+    it('removes legacy durum line when okuma_durumu already exists', () => {
+      const note =
+        '---\nbaslik: "Dune"\nokuma_durumu: "Okunuyor"\ndurum: Okunacak\n---\n# Body\n';
+      const result = updateFrontmatterNonDestructive(note, { okuma_durumu: 'Okundu' });
+
+      expect(result.changed).toBe(true);
+      expect(result.updatedContent).toBe('---\nbaslik: "Dune"\nokuma_durumu: "Okundu"\n---\n# Body\n');
+      expect(result.updatedContent).not.toMatch(/^durum:/m);
+    });
+
+    it('migrates puan_kitapyurdu to puan in place, preserving the rating value', () => {
+      const note = '---\nbaslik: "Dune"\npuan_kitapyurdu: 4.5\n---\n# Body\n';
+      const result = updateFrontmatterNonDestructive(note, { puan: 4.5 });
+
+      expect(result.changed).toBe(true);
+      expect(result.updatedContent).toBe('---\nbaslik: "Dune"\npuan: 4.5\n---\n# Body\n');
+      expect(result.updatedContent).not.toMatch(/^puan_kitapyurdu:/m);
+    });
+
+    it('drops duplicate puan_kitapyurdu line when puan already exists', () => {
+      const note = '---\nbaslik: "Dune"\npuan: 4\npuan_kitapyurdu: 5\n---\n# Body\n';
+      const result = updateFrontmatterNonDestructive(note, { puan: 4 });
+
+      expect(result.changed).toBe(true);
+      expect(result.updatedContent).toBe('---\nbaslik: "Dune"\npuan: 4\n---\n# Body\n');
+      expect(result.updatedContent).not.toMatch(/^puan_kitapyurdu:/m);
+    });
+
+    it('strips a leading blank line immediately after the opening delimiter', () => {
+      const note = '---\n\nbaslik: "Dune"\n---\n# Body\n';
+      const result = updateFrontmatterNonDestructive(note, { okuma_durumu: 'Okundu' });
+
+      expect(result.changed).toBe(true);
+      expect(result.updatedContent).toBe(
+        '---\nbaslik: "Dune"\nokuma_durumu: "Okundu"\n---\n# Body\n'
+      );
+    });
+
+    it('strips leading blank lines even when no property value changes', () => {
+      const note = '---\n\n\nbaslik: "Dune"\n---\n# Body\n';
+      const result = updateFrontmatterNonDestructive(note, {});
+
+      expect(result.changed).toBe(true);
+      expect(result.updatedContent).toBe('---\nbaslik: "Dune"\n---\n# Body\n');
+    });
+  });
+
   describe('Array & Wikilink Formatting', () => {
     it('formats string array as YAML block sequence', () => {
       const note = '---\nbaslik: "Dune"\n---\n';

@@ -7,6 +7,7 @@ import {
 } from '../types';
 import { PropertyMapper } from '../settings/propertyMapping';
 import { renderBookTemplate } from './engine';
+import { hasTemplaterPlugin } from '../utils/templater';
 
 export interface NoteBuilderOptions {
   book: BookMetadata;
@@ -100,6 +101,15 @@ export async function buildBookNoteContent(
 
   // 2. Şablonu frontmatter ve gövdeye ayır
   const { frontmatterRaw, body, hasFrontmatter } = extractFrontmatterAndBody(rawTemplate);
+
+  // Templater değişken bildirimi yalnızca entegrasyon açıkken, şablon gerçekten bir
+  // Templater etiketi (<% ... %>) içeriyorsa ve (varsa) eklenti aktifse enjekte edilir.
+  // Statik/reaktif varsayılan şablonlarda <% etiketi yoktur; YAML frontmatter'a kod sızmaz.
+  const hasTemplaterTag = /<%[\s*_-]?[\s\S]*?%>/.test(rawTemplate);
+  const shouldInjectTemplater =
+    settings.enableTemplaterIntegration &&
+    hasTemplaterTag &&
+    (!app || hasTemplaterPlugin(app));
 
   let finalFrontmatterBlock = '';
 
@@ -208,7 +218,7 @@ export async function buildBookNoteContent(
     const mergedMetadata = { ...customTemplateMetadata, ...mappedMetadata };
     let yamlString = stringifyYaml(mergedMetadata).trimEnd();
 
-    if (settings.enableTemplaterIntegration) {
+    if (shouldInjectTemplater) {
       const templaterHeader = `<%* const book = ${JSON.stringify(book)}; %>\n`;
       finalFrontmatterBlock = `---\n${templaterHeader}${yamlString}\n---`;
     } else {
@@ -217,13 +227,13 @@ export async function buildBookNoteContent(
   } else {
     // Varsayılan frontmatter istenmediyse şablondaki orijinal frontmatter'ı koru
     if (hasFrontmatter) {
-      if (settings.enableTemplaterIntegration) {
+      if (shouldInjectTemplater) {
         const templaterHeader = `<%* const book = ${JSON.stringify(book)}; %>\n`;
         finalFrontmatterBlock = `---\n${templaterHeader}${frontmatterRaw}\n---`;
       } else {
         finalFrontmatterBlock = `---\n${frontmatterRaw}\n---`;
       }
-    } else if (settings.enableTemplaterIntegration) {
+    } else if (shouldInjectTemplater) {
       finalFrontmatterBlock = `---\n<%* const book = ${JSON.stringify(book)}; %>\n---`;
     }
   }

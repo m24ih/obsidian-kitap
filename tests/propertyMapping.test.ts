@@ -198,6 +198,8 @@ describe('YAML Property Mapping & Templater Integration', () => {
       const settings = {
         ...DEFAULT_SETTINGS,
         enableTemplaterIntegration: true,
+        templateMode: 'custom' as const,
+        noteTemplate: '---\ntip: kitap\n---\n# <% book.title %>',
       };
 
       const result = await buildBookNoteContent({
@@ -206,6 +208,24 @@ describe('YAML Property Mapping & Templater Integration', () => {
       });
 
       expect(result).toContain('<%* const book = {"id":"375312"');
+    });
+
+    it('does not inject Templater variable declaration into YAML frontmatter when template has no <% tags', async () => {
+      const settings = {
+        ...DEFAULT_SETTINGS,
+        enableTemplaterIntegration: true,
+        templateMode: 'reactive' as const,
+      };
+
+      const result = await buildBookNoteContent({
+        book: sampleBook,
+        settings,
+      });
+
+      expect(result).not.toContain('<%* const book =');
+      const frontmatterBlock = result.split('\n---')[0];
+      expect(frontmatterBlock.startsWith('---\n')).toBe(true);
+      expect(frontmatterBlock).not.toContain('<%');
     });
 
     it('reads template file from mock vault when templateFile is set', async () => {

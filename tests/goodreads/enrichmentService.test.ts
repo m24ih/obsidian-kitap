@@ -90,6 +90,50 @@ describe('GoodreadsEnrichmentService & mergeEnrichedMetadata (Milestone 4)', () 
       expect(merged.dateReadIso).toBe('2025-11-10');
       expect(merged.readingStatus).toBe('Okundu');
     });
+
+    it('normalizes ISO language codes (TUR -> Türkçe, ENG -> İngilizce) while leaving unknown values untouched', () => {
+      const turkish = mapGoodreadsRow(createSampleRow(), DEFAULT_SETTINGS);
+      turkish.metadata.language = 'TUR';
+      expect(mergeEnrichedMetadata(turkish, {}).metadata.language).toBe('Türkçe');
+
+      // Sağlayıcıdan gelen kod da normalize edilir (CSV'de dil alanı yok).
+      const fromProvider = mapGoodreadsRow(createSampleRow(), DEFAULT_SETTINGS);
+      expect(fromProvider.metadata.language).toBeUndefined();
+      expect(mergeEnrichedMetadata(fromProvider, { language: 'ENG' }).metadata.language).toBe(
+        'İngilizce'
+      );
+
+      const alreadyLabeled = mapGoodreadsRow(createSampleRow(), DEFAULT_SETTINGS);
+      alreadyLabeled.metadata.language = 'Türkçe';
+      expect(mergeEnrichedMetadata(alreadyLabeled, {}).metadata.language).toBe('Türkçe');
+
+      const unknown = mapGoodreadsRow(createSampleRow(), DEFAULT_SETTINGS);
+      unknown.metadata.language = 'Klingon';
+      expect(mergeEnrichedMetadata(unknown, {}).metadata.language).toBe('Klingon');
+    });
+
+    it('falls back to Goodreads additionalAuthors as translator when CSV has no translator', () => {
+      const parsed = mapGoodreadsRow(
+        createSampleRow({ additionalAuthors: 'Dost Körpe' }),
+        DEFAULT_SETTINGS
+      );
+      expect(parsed.metadata.translator).toBeUndefined();
+
+      const merged = mergeEnrichedMetadata(parsed, { author: 'Frank Herbert' });
+      expect(merged.metadata.translator).toBe('Dost Körpe');
+    });
+
+    it('does not use additionalAuthors as translator when the provider author already includes that person', () => {
+      const parsed = mapGoodreadsRow(
+        createSampleRow({ additionalAuthors: 'Dost Körpe' }),
+        DEFAULT_SETTINGS
+      );
+
+      const merged = mergeEnrichedMetadata(parsed, {
+        author: 'Frank Herbert, Dost Körpe',
+      });
+      expect(merged.metadata.translator).toBeUndefined();
+    });
   });
 
   describe('enrichBook query strategy & fallback', () => {

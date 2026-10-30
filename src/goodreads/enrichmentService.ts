@@ -13,6 +13,33 @@ import type { ParsedGoodreadsBook } from './types';
 export const DEFAULT_ENRICHMENT_DELAY_MS = 350;
 
 /**
+ * ISO 639-2/639-1 dil kodlarının Türkçe karşılıkları.
+ * Sağlayıcılar (örn. Kitapyurdu, OpenLibrary) `TUR`, `ENG` gibi kodlar döndürebilir.
+ */
+const LANGUAGE_CODE_LABELS: Record<string, string> = {
+  TUR: 'Türkçe',
+  ENG: 'İngilizce',
+  DEU: 'Almanca',
+  GER: 'Almanca',
+  FRA: 'Fransızca',
+  FRE: 'Fransızca',
+};
+
+/**
+ * ISO dil kodunu Türkçe dil adına çevirir; tanınmayan değerleri olduğu gibi bırakır.
+ */
+function normalizeLanguageLabel(language: string | undefined): string | undefined {
+  if (typeof language !== 'string') {
+    return language;
+  }
+  const trimmed = language.trim();
+  if (!trimmed) {
+    return language;
+  }
+  return LANGUAGE_CODE_LABELS[trimmed.toUpperCase()] ?? language;
+}
+
+/**
  * Merges enriched metadata from an external provider into a CSV-parsed book non-destructively.
  * Preserves CSV fields that are already populated while filling in missing covers and details.
  */
@@ -25,6 +52,17 @@ export function mergeEnrichedMetadata(
   const isPlaceholderOriginalTitle =
     typeof base.originalTitle === 'string' && /^\(\d{1,4}\)$/.test(base.originalTitle.trim());
 
+  // CSV'de çevirmen yoksa Goodreads "Additional Authors" alanı çoğu zaman
+  // çevirmeni taşır. Sağlayıcı yazarı bu kişiyi zaten içermiyorsa çevirmen olarak kullan.
+  let resolvedTranslator = base.translator || providerMeta.translator;
+  if (!resolvedTranslator || !resolvedTranslator.trim()) {
+    const additionalAuthors = (csvBook.raw.additionalAuthors || '').trim();
+    const providerAuthor = (providerMeta.author || '').trim().toLowerCase();
+    if (additionalAuthors && !providerAuthor.includes(additionalAuthors.toLowerCase())) {
+      resolvedTranslator = additionalAuthors;
+    }
+  }
+
   const mergedMetadata: BookMetadata = {
     ...base,
     title: base.title || providerMeta.title || csvBook.cleanTitle,
@@ -33,7 +71,7 @@ export function mergeEnrichedMetadata(
         ? base.author
         : providerMeta.author || base.author,
     publisher: base.publisher || providerMeta.publisher || '',
-    translator: base.translator || providerMeta.translator,
+    translator: resolvedTranslator,
     isbn: base.isbn || providerMeta.isbn || '',
     pages: base.pages !== undefined && base.pages > 0 ? base.pages : providerMeta.pages,
     publishDate: base.publishDate || providerMeta.publishDate,
@@ -54,7 +92,7 @@ export function mergeEnrichedMetadata(
     originalTitle: isPlaceholderOriginalTitle
       ? providerMeta.originalTitle || base.originalTitle
       : base.originalTitle || providerMeta.originalTitle,
-    language: base.language || providerMeta.language,
+    language: normalizeLanguageLabel(base.language || providerMeta.language),
     provider: providerMeta.provider || base.provider,
   };
 

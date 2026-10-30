@@ -24,20 +24,24 @@ export function sanitizeFileName(name: string): string {
     .join('')
     .trim();
 
-  // 2. Başta ve sonda bulunan yasaklı karakterleri ve boşlukları tamamen kaldır
+  // 2. Obsidian'da wikilink ve dosya adlarında yasaklı olan #, ^, [ ve ] karakterlerini
+  //    (örn. seri başlıklarındaki "#1") tamamen kaldır; aksi halde [[wikilink]] bozulur.
+  cleaned = cleaned.replace(/[#^[\]]+/g, '');
+
+  // 3. Başta ve sonda bulunan yasaklı karakterleri ve boşlukları tamamen kaldır
   cleaned = cleaned.replace(/^[\s\\/:*?"<>|]+|[\s\\/:*?"<>|]+$/g, '');
 
-  // 3. Metin ortasında yer alan yasaklı karakter dizilerini " - " ayırıcısına dönüştür
+  // 4. Metin ortasında yer alan yasaklı karakter dizilerini " - " ayırıcısına dönüştür
   cleaned = cleaned.replace(/[\s]*[\\/:*?"<>|]+[\s\\/:*?"<>|]*/g, ' - ');
 
-  // 4. Ardışık oluşan " - - " tekrarlarını tekil " - " haline getir ve fazla boşlukları sadeleştir
+  // 5. Ardışık oluşan " - - " tekrarlarını tekil " - " haline getir ve fazla boşlukları sadeleştir
   cleaned = cleaned
     .replace(/(?:\s*-\s*){2,}/g, ' - ')
     .replace(/\s+/g, ' ')
     .replace(/^[.\s-]+|[.\s-]+$/g, '')
     .trim();
 
-  // 5. Boş kalma veya Windows rezerve dosya adı kontrolü
+  // 6. Boş kalma veya Windows rezerve dosya adı kontrolü
   if (!cleaned || RESERVED_FILENAMES.test(cleaned)) {
     return 'Kitap Notu';
   }

@@ -540,7 +540,7 @@ export function mapGoodreadsRow(
   const rawAuthor = getField(row, 'author', 'Author');
   const rawAuthorLf = getField(row, 'authorLf', 'Author l-f', 'Author l/f');
   const rawAdditionalAuthors = getField(row, 'additionalAuthors', 'Additional Authors');
-  const { combinedAuthor } = parseAuthorList(rawAuthor, rawAuthorLf, rawAdditionalAuthors);
+  const { primaryAuthor } = parseAuthorList(rawAuthor, rawAuthorLf, rawAdditionalAuthors);
 
   // 3. ISBN Resolution
   const rawIsbn = cleanGoodreadsIsbn(getField(row, 'isbn', 'ISBN'));
@@ -594,7 +594,7 @@ export function mapGoodreadsRow(
   // 7. Publication Year
   const rawYear = getField(row, 'yearPublished', 'Year Published');
   const rawOrigYear = getField(row, 'originalPublicationYear', 'Original Publication Year');
-  const { publishDate, originalYear } = parsePublicationYear(rawYear, rawOrigYear);
+  const { publishDate } = parsePublicationYear(rawYear, rawOrigYear);
 
   // 8. Ratings
   const rawMyRating = getField(row, 'myRating', 'My Rating');
@@ -626,7 +626,7 @@ export function mapGoodreadsRow(
     id: `goodreads_${bookId}`,
     url,
     title: rawTitle,
-    author: combinedAuthor,
+    author: primaryAuthor,
     publisher: getField(row, 'publisher', 'Publisher'),
     isbn: primaryIsbn,
     pages,
@@ -635,7 +635,7 @@ export function mapGoodreadsRow(
     readingStatus: shelfResult.status,
     format,
     genres,
-    originalTitle: originalYear ? `(${originalYear})` : undefined,
+    originalTitle: undefined,
     provider: 'goodreads',
   };
 

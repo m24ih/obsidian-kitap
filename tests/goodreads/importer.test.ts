@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GoodreadsImporter } from '../../src/goodreads/importer';
+import { GoodreadsImporter, buildExistingNoteUpdatePatch } from '../../src/goodreads/importer';
 import { GoodreadsEnrichmentService } from '../../src/goodreads/enrichmentService';
 import { parseGoodreadsCsv } from '../../src/goodreads/csvParser';
 import { mapGoodreadsRow } from '../../src/goodreads/mapper';
@@ -234,5 +234,76 @@ describe('GoodreadsImporter Orchestration Suite (Milestone 4)', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].error).toContain('Simulated disk write error');
     expect(result.importedCount).toBe(scanResult.newBooks.length - 1);
+  });
+
+  describe('buildExistingNoteUpdatePatch (existing note field preservation)', () => {
+    it('preserves existing non-empty yayinevi and kapak while updating okuma_durumu and okunan_sayfa', () => {
+      const parsed = mapGoodreadsRow(
+        {
+          title: 'Dune',
+          author: 'Frank Herbert',
+          isbn13: '="9780441172719"',
+          numberOfPages: '712',
+          exclusiveShelf: 'read',
+          dateRead: '2021/02/05',
+        },
+        DEFAULT_SETTINGS
+      );
+
+      const book = {
+        ...parsed,
+        metadata: {
+          ...parsed.metadata,
+          publisher: 'İthaki Yayınları',
+          coverUrl: 'https://img.kitapyurdu.com/dune-cover.jpg',
+        },
+      };
+
+      const existingFrontmatter = {
+        yayinevi: 'Kullanıcının Kendi Yayınevi',
+        kapak: '[[Kitaplar/Kapaklar/Dune - Frank Herbert.jpg]]',
+        sayfa: 712,
+        okuma_durumu: 'Okunuyor',
+      };
+
+      const patch = buildExistingNoteUpdatePatch(book, DEFAULT_SETTINGS, existingFrontmatter);
+
+      expect(patch.okuma_durumu).toBe('Okundu');
+      expect(patch.okunan_sayfa).toBe(712);
+      expect(patch).not.toHaveProperty('yayinevi');
+      expect(patch).not.toHaveProperty('kapak');
+    });
+
+    it('fills yayinevi and kapak only when the existing note leaves them empty', () => {
+      const parsed = mapGoodreadsRow(
+        {
+          title: 'Dune',
+          author: 'Frank Herbert',
+          numberOfPages: '712',
+          exclusiveShelf: 'read',
+        },
+        DEFAULT_SETTINGS
+      );
+
+      const book = {
+        ...parsed,
+        metadata: {
+          ...parsed.metadata,
+          publisher: 'İthaki Yayınları',
+          coverUrl: 'https://img.kitapyurdu.com/dune-cover.jpg',
+        },
+      };
+
+      const patch = buildExistingNoteUpdatePatch(book, DEFAULT_SETTINGS, {
+        yayinevi: '',
+        kapak: '',
+        sayfa: 712,
+      });
+
+      expect(patch.yayinevi).toBe('İthaki Yayınları');
+      expect(patch.kapak).toBe('https://img.kitapyurdu.com/dune-cover.jpg');
+      expect(patch.okuma_durumu).toBe('Okundu');
+      expect(patch.okunan_sayfa).toBe(712);
+    });
   });
 });

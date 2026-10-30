@@ -5,14 +5,15 @@
  * Zero external runtime dependencies. Zero `: any` or `as any` casts.
  */
 
-import { App, normalizePath } from 'obsidian';
+import { App, normalizePath, TFile } from 'obsidian';
 import type KitapPlugin from '../main';
 import { DEFAULT_SETTINGS, type KitapPluginSettings } from '../types';
-import { PropertyMapper } from '../settings/propertyMapping';
+import { PropertyMapper, PropertyMappingOption } from '../settings/propertyMapping';
 import { buildBookNoteContent } from '../templates/noteBuilder';
 import { renderBookTemplate, sanitizeFileName } from '../templates/engine';
 import { downloadBookCover } from '../utils/coverDownloader';
 import { ensureFolderExists } from '../utils/fileUtils';
+import { useTemplaterPluginInFile } from '../utils/templater';
 import { formatReviewSection } from './mapper';
 import { updateFrontmatterNonDestructive } from './frontmatterUpdater';
 import { GoodreadsEnrichmentService } from './enrichmentService';
@@ -23,6 +24,23 @@ import type {
   ImportResult,
   ParsedGoodreadsBook,
 } from './types';
+
+/**
+ * Frontmatter değerinin dolu sayılıp sayılmayacağını belirler.
+ * Boş string, null, undefined ve boş diziler "boş" kabul edilir.
+ */
+function isNonEmptyFrontmatterValue(value: unknown): boolean {
+  if (value === undefined || value === null) {
+    return false;
+  }
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+  return true;
+}
 
 /**
  * Builds frontmatter properties for a newly created book note from Goodreads CSV data,
@@ -65,56 +83,106 @@ export function buildNewNoteFrontmatterPatch(
 
 /**
  * Builds non-destructive frontmatter update properties for an existing book note.
- * Only includes populated fields from the CSV/enriched record so existing vault
- * values are never overwritten with empty strings.
+ * Okuma durumu, kişisel puan ve okunma tarihi her zaman gönderilir; bibliyografik
+ * alanlar yalnızca mevcut notta boş/eksikse doldurulur, böylece kullanıcı verisi ezilmez.
  */
 export function buildExistingNoteUpdatePatch(
   book: ParsedGoodreadsBook,
-  settings: KitapPluginSettings
+  settings: KitapPluginSettings,
+  existingFrontmatter?: Record<string, unknown>
 ): Record<string, unknown> {
   const meta = book.metadata;
+  const existing = existingFrontmatter || {};
   const rawPatch: Record<string, unknown> = {};
 
-  if (book.readingStatus && book.readingStatus.trim()) {
-    rawPatch.okuma_durumu = book.readingStatus.trim();
+  // Eşlenmiş (yeniden adlandırılmış) alan adını çöz; mevcut notta o adı da ara.
+  const mappedKeyFor = (key: string): string => {
+    const mapping = settings.propertyMappings?.find((m) => m.property === key);
+    if (mapping && mapping.mapping === PropertyMappingOption.Map) {
+      const mapped = mapping.newProperty?.trim();
+      if (mapped) {
+        return mapped;
+      }
+    }
+    return key;
+  };
+
+  const isMissingInExisting = (key: string, aliasKeys: string[] = []): boolean => {
+    const candidates = [key, mappedKeyFor(key), ...aliasKeys];
+    return !candidates.some((candidate) => isNonEmptyFrontmatterValue(existing[candidate]));
+  };
+
+  // Kullanıcı durumu: bu alanlar her zaman gönderilir (CSV'de yoksa mevcut değer korunur).
+  rawPatch.okuma_durumu =
+    (book.readingStatus && book.readingStatus.trim()) ||
+    (typeof existing.okuma_durumu === 'string' && existing.okuma_durumu.trim()) ||
+    settings.defaultReadingStatus ||
+    'Okunacak';
+
+  rawPatch.kisisel_puan =
+    book.userRating !== undefined
+      ? book.userRating
+      : isNonEmptyFrontmatterValue(existing.kisisel_puan)
+        ? existing.kisisel_puan
+        : '';
+
+  rawPatch.okunma_tarihi =
+    (book.dateReadIso && book.dateReadIso.trim()) ||
+    (typeof existing.okunma_tarihi === 'string' ? existing.okunma_tarihi : '');
+
+  // "Okundu" kitaplarda okunan sayfa, mevcut sayfa sayısına (yoksa meta.pages) eşitlenir.
+  if (book.readingStatus && book.readingStatus.trim().toLowerCase() === 'okundu') {
+    const existingSayfa = existing.sayfa;
+    const existingSayfaNumber =
+      typeof existingSayfa === 'number'
+        ? existingSayfa
+        : typeof existingSayfa === 'string' && existingSayfa.trim() !== '' && !isNaN(Number(existingSayfa))
+          ? Number(existingSayfa)
+          : 0;
+    const totalPages =
+      existingSayfaNumber > 0
+        ? existingSayfaNumber
+        : meta.pages !== undefined && meta.pages > 0
+          ? meta.pages
+          : 0;
+
+    if (totalPages > 0) {
+      rawPatch.okunan_sayfa = totalPages;
+    }
   }
-  if (book.userRating !== undefined && book.userRating >= 1 && book.userRating <= 5) {
-    rawPatch.kisisel_puan = book.userRating;
-  }
-  if (book.dateReadIso && book.dateReadIso.trim()) {
-    rawPatch.okunma_tarihi = book.dateReadIso.trim();
-  }
-  if (meta.rating !== undefined && meta.rating > 0) {
+
+  // Bibliyografik alanlar: yalnızca mevcut notta boş/eksikse doldur.
+  if (meta.rating !== undefined && meta.rating > 0 && isMissingInExisting('puan', ['puan_kitapyurdu', 'puan_dr'])) {
     rawPatch.puan = meta.rating;
   }
-  if (meta.isbn && meta.isbn.trim()) {
+  if (meta.isbn && meta.isbn.trim() && isMissingInExisting('isbn')) {
     rawPatch.isbn = meta.isbn.trim();
   }
-  if (meta.pages !== undefined && meta.pages > 0) {
+  if (meta.pages !== undefined && meta.pages > 0 && isMissingInExisting('sayfa')) {
     rawPatch.sayfa = meta.pages;
   }
-  if (meta.publisher && meta.publisher.trim()) {
+  if (meta.publisher && meta.publisher.trim() && isMissingInExisting('yayinevi')) {
     rawPatch.yayinevi = meta.publisher.trim();
   }
-  if (meta.translator && meta.translator.trim()) {
+  if (meta.translator && meta.translator.trim() && isMissingInExisting('cevirmen')) {
     rawPatch.cevirmen = meta.translator.trim();
   }
-  if (meta.publishDate && meta.publishDate.trim()) {
+  if (meta.publishDate && meta.publishDate.trim() && isMissingInExisting('yayin_tarihi')) {
     rawPatch.yayin_tarihi = meta.publishDate.trim();
   }
-  if (meta.format && meta.format.trim()) {
+  if (meta.format && meta.format.trim() && isMissingInExisting('format')) {
     rawPatch.format = meta.format.trim();
   }
-  if (meta.genres && meta.genres.length > 0) {
+  if (meta.genres && meta.genres.length > 0 && isMissingInExisting('tur')) {
     rawPatch.tur = meta.genres;
   }
-  if (meta.coverUrl && meta.coverUrl.trim()) {
+  if (meta.coverUrl && meta.coverUrl.trim() && isMissingInExisting('kapak', ['cover', 'coverUrl'])) {
     rawPatch.kapak = meta.coverUrl.trim();
   }
-  if (meta.price && meta.price.trim()) {
+  if (meta.price && meta.price.trim() && isMissingInExisting('fiyat')) {
     rawPatch.fiyat = meta.price.trim();
   }
-  if (meta.language && meta.language.trim()) {
+  if (meta.language && meta.language.trim() && isMissingInExisting('dil')) {
     rawPatch.dil = meta.language.trim();
   }
 
@@ -245,7 +313,14 @@ export class GoodreadsImporter {
         }
 
         if (settings.downloadCovers && book.metadata.coverUrl) {
-          await downloadBookCover(this.app, book.metadata, settings);
+          // Kapak dosya adı seri bilgisi içermesin: geçici olarak temiz başlığı kullan.
+          const originalTitle = book.metadata.title;
+          book.metadata.title = book.cleanTitle || book.metadata.title;
+          try {
+            await downloadBookCover(this.app, book.metadata, settings);
+          } finally {
+            book.metadata.title = originalTitle;
+          }
         }
 
         let noteContent = await buildBookNoteContent({
@@ -271,7 +346,21 @@ export class GoodreadsImporter {
         }
 
         const filePath = this.resolveNoteFilePath(book, targetFolder, settings);
-        await this.app.vault.create(filePath, noteContent);
+        const createdFile = await this.app.vault.create(filePath, noteContent);
+
+        // Templater etiketleri içeren notlarda değişken komutlarını çalıştır.
+        if (
+          settings.enableTemplaterIntegration &&
+          noteContent.includes('<%') &&
+          createdFile instanceof TFile
+        ) {
+          try {
+            await useTemplaterPluginInFile(this.app, createdFile);
+          } catch (templaterErr) {
+            console.warn('Templater çalıştırma hatası:', templaterErr);
+          }
+        }
+
         importedCount++;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -310,12 +399,21 @@ export class GoodreadsImporter {
           }
         }
 
-        if (settings.downloadCovers && book.metadata.coverUrl) {
+        const existingFrontmatter = match.existingNote.frontmatter || {};
+        const hasExistingCover = ['kapak', 'cover', 'coverUrl'].some((key) =>
+          isNonEmptyFrontmatterValue(existingFrontmatter[key])
+        );
+
+        if (settings.downloadCovers && book.metadata.coverUrl && !hasExistingCover) {
           await downloadBookCover(this.app, book.metadata, settings);
         }
 
         const existingContent = await this.app.vault.read(match.existingNote.file);
-        const updatePatch = buildExistingNoteUpdatePatch(book, settings);
+        const updatePatch = buildExistingNoteUpdatePatch(
+          book,
+          settings,
+          existingFrontmatter
+        );
         const { updatedContent, changed } = updateFrontmatterNonDestructive(
           existingContent,
           updatePatch
