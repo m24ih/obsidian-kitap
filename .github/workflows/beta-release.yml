@@ -17,10 +17,13 @@ concurrency:
 jobs:
   beta-release:
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release):')
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -46,7 +49,16 @@ jobs:
         id: prep
         run: |
           BASE_VERSION=$(node -p "require('./manifest.json').version")
-          BETA_TAG="${BASE_VERSION}-beta.${GITHUB_RUN_NUMBER}"
+          
+          # Bu temel versiyona (BASE_VERSION) ait mevcut en yüksek beta numarasını tespit et
+          LATEST_BETA=$(git tag -l "${BASE_VERSION}-beta.*" | sed -E "s/.*-beta\.([0-9]+)/\1/" | sort -n | tail -n 1)
+          if [ -z "$LATEST_BETA" ]; then
+            NEXT_BETA=1
+          else
+            NEXT_BETA=$((LATEST_BETA + 1))
+          fi
+          
+          BETA_TAG="${BASE_VERSION}-beta.${NEXT_BETA}"
           
           # manifest.json içindeki versiyonu beta tag'i ile güncelle (BRAT versiyon tespiti için)
           node -e "
