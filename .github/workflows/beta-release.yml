@@ -6,6 +6,7 @@ on:
       - master
     paths-ignore:
       - "README.md"
+      - "CHANGELOG.md"
       - "docs/**"
       - ".gitignore"
   workflow_dispatch:
@@ -24,6 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Use Node.js
         uses: actions/setup-node@v4
