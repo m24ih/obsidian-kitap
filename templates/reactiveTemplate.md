@@ -55,9 +55,9 @@ dv.paragraph(`<progress value="${percent}" max="100" style="width: 100%; height:
 
 ## ⏳ Okuma Günlüğü
 
-| **Tarih** | **Başlangıç** | **Bitiş** | **Okunan Sayfa** | **Notlar** |
-| :-------: | :-----------: | :-------: | :--------------: | :--------: |
-|           |               |           |                  |            |
+| **Tarih** | **Başlangıç** | **Bitiş** | **Okunan Sayfa** | **Saat** |
+| :-------: | :-----------: | :-------: | :--------------: | :------: |
+|           |               |           |                  |          |
 
 ## 📖 Kitap Açıklaması
 {{description}}

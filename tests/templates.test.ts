@@ -99,7 +99,7 @@ URL: {{url}}`;
       expect(rendered).toContain('## 📝 Notlar & Alıntılar');
       expect(rendered).toContain('## ⏳ Okuma Günlüğü');
       expect(rendered).toContain('| **Alıntı / Not** | **Sayfa** | **Tarih** |');
-      expect(rendered).toContain('| **Tarih** | **Başlangıç** | **Bitiş** | **Okunan Sayfa** | **Notlar** |');
+      expect(rendered).toContain('| **Tarih** | **Başlangıç** | **Bitiş** | **Okunan Sayfa** | **Saat** |');
     });
 
     it('renders DEFAULT_REACTIVE_TEMPLATE cleanly with DataviewJS blocks', () => {
@@ -114,6 +114,7 @@ URL: {{url}}`;
       expect(rendered).toContain('<progress value=');
       expect(rendered).toContain('## 📊 Okuma İlerlemesi');
       expect(rendered).toContain('## ⏳ Okuma Günlüğü');
+      expect(rendered).toContain('| **Tarih** | **Başlangıç** | **Bitiş** | **Okunan Sayfa** | **Saat** |');
       expect(rendered).toContain("k.path : String(k).replace(/^\\[\\[/, '').replace(/\\]\\]$/, '')");
     });
 
